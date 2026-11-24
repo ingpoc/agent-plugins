@@ -10859,9 +10859,9 @@
       }
     },
     "workflow": {
-      "stage": "present",
-      "updated_at": "2026-11-24T10:03:27Z",
-      "now": "2026-11-24T10:03:27Z — Started collection"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T10:03:39Z",
+      "now": "2026-11-24T10:03:39Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 120,
@@ -12185,19 +12185,17 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T10:03:27Z",
+    "last_written_at": "2026-11-24T10:03:39Z",
     "fix_order": {
       "ids": [
-        "DO-4",
-        "ACU-20",
-        "ACU-10",
-        "ACU-21",
-        "PR120-r6-stale-job-finish",
-        "PR120-r6-collect-job-coverage"
+        "DO-11",
+        "DO-5",
+        "PR120-r6-gate-denominator",
+        "DO-7"
       ],
       "by": "Grok Bot",
-      "at": "2026-11-24T07:10:47Z",
-      "reason": "Guru 12:37 IST: local observability viewer is the top lane (new DO-4; --into DO-3 refused because DO-3 is closed). Then product ACU (island, voice tokens, flaky tests). Round-6 waste follows after these four."
+      "at": "2026-11-24T10:03:28Z",
+      "reason": "Viewer polish first, then event stamps, then the gate count and parked-reason gaps"
     },
     "fix_order_history": [
       {
@@ -12222,6 +12220,19 @@
         "by": "Grok Bot",
         "at": "2026-11-24T07:07:47Z",
         "reason": "Guru 12:32 IST: product ACU first (island subagent view, then voice token re-check, then flaky tests), alongside round-6 waste (record a finish after a mid-job plan change, then store model and token source on official finishes)."
+      },
+      {
+        "ids": [
+          "DO-4",
+          "ACU-20",
+          "ACU-10",
+          "ACU-21",
+          "PR120-r6-stale-job-finish",
+          "PR120-r6-collect-job-coverage"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T07:10:47Z",
+        "reason": "Guru 12:37 IST: local observability viewer is the top lane (new DO-4; --into DO-3 refused because DO-3 is closed). Then product ACU (island, voice tokens, flaky tests). Round-6 waste follows after these four."
       }
     ],
     "carried_gates": [
@@ -12435,8 +12446,375 @@
     ],
     "stages_reached": [
       "collect",
-      "present"
-    ]
+      "present",
+      "plan_fix"
+    ],
+    "plan": {
+      "cycle": 13,
+      "round": 1,
+      "groups": [
+        {
+          "id": "R1-DO11",
+          "name": "Polish per-round viewer rows",
+          "label": "DO-11",
+          "finding_ids": [
+            "DO-11"
+          ],
+          "worktree": "bcl121-r1-do11",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/developer-observability/runtime/backend/round_view.py",
+            "plugins/developer-observability/ui/round-view.js",
+            "plugins/developer-observability/ui/template.html",
+            "plugins/developer-observability/ui/dashboard.html",
+            "plugins/developer-observability/tests/test_round_view.py",
+            "plugins/developer-observability/tests/test_mcp.py"
+          ],
+          "reason": "The first ship left eight row-polish notes that belong in one viewer lane.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do11.sh",
+            "method": "Run the per-round view unit tests that cover own-job why, verified tracks, and hidden cache paths.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:03:39Z",
+          "stage_entered_at": "2026-11-24T10:03:39Z"
+        },
+        {
+          "id": "R1-DO5",
+          "name": "Stamp lane and round on job events",
+          "label": "DO-5",
+          "finding_ids": [
+            "DO-5"
+          ],
+          "worktree": "bcl121-r1-do5",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
+            "plugins/batched-change-list/bin/bcl"
+          ],
+          "reason": "Job events still omit the lane, round, model, and version the per-round view needs.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do5.sh",
+            "method": "Run the change-list job lifecycle tests for stamped event fields.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:03:39Z",
+          "stage_entered_at": "2026-11-24T10:03:39Z"
+        },
+        {
+          "id": "R1-GATE",
+          "name": "Gate count should use the merge bar",
+          "label": "PR120-r6-gate",
+          "finding_ids": [
+            "PR120-r6-gate-denominator"
+          ],
+          "worktree": "bcl121-r1-gate",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/check_gate_count.py"
+          ],
+          "reason": "The official gate count still reports the lower report bar instead of the merge bar.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-gate.sh",
+            "method": "Run the gate-count unit tests.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:03:39Z",
+          "stage_entered_at": "2026-11-24T10:03:39Z"
+        },
+        {
+          "id": "R1-DO7",
+          "name": "Store blocked reason and parked target",
+          "label": "DO-7",
+          "finding_ids": [
+            "DO-7"
+          ],
+          "worktree": "bcl121-r1-do7",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py"
+          ],
+          "reason": "Blocked and parked lanes still have no stored reason or target round for the default view.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-121/verify/r1-do7.sh",
+            "method": "Run the change-list findings tests that cover parked and blocked fields.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T10:03:39Z",
+          "stage_entered_at": "2026-11-24T10:03:39Z"
+        },
+        {
+          "id": "R4-106",
+          "name": "Tested verify driver; cleanup cannot change a verdict",
+          "label": "BCL-106",
+          "finding_ids": [
+            "BCL-106"
+          ],
+          "status": "blocked",
+          "parked_to": 2,
+          "reason": "Needs Guru",
+          "failure_history": [
+            {
+              "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
+              "source": "review",
+              "reason": "1. [bcl:877](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/bin/bcl:877) runs the shared check directly, and the lane path also launches its command directly. Neither uses `verify_driver.run_check` or `run_round`; only lane exit-code judging uses the driver. The driver’s shared, lane, and cleanup tests therefore do not cover the actual Verify path. Wire the tested driver into that path and test the integration, including a passing check followed by failed cleanup.\n\n2. [verify_driver.py:56](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:56) self-tests judging but does not exercise a shared check, lane check, or failing cleanup. Its cleanup assertion merely constructs a result with a failed cleanup field, so a broken cleanup implementation can pass the pre-Verify self-test. Exercise those invariants in the self-test and test that a broken invariant is rejected.",
+              "cycle": 12,
+              "round": 4,
+              "at": "2026-11-22T16:50:58Z"
+            },
+            {
+              "attempt_id": "950fe02ac3864e49a2f384cbeecc2994",
+              "source": "review",
+              "reason": "1. [verify_driver.py:73](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:73): Make the self-test detect a skipped shared check. I replaced `run_round` in memory with a wrapper that drops the shared command; `self_test()` still passed.",
+              "cycle": 12,
+              "round": 4,
+              "at": "2026-11-22T17:16:33Z",
+              "plan_answered": true
+            },
+            {
+              "attempt_id": "43677574e10744dcb0f6b2ef6fe0775b",
+              "source": "review",
+              "reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
+              "cycle": 12,
+              "round": 5,
+              "at": "2026-11-24T04:34:33Z",
+              "plan_answered": true
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "4fb1966a00de41d083d1f255cc5d0749",
+              "after_failure": "b5ea26b4662941549d0c44ae290d09cf",
+              "status": "passed",
+              "cycle": 12,
+              "round": 4,
+              "at": "2026-11-22T16:55:41Z"
+            }
+          ],
+          "unblock_history": [
+            {
+              "at": "2026-11-24T04:16:26Z",
+              "reason": "Guru 24 Nov 09:36 IST continue: work the parked R4-106 and R4-171 lanes in round 5 after their plan reviews.",
+              "tool_faults": [],
+              "covered_attempts": [
+                "b5ea26b4662941549d0c44ae290d09cf",
+                "950fe02ac3864e49a2f384cbeecc2994"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 12,
+              "round": 5,
+              "owner_override": true
+            }
+          ],
+          "blocked_reason": "Second failure",
+          "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
+          "codex": {},
+          "phase": "fix",
+          "updated_at": "2026-11-24T10:03:39Z",
+          "stage_entered_at": "2026-11-24T10:03:39Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
+        },
+        {
+          "id": "R4-171",
+          "name": "Collect reads developer-observability findings",
+          "label": "BCL-171",
+          "finding_ids": [
+            "BCL-171"
+          ],
+          "status": "blocked",
+          "parked_to": 2,
+          "reason": "Needs Guru",
+          "failure_history": [
+            {
+              "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
+              "source": "review",
+              "reason": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:69` — The helper uses merged diagnosis freshness to decide whether to collect. The backend takes the newest timestamp from the primary and collector snapshots, so a fresh primary snapshot can mask a stale or missing collector snapshot. Check collector freshness independently.\n2. `plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:74` — Every issue is assigned the collector’s `findings.json` path, although the API also returns findings from the primary source. Primary findings therefore receive an evidence path that may not contain them or may not exist.\n3. `plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:62` — The collector writes its progress message to stdout, ahead of the helper’s JSON. A stale run therefore does not produce valid JSON output. Keep collector output separate from the result.",
+              "cycle": 12,
+              "round": 4,
+              "at": "2026-11-22T16:51:14Z"
+            },
+            {
+              "attempt_id": "361aad2c4f2549f9a06967b8683360b9",
+              "source": "review",
+              "reason": "1. [collect_observability.py:90](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r4-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:90): A fresh collector snapshot is reused without checking whether it covers the requested `--project-dir`. The collector adds that directory only when it runs, so a snapshot collected for another directory can produce an incomplete result for the requested project without warning. Preserve the fresh-snapshot rule, but detect and report insufficient coverage.",
+              "cycle": 12,
+              "round": 4,
+              "at": "2026-11-22T17:10:59Z",
+              "plan_answered": true
+            },
+            {
+              "attempt_id": "4aa9c2cdec454f15858e07e87d23cc4f",
+              "source": "review",
+              "reason": "Reviewer exited 1",
+              "cycle": 12,
+              "round": 5,
+              "at": "2026-11-24T04:35:04Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "060493f71d274cb9b07506247d1f0164",
+              "source": "review",
+              "reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
+              "cycle": 12,
+              "round": 5,
+              "at": "2026-11-24T04:43:44Z",
+              "plan_answered": true
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "bab0c59ab7344f97bff6e6b1da610664",
+              "after_failure": "07bd7bb03ff445c7a4f03af518037466",
+              "status": "passed",
+              "cycle": 12,
+              "round": 4,
+              "at": "2026-11-22T16:55:46Z"
+            }
+          ],
+          "unblock_history": [
+            {
+              "at": "2026-11-24T04:16:26Z",
+              "reason": "Guru 24 Nov 09:36 IST continue: work the parked R4-106 and R4-171 lanes in round 5 after their plan reviews.",
+              "tool_faults": [],
+              "covered_attempts": [
+                "07bd7bb03ff445c7a4f03af518037466",
+                "361aad2c4f2549f9a06967b8683360b9"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 12,
+              "round": 5,
+              "owner_override": true
+            }
+          ],
+          "blocked_reason": "Second failure",
+          "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
+          "codex": {},
+          "phase": "fix",
+          "updated_at": "2026-11-24T10:03:39Z",
+          "stage_entered_at": "2026-11-24T10:03:39Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
+        },
+        {
+          "id": "R2-DO1",
+          "name": "Tracker snapshot commits are not failures",
+          "label": "DO-1",
+          "finding_ids": [
+            "DO-1"
+          ],
+          "parked_to": 2,
+          "reason": "Needs Guru",
+          "failure_history": [
+            {
+              "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
+              "source": "review",
+              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:47:58Z"
+            },
+            {
+              "attempt_id": "97d390f143b64b1f84744481175417da",
+              "source": "plan_review",
+              "reason": "Reviewer exited 1",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:48:55Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "da6ebb99274244d1b7c92e594ab3ed34",
+              "source": "review",
+              "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test.",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:56:04Z"
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "8ed5a5892da64c9383d7cdcd6fcc20b6",
+              "after_failure": "3c9e094c725a400b95a22641c1cf7369",
+              "status": "passed",
+              "cycle": 12,
+              "round": 2,
+              "at": "2026-11-22T13:50:18Z"
+            },
+            {
+              "job_id": "84ed2b23b4db442f802a39aeea6d79ab",
+              "after_failure": "da6ebb99274244d1b7c92e594ab3ed34",
+              "status": "passed",
+              "cycle": 12,
+              "round": 3,
+              "at": "2026-11-22T15:11:59Z"
+            }
+          ],
+          "unblock_history": [
+            {
+              "at": "2026-11-22T14:56:28Z",
+              "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship",
+              "tool_faults": [],
+              "covered_attempts": [
+                "3c9e094c725a400b95a22641c1cf7369",
+                "da6ebb99274244d1b7c92e594ab3ed34"
+              ],
+              "rows_seen": 3,
+              "by_cycle": 12,
+              "round": 2,
+              "owner_override": true
+            }
+          ],
+          "status": "deferred",
+          "phase": "deferred",
+          "codex": {},
+          "updated_at": "2026-11-24T10:03:39Z",
+          "stage_entered_at": "2026-11-24T10:03:39Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
+        }
+      ]
+    }
   },
   "findings": [
     {
