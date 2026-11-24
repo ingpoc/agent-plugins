@@ -10846,6 +10846,76 @@
           "exit_code": 0,
           "finished_at": "2026-11-20T17:18:55Z"
         }
+      },
+      {
+        "id": "pr122-r1-2ecafbab8718d393f4254bcfe336371bcf40d1bd",
+        "build": "batched-change-list 0.1.74 from samantha-next-r12",
+        "revision": "2ecafbab8718d393f4254bcfe336371bcf40d1bd",
+        "installed_at": "2026-11-24T16:54:15Z",
+        "install_evidence": "bcl install-local receipt /Users/gurusharan/.agents/artifacts/bcl-122/r1/install-local-d81ab4c9.txt: revision 2ecafbab8718d393f4254bcfe336371bcf40d1bd; ~/.agents/plugins/batched-change-list 70 files sha256 8a137bb9278331d0d9d2c00ff19f42d0a5acf8135a3d39b48d810f6753359bc7",
+        "cycle": 14,
+        "status": "interrupted",
+        "checks": {
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-166": {
+            "state": "pending"
+          },
+          "BCL-171": {
+            "state": "pending"
+          },
+          "DO-1": {
+            "state": "pending"
+          },
+          "PR120-r6-collect-job-coverage": {
+            "state": "pending"
+          },
+          "DO-6": {
+            "state": "pending"
+          },
+          "DO-8": {
+            "state": "pending"
+          },
+          "DO-11": {
+            "state": "pending"
+          },
+          "PR121-r2-live-state-guard": {
+            "state": "pending"
+          },
+          "DO-13": {
+            "state": "pending"
+          }
+        },
+        "run_id": "pr122-r1-2ecafbab8718d393f4254bcfe336371bcf40d1bd",
+        "pr": 122,
+        "round": 1,
+        "started_at": "2026-11-24T16:54:15Z",
+        "ended_at": "2026-11-24T17:23:44Z"
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -10860,9 +10930,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-24T17:22:19Z",
-      "now": "2026-11-24T17:22:19Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-24T17:24:03Z",
+      "now": "2026-11-24T17:24:03Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 121,
@@ -12275,7 +12345,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T17:22:19Z",
+    "last_written_at": "2026-11-24T17:24:04Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12580,7 +12650,8 @@
       "collect",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "cycle": 14,
@@ -12595,10 +12666,10 @@
           "label": "106",
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "parked_to": 2,
-          "stage_entered_at": "2026-11-24T17:22:19Z",
+          "stage_entered_at": "2026-11-24T17:24:03Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12791,7 +12862,7 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T17:22:09Z",
+          "updated_at": "2026-11-24T17:24:03Z",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r2-106.sh",
             "method": "Run verify_driver tests plus driver self-test and cleanup-keeps-pass bcl tests.",
@@ -13531,11 +13602,11 @@
       ]
     },
     "verification_run": {
-      "id": "pr122-r1-2ecafbab8718d393f4254bcfe336371bcf40d1bd",
+      "id": "pr122-r2-8c4d67ef1b5b00bfe74386b25309736ed7e640e2",
       "build": "batched-change-list 0.1.74 from samantha-next-r12",
-      "revision": "2ecafbab8718d393f4254bcfe336371bcf40d1bd",
-      "installed_at": "2026-11-24T16:54:15Z",
-      "install_evidence": "bcl install-local receipt /Users/gurusharan/.agents/artifacts/bcl-122/r1/install-local-d81ab4c9.txt: revision 2ecafbab8718d393f4254bcfe336371bcf40d1bd; ~/.agents/plugins/batched-change-list 70 files sha256 8a137bb9278331d0d9d2c00ff19f42d0a5acf8135a3d39b48d810f6753359bc7",
+      "revision": "8c4d67ef1b5b00bfe74386b25309736ed7e640e2",
+      "installed_at": "2026-11-24T17:23:03Z",
+      "install_evidence": "bcl install-local receipt /Users/gurusharan/.agents/artifacts/bcl-122/r2/install-local-r2.txt: bcl install-local: revision 8c4d67ef1b5b00bfe74386b25309736ed7e640e2;   /Users/gurusharan/.agents/plugins/batched-change-list (70 files, sha256 8238a11822055b3422ead88d7aca141533cc3d8958b1accfe8c59b05639989b3);   /Users/gurusharan/.agents/skills/batched-change-list (63 files, sha256 31d528e83eeb7aa000aa67a5d3ee17659516c4cc2fc2b129df14bf103b04e8fd);   /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 8238a11822055b3422ead88d7aca141533cc3d8958b1accfe8c59b05639989b3);   /Users/gurusharan/.cursor/plugins/cache/ingpoc-agent-plugins/batched-change-list/8c4d67ef1b5b00bfe74386b25309736ed7e640e2 (70 files, sha256 8238a11822055b3422ead88d7aca141533cc3d8958b1accfe8c59b05639989b3);   /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/0.1.74 (70 files, sha256 8238a11822055b3422ead88d7aca141533cc3d8958b1accfe8c59b05639989b3);   /Users/gurusharan/.codex/plugins/cache/ingpoc-agent-plugins/batched-change-list/8c4d67ef1b5b00bfe74386b25309736ed7e640e2 (70 files, sha256 8238a11822055b3422ead88d7aca141533cc3d8958b1accfe8c59b05639989b3)",
       "cycle": 14,
       "status": "active",
       "checks": {
@@ -13592,12 +13663,15 @@
         },
         "DO-13": {
           "state": "pending"
+        },
+        "PR122-r1-release-deadlock": {
+          "state": "pending"
         }
       },
-      "run_id": "pr122-r1-2ecafbab8718d393f4254bcfe336371bcf40d1bd",
+      "run_id": "pr122-r2-8c4d67ef1b5b00bfe74386b25309736ed7e640e2",
       "pr": 122,
-      "round": 1,
-      "started_at": "2026-11-24T16:54:15Z"
+      "round": 2,
+      "started_at": "2026-11-24T17:23:03Z"
     },
     "introspect": {
       "result": "Introspect recorded",
