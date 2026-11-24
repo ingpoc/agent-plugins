@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T04:19:49Z",
-      "now": "2026-11-24T04:19:49Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T04:28:55Z",
+      "now": "2026-11-24T04:28:55Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13191,18 +13191,19 @@
             "implementer_session": "codex-luna-120-177",
             "reviewer_session": "codex-terra-120-177",
             "job": {
-              "id": "cb5cfe9cf09b4f5da631f68e2db99c30",
+              "id": "554741352ee6416b90b268ec1f8de93d",
               "phase": "plan_review",
-              "started_at": "2026-11-24T04:19:44Z",
-              "command": "run-planreview-r5-177-job.sh",
-              "heartbeat_at": "2026-11-24T04:19:44Z",
-              "plan_sha256": "26ef7de6301d1e3e2eae3ac62e2396bf4986201abc06563a79d9a14062ae5c43",
+              "started_at": "2026-11-24T04:28:55Z",
+              "command": "run-planreview-r5-177-2-job.sh",
+              "heartbeat_at": "2026-11-24T04:28:55Z",
+              "plan_sha256": "341dd807ffcee390f513cf063c756a63d0caf783000aa97b34b8291ed89b56b4",
               "worktree": "bcl120-r5-177",
               "model": "gpt-6.1-terra low (plan review)",
               "cycle": 12,
-              "round": 5,
-              "pid": 24302
-            }
+              "round": 5
+            },
+            "plan_review_status": "changes_requested",
+            "tool_fault_streak": 0
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
@@ -13210,13 +13211,14 @@
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
             "plugins/developer-observability/runtime/collector/bcl_events.py",
+            "plugins/developer-observability/runtime/collector/cli.py",
             "plugins/developer-observability/tests/test_bcl_events_source.py"
           ],
           "reason": "Highest-signal capture work from the round 4 Introspect: write one events log line per stage and job, and let developer-observability read it, including token source or a named gap. Query filters, tiers and UI stay with DO-3. Do not grow SKILL.md. Uses a new collector module so this lane does not share sources.py with deferred DO-1. Does not overlap 171 (collect helper) or the tightened 106 self-test. Plan review before the first fix. Estimate about 120k tokens; split if it exceeds 150k.",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T04:13:34Z",
-          "stage_entered_at": "2026-11-24T04:19:44Z",
+          "updated_at": "2026-11-24T04:28:23Z",
+          "stage_entered_at": "2026-11-24T04:28:55Z",
           "phase": "plan_review"
         },
         {
@@ -13240,7 +13242,7 @@
             "plugins/batched-change-list/skills/batched-change-list/references/collect.md"
           ],
           "reason": "Carried from round 4 after a second counted review. Tight must-fix only: when a fresh collector snapshot is reused, detect and report that it does not cover the requested --project-dir; keep the fresh-snapshot rule. Guru 24 Nov 09:36 IST continue authorized working this parked lane in round 5 after unblock and a plan review. Estimate about 80k tokens.",
-          "status": "running",
+          "status": "review",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13270,10 +13272,29 @@
               "at": "2026-11-22T16:55:46Z"
             }
           ],
-          "codex": {},
-          "phase": "fix",
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "95fb4baae5214c36aa47c7782e7d1f2d",
+              "phase": "fix",
+              "started_at": "2026-11-24T04:19:56Z",
+              "command": "run-luna-171-fix3-job.sh",
+              "heartbeat_at": "2026-11-24T04:28:22Z",
+              "plan_sha256": "26ef7de6301d1e3e2eae3ac62e2396bf4986201abc06563a79d9a14062ae5c43",
+              "worktree": "bcl120-r5-171",
+              "model": "gpt-6-luna fast medium (Codex CLI)",
+              "cycle": 12,
+              "round": 5,
+              "pid": 26086,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T04:28:22Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
+          },
+          "phase": "review",
           "updated_at": "2026-11-24T04:18:49Z",
-          "stage_entered_at": "2026-11-24T04:16:26Z",
+          "stage_entered_at": "2026-11-24T04:28:22Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -13311,7 +13332,7 @@
             "plugins/batched-change-list/skills/batched-change-list/references/verify.md"
           ],
           "reason": "Carried from round 4 after a second counted review. Tight must-fix only: the self-test must detect a skipped shared check. bin/bcl and test_bcl.py stay out so this lane does not overlap 177. Guru 24 Nov 09:36 IST continue authorized working this parked lane in round 5 after unblock and a plan review. Estimate about 80k tokens.",
-          "status": "running",
+          "status": "review",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -13342,23 +13363,28 @@
             }
           ],
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
               "id": "0960c76db8af4fc097c1cb9fd2e315f9",
               "phase": "fix",
               "started_at": "2026-11-24T04:19:49Z",
               "command": "run-luna-106-fix3-job.sh",
-              "heartbeat_at": "2026-11-24T04:19:49Z",
+              "heartbeat_at": "2026-11-24T04:28:22Z",
               "plan_sha256": "26ef7de6301d1e3e2eae3ac62e2396bf4986201abc06563a79d9a14062ae5c43",
               "worktree": "bcl120-r5-106",
               "model": "gpt-6-luna fast medium (Codex CLI)",
               "cycle": 12,
-              "round": 5
-            }
+              "round": 5,
+              "pid": 25131,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T04:28:22Z",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
-          "phase": "fix",
+          "phase": "review",
           "updated_at": "2026-11-24T04:18:49Z",
-          "stage_entered_at": "2026-11-24T04:16:26Z",
+          "stage_entered_at": "2026-11-24T04:28:22Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -13770,7 +13796,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T04:19:50Z"
+    "last_written_at": "2026-11-24T04:28:55Z"
   },
   "findings": [
     {
