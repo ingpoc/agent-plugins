@@ -825,6 +825,7 @@ def _is_junit(path):
 
 def discover_project(directory, stats, project=None):
     directory = Path(directory).expanduser()
+    resolved = str(directory.resolve())
     project = project or directory.name
     for path in _walk(directory):
         rel = path.relative_to(directory).as_posix()
@@ -838,12 +839,14 @@ def discover_project(directory, stats, project=None):
         if source in stats:
             stats[source]['read'] = not bool(stats[source].get('io_errors') or stats[source].get('missing')
                                              or stats[source].get('skipped'))
+            stats[source]['project_dir'] = resolved
     if (directory / '.git').exists():
         source = f'{project}:git'
         yield from iter_git(directory, project, source, stats)
         if source in stats:
             stats[source]['read'] = not bool(stats[source].get('io_errors') or stats[source].get('missing')
                                              or stats[source].get('skipped'))
+            stats[source]['project_dir'] = resolved
 
 
 ROTATED_KEEP = 5
