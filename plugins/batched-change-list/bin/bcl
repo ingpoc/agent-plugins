@@ -203,7 +203,12 @@ def _job_write_retry(record, live, report, base, operations):
                 raise
             time.sleep(0.05 * (attempt + 1))
 
-def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exit_code=None, reply=None, load_override=None):
+REVIEWER_FALLBACK_MODELS = ("gpt-6.2-astra",)
+GROK_BOT_REVIEW = "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
+
+
+def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exit_code=None, reply=None,
+                    load_override=None, fault_kind=None, substitution=None):
     operation = {"action": action, "phase": phase, "ids": ids, "cycle": cycle, "round": round_number,
                  "job_id": job["id"], "timestamp": timestamp, "plan_sha256": job["plan_sha256"]}
     if action == "start-job":
@@ -215,6 +220,10 @@ def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exi
     elif action == "finish-job":
         operation["exit_code"] = exit_code
         operation["reply"] = reply
+        if fault_kind:
+            operation["fault_kind"] = fault_kind
+        if substitution:
+            operation["substitution"] = substitution
     return [operation]
 
 def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None, model=None, load_override=None):
@@ -357,10 +366,81 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             pass
     if phase in workflow_definition.LANE["review_phases"] and reply is None:
         reply = _last_verdict_block(b"".join(output_chunks).decode("utf-8", errors="replace"))
+    finish_fault_kind = None
+    finish_substitution = None
+    output_text = b"".join(output_chunks).decode("utf-8", errors="replace")
+    if (phase in workflow_definition.LANE["review_phases"] and reply is None
+            and manage_findings.reviewer_model_rejected(output_text)):
+        for fallback_model in REVIEWER_FALLBACK_MODELS:
+            retry_env = os.environ.copy()
+            retry_env["BCL_JOB_ID"] = job["id"]
+            retry_env["BCL_REVIEWER_MODEL"] = fallback_model
+            retry_env["BCL_REVIEWER_FALLBACK"] = fallback_model
+            try:
+                retry = subprocess.Popen(command_args, env=retry_env, start_new_session=True,
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            except OSError:
+                break
+            retry_chunks = []
+            def copy_retry():
+                try:
+                    with selectors.DefaultSelector() as selector:
+                        selector.register(retry.stdout, selectors.EVENT_READ, ("stdout", sys.stdout))
+                        selector.register(retry.stderr, selectors.EVENT_READ, ("stderr", sys.stderr))
+                        while selector.get_map():
+                            for ready, _ in selector.select(timeout=1):
+                                pipe = ready.fileobj
+                                key, destination = ready.data
+                                chunk = os.read(pipe.fileno(), 65536)
+                                if not chunk:
+                                    selector.unregister(pipe)
+                                    continue
+                                retry_chunks.append(chunk)
+                                try:
+                                    destination.buffer.write(chunk); destination.buffer.flush()
+                                except (AttributeError, OSError, BrokenPipeError):
+                                    pass
+                except (OSError, ValueError):
+                    pass
+            copier = threading.Thread(target=copy_retry, daemon=True)
+            copier.start()
+            try:
+                code = retry.wait(timeout=3600)
+            except subprocess.TimeoutExpired:
+                code = 124
+                try: os.killpg(retry.pid, 15)
+                except OSError: pass
+            copier.join(timeout=2)
+            retry_text = b"".join(retry_chunks).decode("utf-8", errors="replace")
+            output_chunks.extend(retry_chunks)
+            output_text = output_text + retry_text
+            if result_path:
+                try:
+                    current_result = result_path.stat()
+                    if previous_result is None or (current_result.st_ino, current_result.st_size, current_result.st_mtime_ns) != (previous_result.st_ino, previous_result.st_size, previous_result.st_mtime_ns):
+                        candidate = _last_verdict_block(result_path.read_text(encoding="utf-8"))
+                        if candidate is not None and manage_findings.parse_review_reply(candidate)[0] is not None:
+                            reply = candidate
+                except (OSError, UnicodeError):
+                    pass
+            if reply is None:
+                reply = _last_verdict_block(retry_text)
+            if reply is not None:
+                job["model"] = fallback_model
+                finish_substitution = fallback_model
+                break
+            if not manage_findings.reviewer_model_rejected(retry_text):
+                break
+        if reply is None and manage_findings.reviewer_model_rejected(output_text):
+            finish_fault_kind = "model_rejected"
+            finish_substitution = GROK_BOT_REVIEW
+            job["model"] = GROK_BOT_REVIEW
+            # A later review job can record a Grok Bot verdict without a no-op fix.
     try:
         _job_write_retry(record, live, report, base,
                          _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
-                                         exit_code=code, reply=reply))
+                                         exit_code=code, reply=reply, fault_kind=finish_fault_kind,
+                                         substitution=finish_substitution))
     except Exception as error:
         raise RuntimeError(f"child exited with code {code}; final tracker write failed: {error}") from error
     finished = json.loads(live.read_text())

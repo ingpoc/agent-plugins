@@ -922,6 +922,15 @@ def _plan_folded_into_review(group, failures):
         entry.get("status") == "passed" for entry in _lane_history(group, "plan_review_history")))
 
 
+
+def reviewer_model_rejected(text):
+    """True when Codex refused the reviewer model for this account."""
+    if not isinstance(text, str) or not text:
+        return False
+    lowered = text.casefold()
+    return "model_not_found" in lowered or "is not supported when using Codex with a ChatGPT account" in lowered
+
+
 def job_transition(document, operation):
     tracking, plan, groups = _lane_groups(document, operation.get("ids"))
     phase, action = operation.get("phase"), operation["action"]
@@ -1065,10 +1074,25 @@ def job_transition(document, operation):
                               else INCOMPLETE_REVIEW_REASON if tool_fault
                               else "Changes requested; Must-fix section missing" if incomplete else must_fix)
                     job["must_fix"] = reason
+                    rejected = (operation.get("fault_kind") in ("model_rejected", "model_not_found")
+                                or reviewer_model_rejected(reply) or reviewer_model_rejected(reason))
+                    if rejected:
+                        tool_fault = True
+                        job_tool_fault = True
+                        reason = reason or "Reviewer model was rejected"
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
                         codex["must_fix_note"] = reason
-                        group.update(status="running", phase="fix")
+                        if rejected:
+                            group.update(status="review", phase="review")
+                            substitution = operation.get("substitution")
+                            if isinstance(substitution, str) and substitution.strip():
+                                codex["reviewer_model"] = substitution.strip()
+                                job["model"] = substitution.strip()
+                                job["model_substitution"] = substitution.strip()
+                            job["fault_kind"] = "model_rejected"
+                        else:
+                            group.update(status="running", phase="fix")
                     else:
                         codex["plan_review_status"] = "failed" if incomplete else state
                     # Review findings always enter failure history; plan-review tool faults enter it
@@ -1079,7 +1103,8 @@ def job_transition(document, operation):
                             _record_lane_failure(document, identifier, job_id, phase, reason,
                                                  tool_fault=tool_fault,
                                                  tool_fault_reason=reason if tool_fault else None,
-                                                 fault_kind="runner_exit" if runner_failed else "incomplete_review",
+                                                 fault_kind=("model_rejected" if rejected
+                                                             else "runner_exit" if runner_failed else "incomplete_review"),
                                                  plan_answered=bool(not tool_fault and reply and _section_body(reply, "ROOT CAUSE")
                                                                     and _section_body(reply, "FAILING TEST")))
             else:
