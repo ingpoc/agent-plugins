@@ -313,7 +313,9 @@ if(bcl[2].cls!=='nav-group nav-done'||text(bcl[2].children[0].children[0])!=='Do
         finding = {'id':'ISSUE-01', 'status':'verified_fixed', 'verification_refs':['old receipt']}
         tracking = {'rollover_threshold':1, 'verification_run':{'checks':{'ISSUE-01':{'state':'fixed'}}}}
         self.assertEqual(renderer.rollover_gate([finding], tracking), (1, 1, True))
-        for state in ('checking', 'blocked', 'inconclusive', 'not_fixed'):
+        tracking['verification_run']['checks']['ISSUE-01']['state'] = 'checking'
+        self.assertEqual(renderer.rollover_gate([finding], tracking), (1, 1, True))
+        for state in ('blocked', 'inconclusive', 'not_fixed'):
             with self.subTest(state=state):
                 tracking['verification_run']['checks']['ISSUE-01']['state'] = state
                 self.assertEqual(renderer.rollover_gate([finding], tracking), (0, 1, False))
@@ -1376,7 +1378,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         finding = self.data['findings'][0]
         finding['status'] = 'failing'
         self.data['tracking'] = {'plan': {'round': 1, 'groups': [
-            {'id': 'CORE', 'finding_ids': [finding['id']], 'status': 'deferred'}]}}
+            {'id': 'CORE', 'finding_ids': [finding['id']], 'status': 'deferred', 'parked_to': 2}]}}
         page = renderer.render(self.data, self.base)
         payload = page.split('<script type="application/json" id="findings-data">', 1)[1].split('</script>', 1)[0]
         rendered = json.loads(payload)[0]

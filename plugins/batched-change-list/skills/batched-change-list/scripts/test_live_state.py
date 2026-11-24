@@ -134,24 +134,7 @@ class ViewerLivenessTests(unittest.TestCase):
             self.assertEqual(value['port'], 53366)
             self.assertEqual(popen.call_count, 2)
 
-    def test_legacy_health_requires_pid_and_data_path(self):
-        class Response:
-            status = 200
-            def __enter__(self): return self
-            def __exit__(self, *args): pass
-            def read(self): return json.dumps({'pid': 123, 'path': '/tmp/list.json'}).encode()
-
-        expected = {'pid': 123, 'data': '/tmp/list.json'}
-        with patch.object(live_state.urllib.request, 'urlopen', return_value=Response()):
-            self.assertTrue(live_state._legacy_viewer_matches(5000, expected))
-        with patch.object(live_state.urllib.request, 'urlopen', return_value=Response()):
-            self.assertFalse(live_state._legacy_viewer_matches(5000, {**expected, 'pid': 124}))
-            self.assertFalse(live_state._legacy_viewer_matches(5000, {**expected, 'data': '/tmp/other.json'}))
-        with patch.object(live_state.urllib.request, 'urlopen', return_value=Response()), \
-             patch.object(live_state.json, 'load', return_value=[]):
-            self.assertFalse(live_state._legacy_viewer_matches(5000, expected))
-
-    def test_legacy_record_migrates_without_shutdown_and_starts_for_list(self):
+    def test_viewer_record_without_instance_id_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             state = root / 'viewers' / 'repo--1.json'
@@ -164,24 +147,72 @@ class ViewerLivenessTests(unittest.TestCase):
             state.write_text(json.dumps(old))
             proc = unittest.mock.Mock(pid=456, poll=lambda: None)
             with patch.object(live_state, 'STATE', root), \
-                 patch.object(live_state, 'report_paths', return_value=(page, root)), \
                  patch.object(live_state, '_pid_is_running', return_value=True), \
-                 patch.object(live_state, '_legacy_viewer_matches', return_value=True) as verify, \
-                 patch.object(live_state, '_reserved_ports', return_value=set()), \
-                 patch.object(live_state, '_port_is_free', side_effect=lambda port: port == 53366), \
-                 patch.object(live_state.subprocess, 'Popen', return_value=proc) as popen, \
-                 patch.object(live_state, '_viewer_ready', return_value=True), \
-                 patch.object(live_state.urllib.request, 'urlopen') as urlopen:
-                result = live_state.ensure_viewer('repo/1', {}, live, 'new')
-            verify.assert_called_once_with(5000, old)
-            urlopen.assert_not_called()
-            command = popen.call_args.args[0]
-            self.assertEqual(Path(command[command.index('--data') + 1]).resolve(), live.resolve())
-            self.assertEqual(result['data'], str(live.resolve()))
-            self.assertEqual(result['pid'], 456)
-            self.assertEqual(json.loads(state.read_text())['instance'], result['instance'])
+                 patch.object(live_state.subprocess, 'Popen') as popen:
+                with self.assertRaisesRegex(RuntimeError, 'cannot verify viewer ownership'):
+                    live_state.ensure_viewer('repo/1', {}, live, 'new')
+            popen.assert_not_called()
 
-    def test_unverified_legacy_record_is_left_running_without_replacement(self):
+    def test_rollover_viewers_share_project_state_and_fixed_port(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); state = root / 'state'; live = root / 'live.json'
+            live.write_text('{}')
+            homes = [root / 'first', root / 'second']
+            for home in homes:
+                home.mkdir()
+                (home / 'report').mkdir()
+                (home / 'report/page.html').write_text('<html></html>')
+            records = [dict(home=str(home), snapshot='report/data.json', html='report/page.html',
+                            repo='owner/project', viewer_port=54123) for home in homes]
+            responses = iter((204, 204))
+            class Response:
+                def __init__(self): self.status = next(responses)
+                def __enter__(self): return self
+                def __exit__(self, *args): return False
+            pids = iter((45601, 45602))
+            with patch.object(live_state, 'STATE', state), \
+                 patch.object(live_state, '_pid_is_running', return_value=True), \
+                 patch.object(live_state, '_viewer_responds', return_value=True), \
+                 patch.object(live_state, '_viewer_ready', return_value=True), \
+                 patch.object(live_state, '_port_is_free', return_value=True), \
+                 patch.object(live_state, '_wait_for_port', return_value=True), \
+                 patch.object(live_state.subprocess, 'Popen', side_effect=lambda *a, **k: SimpleNamespace(pid=next(pids))) as popen, \
+                 patch.object(live_state.urllib.request, 'urlopen', side_effect=lambda *a, **k: Response()):
+                first = live_state.ensure_viewer('owner/project/1', records[0], live, 'v1')
+                second = live_state.ensure_viewer('owner/project/2', records[1], live, 'v1')
+            self.assertEqual(first['port'], 54123)
+            self.assertEqual(second['port'], 54123)
+            self.assertEqual(popen.call_count, 2)
+            self.assertTrue((state / 'viewers/owner--project.json').exists())
+
+    def test_project_port_is_reused_and_distinct_across_projects(self):
+        records = {
+            'owner/project/1': {'repo': 'owner/project', 'viewer_port': 54123},
+            'other/project/1': {'repo': 'other/project', 'viewer_port': 54124},
+        }
+        with patch.object(live_state, '_port_is_free', return_value=True):
+            self.assertEqual(live_state._project_port('owner/project', records), 54123)
+            self.assertEqual(live_state._project_port('new/project', records), 53366)
+
+    def test_adoption_refuses_existing_destination_and_report_alias(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); source = root / 'tracker.json'; source.write_text('{}')
+            destination = root / 'state' / 'repo' / '1.json'
+            destination.parent.mkdir(parents=True); destination.write_text('{}')
+            with patch.object(live_state, 'STATE', root / 'state'), \
+                 patch.object(live_state, 'repo_id', return_value='repo'), \
+                 patch.object(live_state, 'list_id', return_value='1'):
+                with self.assertRaisesRegex(ValueError, 'destination already exists'):
+                    live_state.locate(source, adopt=True)
+            destination.unlink()
+            with patch.object(live_state, 'STATE', root / 'state'), \
+                 patch.object(live_state, 'repo_id', return_value='repo'), \
+                 patch.object(live_state, 'list_id', return_value='1'), \
+                 patch.object(live_state, 'git', return_value=str(root)):
+                with self.assertRaisesRegex(ValueError, 'aliases the tracker'):
+                    live_state.locate(source, adopt=True, render_path=source)
+
+    def test_unidentified_viewer_is_left_running_without_replacement(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             state = root / 'viewers' / 'repo--1.json'
@@ -192,12 +223,10 @@ class ViewerLivenessTests(unittest.TestCase):
             state.write_text(json.dumps(old))
             with patch.object(live_state, 'STATE', root), \
                  patch.object(live_state, '_pid_is_running', return_value=True), \
-                 patch.object(live_state, '_legacy_viewer_matches', return_value=False) as verify, \
                  patch.object(live_state.subprocess, 'Popen') as popen, \
                  patch.object(live_state.urllib.request, 'urlopen') as urlopen:
                 with self.assertRaisesRegex(RuntimeError, 'cannot verify viewer ownership'):
                     live_state.ensure_viewer('repo/1', {}, live, 'new')
-            verify.assert_called_once_with(5000, old)
             popen.assert_not_called()
             urlopen.assert_not_called()
 
@@ -429,6 +458,35 @@ class SnapshotTests(unittest.TestCase):
         self.assertFalse(first.is_alive() or second.is_alive())
         self.assertTrue(writer_acquired.is_set())
         self.assertEqual(errors, [])
+
+
+
+
+class LiveStateGuardTests(unittest.TestCase):
+    def test_save_registry_refuses_the_real_state_dir_from_a_test(self):
+        live_root = live_state.default_live_root()
+        registry = live_root / "registry.json"
+        before = registry.read_bytes() if registry.exists() else None
+        with patch.object(live_state, "STATE", live_root), patch.object(live_state, "_LIVE_WRITES_ALLOWED", True):
+            with self.assertRaisesRegex(RuntimeError, "live BCL state from a test"):
+                live_state.save_registry({"example/project/123": {"live": "/tmp/fixture.json"}})
+        after = registry.read_bytes() if registry.exists() else None
+        self.assertEqual(after, before)
+
+    def test_save_registry_allows_a_temporary_state_dir(self):
+        temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
+        state = Path(temp.name) / "state"
+        with patch.object(live_state, "STATE", state):
+            live_state.save_registry({"example/project/123": {"live": str(state / "123.json")}})
+        saved = json.loads((state / "registry.json").read_text())
+        self.assertEqual(saved["example/project/123"]["live"], str(state / "123.json"))
+
+    def test_job_child_cannot_rely_on_an_inherited_allow_flag(self):
+        # The process-local flag is what bcl sets; job children must still be refused
+        # if they import live_state and point STATE at the real tree.
+        self.assertFalse(live_state._LIVE_WRITES_ALLOWED)
+        self.assertIn("unittest", __import__("sys").modules)
+        self.assertTrue(live_state.is_live_state_path(live_state.default_live_root() / "registry.json"))
 
 
 if __name__ == '__main__':

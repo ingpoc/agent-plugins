@@ -556,13 +556,18 @@ class PR96Tests(unittest.TestCase):
         out.mkdir()
         (out / 'findings.json').write_text(json.dumps({'generated_at': STAMP, 'findings': [],
             'coverage_details': {'p:present': {'read_in_collect': True, 'last_event_at': STAMP}},
-            'coverage_gaps': [{'source': 'q:origin-ci'}, {'source': 'p:voice'}]}))
+            'coverage_gaps': [{'source': 'q:origin-ci', 'status': 'missing'},
+                              {'source': 'p:voice', 'status': 'partial', 'age_seconds': 73}]}))
         api = ObservabilityAPI(self.root / 'runtime',
             {'p': {'owners': ['owner:p']}, 'q': {'owners': ['owner:q']}}, None, collected=out)
         self.assertIn('voice', api.issues('p')['coverage'])
         self.assertNotIn('origin-ci', api.issues('p')['coverage'])
         self.assertIn('origin-ci', api.issues('q')['coverage'])
         self.assertNotIn('voice', api.issues('q')['coverage'])
+        detailed = api.issues('p', include_coverage=True)
+        self.assertEqual(detailed['coverage_gaps'], [
+            {'source': 'p:voice', 'status': 'partial', 'age_seconds': 73},
+        ])
 
     def test_ci_summary_creates_bounded_task_with_failing_test(self):
         run = self.root / 'ci-run'

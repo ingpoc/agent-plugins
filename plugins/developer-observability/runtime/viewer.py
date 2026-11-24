@@ -11,6 +11,7 @@ import os
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 RESERVED_PORTS = {8765}
 PORT_FLOOR = 8780
@@ -23,6 +24,7 @@ ALLOWED_TOOLS = {
     "observability_version_scopes",
     "observability_recommendation",
     "observability_decide",
+    "observability_round",
 }
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,14 +100,29 @@ def allocate_port(project, requested=None, state_dir=None, opener=_bind):
     raise OSError(f"no_free_port: could not bind a loopback viewer port ({last_error})")
 
 
+VIEWER_FLAG = "<script>window.DEVOBS_VIEWER=true;</script>"
+VIEWER_MARKER = "<!--DEVOBS_VIEWER-->"
+
+
 def dashboard_html():
     html = (ROOT / "ui" / "dashboard.html").read_text()
-    snippet = "<script>window.DEVOBS_VIEWER=true;</script>"
-    if "DEVOBS_VIEWER" in html:
+    if "window.DEVOBS_VIEWER=true" in html:
         return html
+    if VIEWER_MARKER in html:
+        return html.replace(VIEWER_MARKER, VIEWER_MARKER + VIEWER_FLAG, 1)
     if "<head>" in html:
-        return html.replace("<head>", "<head>" + snippet, 1)
-    return snippet + html
+        return html.replace("<head>", "<head>" + VIEWER_FLAG, 1)
+    return VIEWER_FLAG + html
+
+
+def issues_payload(query):
+    """Resolve the GET API query through the same issue state model as MCP."""
+    if str(ROOT / 'runtime') not in __import__('sys').path:
+        __import__('sys').path.insert(0, str(ROOT / 'runtime'))
+    from backend.issue_state import build_issues
+    value = lambda key, default=None: query.get(key, [default])[0]
+    return build_issues(value('project', 'agent-plugins'), value('pr', 'current'), value('scope', 'now'),
+                        value('from'), value('to'), value('state'), round_id=value('round'), run=value('run'))
 
 
 def tool_payload(name, arguments):
@@ -133,9 +150,29 @@ class ViewerHandler(BaseHTTPRequestHandler):
         self.wfile.write(content if isinstance(content, bytes) else content.encode())
 
     def do_GET(self):
-        path = self.path.split("?", 1)[0]
+        request = urlsplit(self.path)
+        path = request.path
+        port = self.server.server_address[1]
+        if self.headers.get("Host") not in {f"127.0.0.1:{port}", f"localhost:{port}"}:
+            self.send_error(403)
+            return
+        if path == "/api/issues":
+            query = parse_qs(request.query, keep_blank_values=False)
+            try:
+                payload = issues_payload(query)
+                self._send(json.dumps(payload), "application/json; charset=utf-8")
+            except (ValueError, OSError) as error:
+                code = str(error).split(':', 1)[0]
+                status = 400 if code.startswith('invalid_') else 404
+                self._send(json.dumps({"error": code}), "application/json; charset=utf-8", status)
+            return
         if path in ("/", "/dashboard"):
             self._send(dashboard_html(), "text/html; charset=utf-8")
+            return
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
             return
         self.send_error(404)
 

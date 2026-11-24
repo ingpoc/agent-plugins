@@ -33,6 +33,26 @@ class LaneStateTests(unittest.TestCase):
         return {"id": "A", "finding_ids": ["ISSUE-01"], "status": status,
                 "phase": "fix", "codex": {"implementer_session": "impl", **extra}}
 
+    def test_blocked_display_uses_stored_reason(self):
+        group = {"id": "A", "status": "blocked", "blocked_reason": "Waiting for owner"}
+        self.assertEqual(render.lane_display(group, 1)["copy"], "Blocked · Waiting for owner")
+
+    def test_deferred_alias_is_parked_and_uses_stored_target_round(self):
+        group = {"id": "A", "status": "deferred", "parked_to": 4}
+        self.assertEqual(render.plan_status(group), "parked")
+        self.assertEqual(render.lane_display(group, 1)["copy"], "Parked → Round 4")
+        manage_findings.validate_plan_group_fields(group, 1)
+        self.assertEqual(group["status"], "parked")
+
+    def test_set_plan_carries_runtime_block_reason(self):
+        requested = [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "blocked",
+                      "blocked_reason": "Plan supplied reason"}]
+        previous = {"groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+                                "status": "blocked", "phase": "fix",
+                                "blocked_reason": "Runtime owner dependency"}]}
+        manage_findings.carry_plan_runtime_state(requested, previous, True)
+        self.assertEqual(requested[0]["blocked_reason"], "Runtime owner dependency")
+
     def stale_data(self, pid):
         data = json.loads((ROOT / "examples/findings.json").read_text())
         old = "2026-11-18T08:00:00Z"

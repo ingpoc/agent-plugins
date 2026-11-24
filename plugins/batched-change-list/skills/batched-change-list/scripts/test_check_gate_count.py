@@ -182,13 +182,18 @@ class GateCountTests(unittest.TestCase):
         self.assertEqual(check.merge_gate_count(data(16)), (16, 16, True))
 
     def test_documented_gate_count_command_keeps_report_exception(self):
+        self.assertEqual(check.gate_count({"findings": [], "tracking": {}}), (0, 15, True))
         with tempfile.TemporaryDirectory() as directory:
             data = Path(directory) / "tracker.json"
-            data.write_text(json.dumps({"findings": [], "tracking": {}}))
-            result = subprocess.run([sys.executable, str(Path(__file__).with_name("check_gate_count.py")),
-                                     "--data", str(data)], text=True, capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Gate count: 0 of 15; met=true", result.stdout)
+            for count, expected in ((15, "Merge gate: 15 of 16; met=false"),
+                                    (16, "Merge gate: 16 of 16; met=true")):
+                tracker = {"findings": [{"id": f"ISSUE-{i}", "status": "verified_fixed"}
+                                         for i in range(count)], "tracking": {}}
+                data.write_text(json.dumps(tracker))
+                result = subprocess.run([sys.executable, str(Path(__file__).with_name("check_gate_count.py")),
+                                         "--data", str(data)], text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(expected, result.stdout)
 
     def test_invalid_tracker_fails_loudly(self):
         with tempfile.TemporaryDirectory() as directory:

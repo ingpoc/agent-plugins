@@ -74,12 +74,12 @@ class ViewerHttpTests(unittest.TestCase):
         self.addCleanup(self.httpd.shutdown)
         self.addCleanup(self.httpd.server_close)
 
-    def test_page_is_the_existing_dashboard_with_http_flag(self):
+    def test_page_is_the_calm_dashboard_with_http_flag(self):
         from urllib.request import urlopen
         page = urlopen(self.url, timeout=5).read().decode()
-        self.assertIn("DEVOBS_VIEWER", page)
-        self.assertIn("See what needs attention.", page)
-        self.assertIn('id="text-smaller"', page)
+        self.assertIn("window.DEVOBS_VIEWER=true", page)
+        self.assertIn("Needs you", page)
+        self.assertIn('id="smaller"', page)
         self.assertNotIn("maximum-scale", page)
         self.assertNotIn("user-scalable=no", page)
 
@@ -113,17 +113,52 @@ class ViewerHttpTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 403)
 
 
+
+class ViewerFlagInjectionTests(unittest.TestCase):
+    def test_flag_is_injected_when_bundle_already_mentions_the_name(self):
+        import tempfile
+        from pathlib import Path
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ui = Path(tmp.name) / "ui"
+        ui.mkdir()
+        (ui / "dashboard.html").write_text("<head><script>globalThis.DEVOBS_VIEWER</script></head>")
+        original = viewer.ROOT
+        viewer.ROOT = Path(tmp.name)
+        self.addCleanup(lambda: setattr(viewer, "ROOT", original))
+        page = viewer.dashboard_html()
+        self.assertIn("window.DEVOBS_VIEWER=true", page)
+        self.assertTrue(page.index("window.DEVOBS_VIEWER=true") != page.index("globalThis.DEVOBS_VIEWER"))
+
+    def test_marker_is_preferred_injection_point(self):
+        import tempfile
+        from pathlib import Path
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ui = Path(tmp.name) / "ui"
+        ui.mkdir()
+        (ui / "dashboard.html").write_text("<html><!--DEVOBS_VIEWER--><body></body></html>")
+        original = viewer.ROOT
+        viewer.ROOT = Path(tmp.name)
+        self.addCleanup(lambda: setattr(viewer, "ROOT", original))
+        page = viewer.dashboard_html()
+        self.assertIn("<!--DEVOBS_VIEWER--><script>window.DEVOBS_VIEWER=true;</script>", page)
+
+
 class ViewerPageContractTests(unittest.TestCase):
-    def test_dashboard_build_keeps_zoom_and_http_transport(self):
+    def test_dashboard_build_keeps_zoom_and_scope_transport(self):
         source = (ROOT / "ui" / "app.js").read_text()
         template = (ROOT / "ui" / "template.html").read_text()
         self.assertIn("DEVOBS_VIEWER", source)
-        self.assertIn("installTextSizeControls", source)
-        self.assertIn("text-smaller", template)
+        self.assertIn("generation", source)
+        self.assertIn("api/issues", source)
+        self.assertIn('id="smaller"', template)
+        self.assertIn('id="larger"', template)
         self.assertIn("width=device-width,initial-scale=1", template)
         self.assertNotIn("maximum-scale", template)
         self.assertNotIn("user-scalable=no", template)
-        self.assertIn("Round summary", source)
+        self.assertIn("Round lens", template)
+        self.assertIn("Timeframe", template)
 
 
 if __name__ == "__main__":

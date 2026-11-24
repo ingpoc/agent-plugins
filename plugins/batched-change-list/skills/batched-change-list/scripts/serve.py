@@ -149,6 +149,8 @@ def main():
     data = args.data.resolve(strict=True) if args.data else None
     if data and (not data.is_file() or data.suffix.lower() != '.json'):
         parser.error('--data must be a JSON file')
+    if data and live_state._same_path(page, data):
+        parser.error('report must not alias the tracker data file')
     inventory = args.inventory.resolve(strict=True) if args.inventory else None
     if inventory and (not inventory.is_file() or inventory.suffix.lower() != '.json'):
         parser.error('--inventory must be a JSON file')

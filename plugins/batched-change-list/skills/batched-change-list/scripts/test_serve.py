@@ -26,6 +26,19 @@ def stop_server(server, thread):
 
 
 class ServerTests(unittest.TestCase):
+    def test_report_aliasing_tracker_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'tracker.json'
+            data.write_text('{}')
+            report = root / 'report.html'
+            os.link(data, report)
+            with patch('sys.argv', ['serve.py', str(report), '--data', str(data)]), \
+                 contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as error:
+                    server_module.main()
+            self.assertEqual(error.exception.code, 2)
+
     def test_page_not_stale_during_active_round(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

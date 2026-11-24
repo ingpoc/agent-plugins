@@ -13,6 +13,7 @@ from unittest.mock import patch
 import check_introspect
 import manage_findings
 import workflow_definition
+import render
 import check_install_sessions
 
 try:
@@ -26,6 +27,56 @@ RENDERER = Path(__file__).with_name("render.py")
 
 
 class ManageFindingsTests(unittest.TestCase):
+    def test_capture_issue_metadata_keeps_state_origin_failure_and_stored_gate(self):
+        before = {"findings": [{"id": "DO-4", "status": "pending", "created_at": "2026-11-23T09:00:00Z"}],
+                  "tracking": {"round": 1, "pull_request": {"number": 121},
+                               "plan": {"round": 1, "groups": []},
+                               "gate": {"merge_previous_pr_threshold": 12}}}
+        after = copy.deepcopy(before)
+        after["findings"][0]["status"] = "blocked"
+        after["tracking"]["round"] = 2
+        after["tracking"]["plan"] = {"round": 2, "groups": [{"id": "R2-DO4", "finding_ids": ["DO-4"],
+                                                               "failure_history": [{"at": "2026-11-24T10:00:00Z", "source": "review"}]}]}
+        manage_findings.capture_issue_metadata(after, before, [{"id": "DO-4", "action": "update"}], "2026-11-24T10:01:00Z")
+        finding = after["findings"][0]
+        self.assertEqual(finding["first_seen"], {"at": "2026-11-23T09:00:00Z", "pr": 121, "round": 2, "source": "created_at"})
+        self.assertEqual(finding["state_changes"][-1]["to"], "blocked")
+        self.assertEqual(finding["last_seen"], {"at": "2026-11-24T10:00:00Z", "source": "review"})
+        self.assertEqual(after["tracking"]["round_started_at"], "2026-11-24T10:01:00Z")
+        self.assertIsNone(after["tracking"]["pull_request"]["opened_at"])
+        self.assertEqual(after["tracking"]["gate"]["merge_previous_pr_threshold"], 12)
+
+    def test_capture_fills_opened_at_and_default_gate(self):
+        before = {"findings": [{"id": "DO-4", "status": "untested", "created_at": "2026-11-23T09:00:00Z"}],
+                  "tracking": {"round": 1, "pull_request": {"number": 121, "opened_at": None},
+                               "pull_request_opened_at": "2026-11-24T08:30:00Z",
+                               "plan": {"round": 1, "groups": []}}}
+        after = copy.deepcopy(before)
+        manage_findings.capture_issue_metadata(after, before, [], "2026-11-24T10:01:00Z")
+        self.assertEqual(after["tracking"]["pull_request"]["opened_at"], "2026-11-24T08:30:00Z")
+        self.assertEqual(after["tracking"]["gate"]["merge_previous_pr_threshold"], 16)
+        self.assertEqual(after["tracking"]["gate"]["report_threshold"], 15)
+
+    def test_owner_rejection_records_regression_transition(self):
+        document = {"findings": [{"id": "DO-4", "status": "verified"}], "tracking": {"round": 2, "plan": {"round": 2}}}
+        manage_findings.capture_issue_metadata(document, {"findings": [{"id": "DO-4", "status": "verified"}],
+                                                  "tracking": {"round": 2, "plan": {"round": 2}}},
+                                                [{"id": "DO-4", "action": "update", "reopen": True}], "2026-11-24T10:01:00Z")
+        self.assertEqual(document["findings"][0]["state_changes"][-1]["to"], "regressed")
+        self.assertEqual(document["findings"][0]["state_changes"][-1]["source"], "owner_rejected")
+
+    def test_later_failed_check_regresses_a_resolved_finding(self):
+        before = {"findings": [{"id": "DO-4", "status": "verified",
+                                "state_changes": [{"at": "2026-11-24T10:00:00Z", "from": "in_progress",
+                                                  "to": "resolved", "source": "verification"}]}],
+                  "tracking": {"round": 2, "plan": {"round": 2}, "verification_run": {"checks": {
+                      "DO-4": {"state": "failed", "finished_at": "2026-11-24T10:30:00Z"}}}}}
+        after = copy.deepcopy(before)
+        manage_findings.capture_issue_metadata(after, before, [], "2026-11-24T10:31:00Z")
+        finding = after["findings"][0]
+        self.assertEqual(finding["state_changes"][-1], {"at": "2026-11-24T10:30:00Z", "from": "resolved",
+                                                         "to": "regressed", "source": "verification_check"})
+
     def test_stage_stamp_tracks_complete_derived_transitions_and_ignores_heartbeat(self):
         before = {"tracking": {"plan": {"groups": [{"id": "A", "status": "running", "phase": "fix",
             "codex": {"job": {"phase": "plan_review"}}}]}}}
@@ -825,10 +876,15 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(len(result_item['details']['Fact 8']), 600)
         self.assertEqual([r['reference'] for r in result_item['verification_evidence']],
                          ['pass-new','fail-new','reference-neutral'])
-        first_bytes = self.data.read_bytes()
+        first = json.loads(self.data.read_text())
         again = self.cli('compact', self.data)
         self.assertEqual(again.returncode, 0, again.stderr)
-        self.assertEqual(self.data.read_bytes(), first_bytes)
+        second = json.loads(self.data.read_text())
+        self.assertTrue(first["tracking"].get("last_written_at"))
+        self.assertTrue(second["tracking"].get("last_written_at"))
+        first["tracking"].pop("last_written_at")
+        second["tracking"].pop("last_written_at")
+        self.assertEqual(first, second)
 
     def test_plan_fix_cannot_restart_before_current_introspect(self):
         plan = {'action':'set-plan','plan':{'round':1,'groups':[{'id':'A','name':'Plain group','finding_ids':['ISSUE-01'],'depends_on':[],'status':'pending','worktree':'fix-a','codex':{'implementer_session':'writer','reviewer_session':'reviewer'}}]}}
@@ -1488,7 +1544,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(groups[0]["plan_review_history"][0]["after_failure"], "failed")
         self.assertEqual(groups[0]["unblock_history"][0]["reason"], "owner")
 
-    def test_new_round_keeps_verified_lanes_verified_and_carried_lanes_as_requested(self):
+    def test_new_round_preserves_verified_lane_gate_history_and_carried_lanes(self):
         prior = {"groups": [
             {"id": "V", "finding_ids": ["ISSUE-01"], "status": "verified", "phase": "done",
              "failure_history": [{"attempt_id": "old", "source": "review", "at": "2026-11-21T00:00:00Z"}],
@@ -1496,9 +1552,14 @@ class ManageFindingsTests(unittest.TestCase):
             {"id": "C", "finding_ids": ["ISSUE-02"], "status": "running", "phase": "review",
              "failure_history": [{"attempt_id": "f1", "source": "review", "at": "2026-11-21T00:00:00Z"}]}]}
         groups = [{"id": "C", "finding_ids": ["ISSUE-02"], "status": "deferred", "phase": "deferred"}]
-        manage_findings.carry_plan_runtime_state(groups, prior, False)  # V omitted: allowed in a new round
-        self.assertEqual((groups[0]["status"], groups[0]["phase"]), ("deferred", "deferred"))
-        self.assertEqual(groups[0]["failure_history"][0]["attempt_id"], "f1")
+        with self.assertRaisesRegex(ValueError, "gated lane V"):
+            manage_findings.carry_plan_runtime_state(groups, prior, False)
+        groups = [{"id": "V", "finding_ids": ["ISSUE-01"], "status": "planned"}, *groups]
+        manage_findings.carry_plan_runtime_state(groups, prior, False)
+        self.assertEqual((groups[0]["status"], groups[0]["failure_history"][0]["attempt_id"]),
+                         ("verified", "old"))
+        self.assertEqual((groups[1]["status"], groups[1]["phase"]), ("deferred", "deferred"))
+        self.assertEqual(groups[1]["failure_history"][0]["attempt_id"], "f1")
         kept = [{"id": "V", "finding_ids": ["ISSUE-01"], "status": "planned"},
                 {"id": "C", "finding_ids": ["ISSUE-02"], "status": "planned"}]
         manage_findings.carry_plan_runtime_state(kept, prior, False)
@@ -1945,6 +2006,85 @@ class ManageFindingsTests(unittest.TestCase):
         if force:
             args.append("--force")
         return self.cli(*args)
+
+    def test_blocked_lane_status_cannot_be_cleared_by_plan_group_writer(self):
+        document = copy.deepcopy(self.document)
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": [document["findings"][0]["id"]], "status": "blocked",
+            "phase": "fix", "blocked_reason": "Two failures", "failure_block_reason": "review failed",
+            "failure_history": [{"attempt_id": "f1", "source": "review"},
+                                {"attempt_id": "f2", "source": "review"}],
+        }]}}
+        result = self._replay_batch(document, {"action": "update-plan-group", "id": "A",
+                                               "patch": {"status": "planned"}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("bcl unblock --reason", result.stderr)
+
+    def test_plan_and_finding_edits_are_blocked_while_a_job_runs(self):
+        document = copy.deepcopy(self.document)
+        finding_id = document["findings"][0]["id"]
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": [finding_id], "status": "running", "phase": "fix",
+            "codex": {"job": {"id": "active", "phase": "fix", "cycle": 1, "round": 1}},
+        }]}}
+        before = copy.deepcopy(document)
+        for operation in ({"action": "update", "id": finding_id, "patch": {"summary": "Changed"}},
+                          {"action": "set-plan", "plan": {"round": 1, "groups": [
+                              {"id": "A", "finding_ids": [finding_id], "status": "planned"}]}}):
+            result = self._replay_batch(document, operation)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("blocked while a job is running", result.stderr)
+            self.assertEqual(json.loads(self.data.read_text()), before)
+
+    def test_plan_write_carries_review_caps_without_claiming_new_values(self):
+        prior = {"cycle": 1, "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+                 "status": "planned", "plan_review_count": 4, "plan_review_passes": 2}]}
+        requested = [{"id": "A", "finding_ids": ["ISSUE-01"], "status": "planned"}]
+        manage_findings.carry_plan_runtime_state(requested, prior, False)
+        self.assertEqual(requested[0]["plan_review_count"], 4)
+        self.assertEqual(requested[0]["plan_review_passes"], 2)
+
+    def test_reused_lane_id_cannot_drop_gate_history_after_verification(self):
+        prior = {"cycle": 1, "round": 1, "groups": [{"id": "A", "finding_ids": ["ISSUE-01"],
+                 "status": "verified", "phase": "verify",
+                 "plan_review_history": [{"job_id": "review-1", "status": "passed"}]}]}
+        requested = [{"id": "A", "finding_ids": ["ISSUE-02"], "status": "planned"}]
+        with self.assertRaisesRegex(ValueError, "gated lane A"):
+            manage_findings.carry_plan_runtime_state(requested, prior, False)
+
+    def test_passing_verify_records_findings_and_lane_in_one_batch(self):
+        document = copy.deepcopy(self.document)
+        finding_id = document["findings"][0]["id"]
+        document["findings"][0]["status"] = "in_progress"
+        group = {"id": "A", "finding_ids": [finding_id], "status": "verifying", "phase": "verify",
+                 "verify": {"command": "python3 -m unittest"}}
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1,
+            "groups": [group]}}
+        plan_sha256 = manage_findings.plan_candidate_sha256(document["tracking"]["plan"])
+        result = self._replay_batch(document, {"action": "finish-verification", "ids": [finding_id],
+            "plan_sha256": plan_sha256, "command": "python3 -m unittest",
+            "timestamp": "2026-11-24T10:00:00Z"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        self.assertEqual(saved["findings"][0]["status"], "verified_fixed")
+        self.assertTrue(saved["findings"][0]["verification_refs"])
+        self.assertEqual(saved["tracking"]["plan"]["groups"][0]["status"], "verified")
+
+    def test_batch_finalizer_leaves_unrelated_lane_byte_identical(self):
+        document = copy.deepcopy(self.document)
+        first, second = [item["id"] for item in document["findings"][:2]]
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [
+            {"id": "A", "finding_ids": [first], "status": "verifying", "phase": "verify"},
+            {"id": "B", "finding_ids": [second], "status": "blocked", "phase": "fix",
+             "blocked_reason": "Waiting on owner", "failure_history": [{"attempt_id": "old"}]},
+        ]}}
+        original_b = json.dumps(document["tracking"]["plan"]["groups"][1], separators=(",", ":"))
+        result = self._replay_batch(document, {"action": "update", "id": first,
+                                               "patch": {"observed": "Retested one issue."}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved_b = json.dumps(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][1],
+                             separators=(",", ":"))
+        self.assertEqual(saved_b, original_b)
 
     def test_review_lane_rejects_new_membership_while_standalone_add_succeeds(self):
         document = copy.deepcopy(self.document)
@@ -2528,7 +2668,7 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         saved = json.loads(self.data.read_text())["tracking"]["plan"]
         lane_a = next(group for group in saved["groups"] if group["id"] == "A")
-        self.assertEqual(lane_a["status"], "deferred")
+        self.assertEqual(lane_a["status"], "parked")
         self.assertEqual(lane_a["parked_to"], 3)
         self.assertEqual(len(manage_findings._counted_failures(lane_a["failure_history"])), 1)
 
@@ -2710,7 +2850,7 @@ class ManageFindingsTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 saved = json.loads(self.data.read_text())
                 saved_group = saved["tracking"]["plan"]["groups"][0]
-                self.assertEqual((saved_group["status"], saved_group["phase"]), ("deferred", "deferred"))
+                self.assertEqual((saved_group["status"], saved_group["phase"]), ("parked", "deferred"))
                 self.assertEqual(saved_group["codex"]["review_status"], "changes_requested")
                 self.assertEqual(saved_group["failure_history"], [{"attempt": 1, "status": "failed"}])
                 self.assertEqual(manage_findings.release_check_payload(saved)["lanes"], [])
@@ -2869,6 +3009,66 @@ class ManageFindingsTests(unittest.TestCase):
         html = page.read_text()
         self.assertIn("Checks pending", html)
         self.assertNotIn("Blocked · Remaining issue checks pending", html)
+
+    def test_listing_tool_faults_does_not_block_a_verified_lane(self):
+        group = {
+            "id": "A",
+            "status": "verified",
+            "phase": "verify",
+            "finding_ids": ["ISSUE-01"],
+            "failure_history": [
+                {"attempt_id": "a1", "source": "review", "at": "2026-11-01T00:00:00Z", "reason": "one"},
+                {"attempt_id": "a2", "source": "review", "at": "2026-11-02T00:00:00Z", "reason": "two"},
+            ],
+        }
+        document = {
+            "findings": [{"id": "ISSUE-01", "status": "verified_fixed"}],
+            "tracking": {"plan": {"cycle": 1, "round": 1, "groups": [group]}},
+        }
+        before = json.dumps(document, sort_keys=True)
+        report = manage_findings.resort_failures(document, {"apply": False})
+        self.assertEqual(group["status"], "verified")
+        self.assertIsNone(group.get("blocked_reason"))
+        self.assertEqual(json.dumps(document, sort_keys=True), before)
+        self.assertFalse(report["applied"])
+        # A write still applies the two-failure gate.
+        rows = manage_findings._lane_history(group, "failure_history")
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(group["status"], "blocked")
+
+    def test_in_progress_check_does_not_unverify_or_block_a_verified_lane(self):
+        self.assertTrue(render.check_keeps_verified({"state": "checking"}))
+        self.assertTrue(render.check_keeps_verified({"state": "pending"}))
+        self.assertTrue(render.check_keeps_verified({"state": "fixed"}))
+        self.assertFalse(render.check_keeps_verified({"state": "not_fixed"}))
+        self.assertFalse(render.check_keeps_verified({"state": "blocked"}))
+        self.assertTrue(render.check_keeps_verified({"state": "inconclusive", "stopped": True}))
+        previous = {
+            "findings": [{
+                "id": "ISSUE-01", "status": "verified_fixed",
+                "verification_refs": ["verify command passed: check.sh (exit 0)"],
+            }],
+            "tracking": {
+                "plan": {"round": 1, "cycle": 1, "groups": [{
+                    "id": "A", "status": "verified", "phase": "verify",
+                    "finding_ids": ["ISSUE-01"],
+                    "failure_history": [{"attempt_id": "f1", "source": "review", "reason": "earlier"}],
+                }]},
+                "verification_run": {"id": "run-1", "status": "active", "checks": {
+                    "ISSUE-01": {"state": "fixed"},
+                }},
+            },
+        }
+        current = json.loads(json.dumps(previous))
+        current["tracking"]["verification_run"]["checks"]["ISSUE-01"] = {
+            "state": "checking", "recheck": True,
+            "previous_checks": [{"state": "fixed"}],
+        }
+        manage_findings.invalidate_dependents(current, previous)
+        group = current["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "verified")
+        self.assertIsNone(group.get("blocked_reason"))
+        self.assertEqual(current["findings"][0]["status"], "verified_fixed")
 
 
 

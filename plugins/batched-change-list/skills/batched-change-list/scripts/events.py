@@ -25,9 +25,31 @@ def append(list_path: str | Path, event: dict, state_dir: str | Path | None = No
 
 
 def job_event(list_path: str | Path, job_id: str, kind: str, *, state_dir=None, **fields) -> None:
+    """Persist job fields, filling explicit finding membership from a JSON tracker when available."""
     if kind not in {"start", "finish", "failed_start", "incomplete"}:
         raise ValueError(f"unsupported job event: {kind}")
+    if "finding_ids" not in fields:
+        fields["finding_ids"] = _job_finding_ids(list_path, fields.get("group_id"))
+    elif not isinstance(fields["finding_ids"], list):
+        raise ValueError("finding_ids must be a list")
+    else:
+        fields["finding_ids"] = list(dict.fromkeys(str(value) for value in fields["finding_ids"] if str(value)))
     append(list_path, {"event": kind, "job_id": job_id, "at": datetime.now(timezone.utc).isoformat(), **fields}, state_dir)
+
+
+def _job_finding_ids(list_path, group_id):
+    if not group_id:
+        return []
+    try:
+        document = json.loads(Path(list_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    tracking = document.get("tracking") if isinstance(document, dict) else None
+    plan = tracking.get("plan") if isinstance(tracking, dict) and isinstance(tracking.get("plan"), dict) else {}
+    groups = plan.get("groups") if isinstance(plan.get("groups"), list) else []
+    return list(next((group.get("finding_ids", []) for group in groups
+                      if isinstance(group, dict) and group.get("id") == group_id
+                      and isinstance(group.get("finding_ids"), list)), []))
 
 
 def stage_event(list_path: str | Path, stage: str, kind: str, *, state_dir=None, **fields) -> None:

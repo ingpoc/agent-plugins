@@ -48,11 +48,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         data = json.loads(args.data.read_text(encoding="utf-8"))
-        fixed, threshold, met = gate_count(data)
+        fixed, threshold, met = merge_gate_count(data)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"FAIL: {error}; fix: provide a valid live tracker and rerun the gate count", file=sys.stderr)
         return 1
-    print(f"Gate count: {fixed} of {threshold}; met={str(met).lower()}")
+    print(f"Merge gate: {fixed} of {threshold}; met={str(met).lower()}")
     return 0
 
 
