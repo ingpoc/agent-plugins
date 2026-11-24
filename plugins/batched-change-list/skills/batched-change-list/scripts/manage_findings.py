@@ -1538,6 +1538,50 @@ def compact_document(document):
     return document
 
 
+
+def _pr_from_tracking(tracking):
+    pull = tracking.get("pull_request") if isinstance(tracking, dict) and isinstance(tracking.get("pull_request"), dict) else {}
+    for key in ("number", "id", "label"):
+        value = pull.get(key)
+        if value is None:
+            continue
+        text = str(value)
+        digits = "".join(ch for ch in text if ch.isdigit())
+        if digits:
+            return int(digits)
+    return None
+
+
+def _run_ended_at(run, fallback=None):
+    checks = run.get("checks") if isinstance(run.get("checks"), dict) else {}
+    times = [value for check in checks.values() if isinstance(check, dict)
+             for value in (check.get("finished_at"), check.get("updated_at")) if value]
+    stopped = run.get("stopped")
+    if isinstance(stopped, dict) and stopped.get("at"):
+        times.append(stopped["at"])
+    if run.get("ended_at"):
+        times.append(run["ended_at"])
+    return max(times) if times else fallback
+
+
+def annotate_verification_run(run, tracking, *, ended=False, ended_at=None, now=None):
+    """Stamp run_id, pr, round, started_at and ended_at onto a verification run (DO-12)."""
+    if not isinstance(run, dict):
+        return run
+    stamp = now or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    run["run_id"] = run.get("run_id") or run.get("id")
+    if run.get("pr") in (None, ""):
+        run["pr"] = _pr_from_tracking(tracking)
+    if run.get("round") is None:
+        plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+        run["round"] = tracking.get("round") or plan.get("round")
+    if not run.get("started_at"):
+        run["started_at"] = run.get("installed_at") or stamp
+    if ended:
+        run["ended_at"] = ended_at or _run_ended_at(run, stamp)
+    return run
+
+
 def verification_action(document, findings, operation):
     tracking = document.setdefault("tracking", {})
     if not isinstance(tracking, dict):
@@ -1583,9 +1627,12 @@ def verification_action(document, findings, operation):
         if new["id"] in [x.get("id") for x in history] or (isinstance(run, dict) and new["id"] == run.get("id")):
             raise ValueError("verification run id must be unique")
         if run:
-            history.append({**run, "status": "interrupted" if run.get("status") == "active" else run.get("status")})
-        tracking["verification_run"] = {**new, "cycle": RENDERER.rollover_cycle(tracking), "status":"active",
-                                        "checks":{item["id"]:{"state":"pending"} for item in findings}}
+            history.append(annotate_verification_run(
+                {**run, "status": "interrupted" if run.get("status") == "active" else run.get("status")},
+                tracking, ended=True))
+        tracking["verification_run"] = annotate_verification_run(
+            {**new, "cycle": RENDERER.rollover_cycle(tracking), "status":"active",
+             "checks":{item["id"]:{"state":"pending"} for item in findings}}, tracking)
         return
     if action == "reserve-shared-check":
         if run.get("status") != "active" or operation.get("run_id") != run.get("id"):
@@ -1630,12 +1677,14 @@ def verification_action(document, findings, operation):
             shared.update(state="failed", stopped=True, finished_at=stamp)
         run["status"] = "complete"
         run["stopped"] = {"reason": reason.strip(), "at": stamp}
+        annotate_verification_run(run, tracking, ended=True, ended_at=stamp, now=stamp)
         return
     if action == "complete-verification":
         if any(check.get("state") not in ("fixed", "not_fixed", "blocked", "inconclusive")
                for check in run.get("checks", {}).values()):
             raise ValueError("finish or explicitly block every issue in the run before completing it")
         run["status"] = "complete"
+        annotate_verification_run(run, tracking, ended=True)
         return
     if action == "finish-shared-check":
         check = run.get("shared_check")
@@ -2450,7 +2499,9 @@ def prepare_rollover(document, operation, force=False):
     tracking["workflow"] = {"stage":"collect", "updated_at":timestamp}
     run = tracking.pop("verification_run", None)
     if isinstance(run, dict):
-        tracking.setdefault("verification_history", []).append({**run, "status":"interrupted" if run.get("status") == "active" else run.get("status")})
+        tracking.setdefault("verification_history", []).append(annotate_verification_run(
+            {**run, "status":"interrupted" if run.get("status") == "active" else run.get("status")},
+            tracking, ended=True, ended_at=timestamp, now=timestamp))
     tracking.pop("stages_reached", None)
     tracking.pop("introspect", None)
     for item in document["findings"]:

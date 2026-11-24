@@ -122,7 +122,7 @@ def issues_payload(query):
     from backend.issue_state import build_issues
     value = lambda key, default=None: query.get(key, [default])[0]
     return build_issues(value('project', 'agent-plugins'), value('pr', 'current'), value('scope', 'now'),
-                        value('from'), value('to'), value('state'))
+                        value('from'), value('to'), value('state'), round_id=value('round'), run=value('run'))
 
 
 def tool_payload(name, arguments):

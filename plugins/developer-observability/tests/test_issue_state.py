@@ -23,8 +23,11 @@ class IssueStateTests(unittest.TestCase):
         issues = [{"id": "a", "state": "resolved", "round": 2, "current_round": 2},
                   {"id": "b", "state": "blocked", "origin": "new", "round": 2, "current_round": 2},
                   {"id": "c", "state": "untested", "origin": "carried", "round": 1, "current_round": 2}]
-        self.assertEqual([row["id"] for row in select_scope(issues)], ["b", "c"])
+        self.assertEqual({row["id"] for row in select_scope(issues)}, {"a", "b", "c"})
+        self.assertEqual(select_scope(issues)[0]["id"], "b")
+        self.assertEqual({row["id"] for row in select_scope(issues, "now")}, {"a", "b", "c"})
         self.assertEqual({row["id"] for row in select_scope(issues, "all")}, {"a", "b", "c"})
+        self.assertEqual({row["id"] for row in select_scope(issues, "all", state="!resolved")}, {"b", "c"})
         self.assertEqual({row["id"] for row in select_scope(issues, "round:current")}, {"a", "b"})
         self.assertEqual([row["id"] for row in select_scope(issues, "all", state="carried")], ["c"])
 
