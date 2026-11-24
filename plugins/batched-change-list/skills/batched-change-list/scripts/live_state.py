@@ -381,7 +381,8 @@ def _process_arguments(pid):
     return None
 
 def stop_viewer(key, record):
-    state = STATE / "viewers" / (safe_component(key.replace("/", "--")) + ".json")
+    project = record.get("repo")
+    state = STATE / "viewers" / (safe_component(project.replace("/", "--") if project else key.replace("/", "--")) + ".json")
     if not state.exists():
         return False
     viewer = json.loads(state.read_text())

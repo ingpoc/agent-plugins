@@ -2081,7 +2081,8 @@ elif args[:2] != ['pr', 'edit']:
         records = json.loads((self.state / "registry.json").read_text()); records[key] = record
         (self.state / "registry.json").write_text(json.dumps(records))
         path = self.viewer_state_path(live)
-        path.write_text(json.dumps({"pid": 87654, "data": str(live.resolve()), "report": str(self.page.resolve())}))
+        path.write_text(json.dumps({"pid": 87654, "instance": "instance-87654", "data": str(live.resolve()),
+                                    "report": str(self.page.resolve())}))
         with patch.object(live_state, "_pid_is_running", return_value=True), \
              patch.object(live_state, "_viewer_process", return_value=True) as verify_process, \
              patch.object(live_state, "_wait_for_pid", return_value=True), \
@@ -2107,7 +2108,8 @@ elif args[:2] != ['pr', 'edit']:
     def test_stop_viewer_ignores_pid_serving_another_list(self):
         key, record = "example/project/123", json.loads((self.state / "registry.json").read_text())["example/project/123"]
         path = self.viewer_state_path(record["live"])
-        path.write_text(json.dumps({"pid": 87655, "data": record["live"], "report": str(self.page.resolve())}))
+        path.write_text(json.dumps({"pid": 87655, "instance": "instance-87655", "data": record["live"],
+                                    "report": str(self.page.resolve())}))
         with patch.object(live_state, "_pid_is_running", return_value=True), \
              patch.object(live_state, "_viewer_process", return_value=False), \
              patch.object(live_state.os, "kill") as signal_process:
@@ -2348,7 +2350,7 @@ elif args[:2] != ['pr', 'edit']:
             value = live_state.ensure_viewer(key, record, live, "0.1.17")
 
         self.assertEqual(signals, [(12345, 0)])
-        self.assertEqual(probes, [record["viewer_port"], record["viewer_port"], record["viewer_port"]])
+        self.assertEqual(probes, [record["viewer_port"]])
         self.assertEqual(value["port"], record["viewer_port"])
         self.assertEqual(binds, [])
 
