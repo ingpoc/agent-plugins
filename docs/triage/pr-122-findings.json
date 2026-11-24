@@ -11223,9 +11223,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-24T18:38:41Z",
-      "now": "2026-11-24T18:38:41Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T18:39:33Z",
+      "now": "2026-11-24T18:39:33Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 121,
@@ -11291,7 +11291,7 @@
       }
     },
     "cycle": 14,
-    "round": 4,
+    "round": 5,
     "round_history": [
       {
         "round": 2,
@@ -11532,6 +11532,11 @@
         "round": 3,
         "fixed": 15,
         "ended_at": "2026-11-24T18:03:04Z"
+      },
+      {
+        "round": 4,
+        "fixed": 16,
+        "ended_at": "2026-11-24T18:39:33Z"
       }
     ],
     "introspect_history": [
@@ -13010,7 +13015,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T18:38:41Z",
+    "last_written_at": "2026-11-24T18:39:33Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13306,7 +13311,7 @@
         ]
       }
     ],
-    "round_started_at": "2026-11-24T18:03:04Z",
+    "round_started_at": "2026-11-24T18:39:33Z",
     "gate": {
       "merge_previous_pr_threshold": 16,
       "report_threshold": 15
@@ -13314,14 +13319,11 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
       "cycle": 14,
-      "round": 4,
+      "round": 5,
       "groups": [
         {
           "id": "R1-GUARD",
@@ -13380,7 +13382,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R1-TOKENS",
@@ -13441,7 +13443,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R1-JOBUX",
@@ -13515,7 +13517,7 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R1-COSMETIC",
@@ -13574,7 +13576,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R4-106",
@@ -13786,7 +13788,7 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R4-171",
@@ -13980,7 +13982,7 @@
             "reviewer_model": "Grok Bot subagent",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R2-DEADLOCK",
@@ -14116,7 +14118,7 @@
             "review_status": "passed",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R3-TRACKER",
@@ -14318,7 +14320,7 @@
             "reviewer_model": "grokbot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R3-INTRO",
@@ -14543,7 +14545,7 @@
             "must_fix_note": "Reviewer exited 1",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R3-VERDICT",
@@ -14740,17 +14742,15 @@
             "reviewer_model": "grokbot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-24T18:15:28Z"
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R2-DO1",
           "finding_ids": [
             "DO-1"
           ],
-          "status": "parked",
           "parked_to": 2,
           "reason": "Needs Guru later round",
-          "stage_entered_at": "2026-11-24T15:22:33Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -14813,8 +14813,10 @@
               "owner_override": true
             }
           ],
+          "status": "parked",
           "codex": {},
-          "updated_at": "2026-11-24T18:15:28Z"
+          "stage_entered_at": "2026-11-24T15:22:33Z",
+          "updated_at": "2026-11-24T18:39:33Z"
         },
         {
           "id": "R4-GATES",
@@ -15127,7 +15129,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T18:37:01Z",
+          "updated_at": "2026-11-24T18:39:33Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -15142,9 +15144,47 @@
             "model": "Grok Bot subagent",
             "at": "2026-11-24T18:37:01Z"
           }
+        },
+        {
+          "id": "R5-SHIP",
+          "name": "Ship each round and record hotfixes",
+          "label": "SHIP",
+          "finding_ids": [
+            "BCL-144"
+          ],
+          "worktree": "samantha-next-r12",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_bcl.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_references.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html",
+            "plugins/batched-change-list/skills/batched-change-list/references/release.md",
+            "plugins/batched-change-list/skills/batched-change-list/references/gate.md"
+          ],
+          "reason": "Verified fixes should ship each round as a patch; the merge/rollover threshold should not hold a round, and tool-bug exceptions need a recorded hotfix command.",
+          "status": "planned",
+          "phase": "fix",
+          "codex": {
+            "implementer_session": "grokbot-122-r4-ship",
+            "reviewer_session": "grokbot-122-r4-ship-review"
+          },
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-ship.sh",
+            "method": "Run tests that guides and the chart say every round ships, the merge/rollover threshold is not a ship gate, and bcl hotfix records approver, reason, and release-check output for a one-lane tool-bug round.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-24T18:39:33Z",
+          "stage_entered_at": "2026-11-24T18:39:33Z"
         }
-      ],
-      "status": "closed"
+      ]
     },
     "verification_run": {
       "id": "pr122-r4-4031c6faf6456d381d8852ae0557a2ab979751b6",
@@ -15622,7 +15662,7 @@
       "observed": "22 Nov 2026 09:40 IST, bcl 0.1.60, PR 119 round 2",
       "priority": "high",
       "source": "User requested",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 09:40 IST via parent agent",
         "report": "bcl-119 progress.md",
@@ -15639,7 +15679,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T18:39:33Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T18:35:47Z",
         "source": "verification_check"
