@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T19:18:36Z",
-      "now": "2026-11-24T19:18:36Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T19:20:20Z",
+      "now": "2026-11-24T19:20:20Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -347,7 +347,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T19:18:36Z",
+    "last_written_at": "2026-11-24T19:20:20Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -643,7 +643,8 @@
     },
     "stages_reached": [
       "collect",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "plan": {
       "cycle": 15,
@@ -657,8 +658,8 @@
             "BCL-178"
           ],
           "worktree": "samantha-next-r13",
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -677,10 +678,99 @@
             "failed": 0,
             "total": 1
           },
-          "failure_history": [],
+          "failure_history": [
+            {
+              "attempt_id": "f75d2030f0ee4c90b39514487032080d",
+              "source": "fix",
+              "reason": "Fix job exited 2",
+              "cycle": 15,
+              "round": 1,
+              "at": "2026-11-24T19:18:53Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
+            }
+          ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T19:18:36Z",
-          "stage_entered_at": "2026-11-24T19:18:36Z"
+          "updated_at": "2026-11-24T19:20:14Z",
+          "stage_entered_at": "2026-11-24T19:19:16Z",
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "28c4e4b27409495abbc143b896541186",
+              "phase": "review",
+              "started_at": "2026-11-24T19:20:20Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T19:20:20Z",
+              "plan_sha256": "0895f6c2d67e699ed2efaf6ae649ec99824393ad5426d0ccb817bbfffd7ea5eb",
+              "finding_ids": [
+                "BCL-178"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot",
+              "lane_sha256": "9e1e9be8aa6066b32da8aad49c081ad7dfd6f201aa8907c49794435e9a10484d",
+              "cycle": 15,
+              "round": 1
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "f75d2030f0ee4c90b39514487032080d",
+                "phase": "fix",
+                "started_at": "2026-11-24T19:18:45Z",
+                "command": "commit-fix.sh",
+                "heartbeat_at": "2026-11-24T19:18:52Z",
+                "plan_sha256": "5e758172898f7f99d28b453abf0b60eecce495838c8b219be21c6c2938f7aa13",
+                "finding_ids": [
+                  "BCL-178"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "5b8ad21929f99b3f78608a9d20d67301c7e0e6da9c5a5b8f110f672ae33d4729",
+                "cycle": 15,
+                "round": 1,
+                "pid": 57746,
+                "exit_code": 2,
+                "finished_at": "2026-11-24T19:18:52Z",
+                "first_error_line": "fix job made no commit",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/f75d2030f0ee4c90b39514487032080d.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 7,
+                "finished_phase_status": "failed"
+              },
+              {
+                "id": "ee51940ad16144aca2eb636708407eea",
+                "phase": "fix",
+                "started_at": "2026-11-24T19:19:09Z",
+                "command": "commit-fix.sh",
+                "heartbeat_at": "2026-11-24T19:19:16Z",
+                "plan_sha256": "5e758172898f7f99d28b453abf0b60eecce495838c8b219be21c6c2938f7aa13",
+                "finding_ids": [
+                  "BCL-178"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "5b8ad21929f99b3f78608a9d20d67301c7e0e6da9c5a5b8f110f672ae33d4729",
+                "cycle": 15,
+                "round": 1,
+                "pid": 58315,
+                "exit_code": 0,
+                "finished_at": "2026-11-24T19:19:16Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/ee51940ad16144aca2eb636708407eea.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 7,
+                "finished_phase_status": "passed"
+              }
+            ],
+            "implementer_session": "grok-bcl-178-fix",
+            "reviewer_session": "grok-bcl-178-review",
+            "review_status": "running",
+            "reviewer_model": "Grok Bot"
+          }
         },
         {
           "id": "R2-DO1",
@@ -853,7 +943,11 @@
           "to": "in_progress",
           "source": "tracker_update"
         }
-      ]
+      ],
+      "last_seen": {
+        "at": "2026-11-24T19:18:53Z",
+        "source": "lane_failure"
+      }
     }
   ]
 }
