@@ -11750,6 +11750,166 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "r6-828e2f90-120",
+        "build": "bcl 0.1.74 and developer-observability 0.1.37",
+        "revision": "828e2f90b3ef10fe496ac5bf09d8bf2206a8b528",
+        "installed_at": "2026-11-24T06:55:44Z",
+        "install_evidence": "bcl install-local from list worktree at 828e2f90 (batched-change-list 0.1.74): plugin sha 605fd900, skill sha 25236cf8; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability and runtime/install.py kept the existing config",
+        "cycle": 12,
+        "status": "interrupted",
+        "checks": {
+          "ACU-10": {
+            "state": "pending"
+          },
+          "ACU-20": {
+            "state": "pending"
+          },
+          "ACU-21": {
+            "state": "pending"
+          },
+          "BCL-94": {
+            "state": "pending"
+          },
+          "BCL-103": {
+            "state": "pending"
+          },
+          "BCL-106": {
+            "state": "pending"
+          },
+          "BCL-108": {
+            "state": "pending"
+          },
+          "BCL-110": {
+            "state": "pending"
+          },
+          "BCL-113": {
+            "state": "pending"
+          },
+          "BCL-115": {
+            "state": "pending"
+          },
+          "BCL-120": {
+            "state": "pending"
+          },
+          "BCL-121": {
+            "state": "fixed",
+            "observation": "Checking the installed change-list now",
+            "observed_at": "2026-11-24T06:57:54Z",
+            "started_at": "2026-11-24T06:57:54Z",
+            "updated_at": "2026-11-24T06:57:54Z",
+            "check_id": "d7afbb7c6d9f44d1a474645b7d08b546",
+            "evidence": "Checked: The installed change-list version, the review-cap tests, and the fallback and identity-replace tests beside them\nExpected: The installed copy matches the shipped version, a second plan review and a fourth review are refused until a standalone finding is filed, a lane still under review cannot gain a finding, and the fallback tests still pass\nObserved: All three checks passed on the installed copy",
+            "details": "Logs: ~/.agents/artifacts/bcl-120/verify-r6-fallback.sh, verify-r6-121.sh, verify-r6-do2.sh, verify-r6-do3.sh; installed batched-change-list 0.1.74 from 828e2f90b3ef10fe496ac5bf09d8bf2206a8b528; plugin sha 605fd900, skill sha 25236cf8, installed_at 2026-11-24T06:55:44Z; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability; dev-obs before 704287b7 (146 findings, 12:27:41 IST), after 1def6b50 (146 findings, 12:30:02 IST), same build. Run r6-828e2f90-120. Official collect now marks bcl_events collected with last_event_at, read_in_collect true, coverage 1/35, tokens 1088149.",
+            "finished_at": "2026-11-24T07:00:28.778306Z"
+          },
+          "BCL-124": {
+            "state": "pending"
+          },
+          "BCL-125": {
+            "state": "pending"
+          },
+          "BCL-130": {
+            "state": "pending"
+          },
+          "BCL-134": {
+            "state": "pending"
+          },
+          "BCL-139": {
+            "state": "pending"
+          },
+          "BCL-140": {
+            "state": "pending"
+          },
+          "BCL-142": {
+            "state": "pending"
+          },
+          "BCL-144": {
+            "state": "pending"
+          },
+          "BCL-145": {
+            "state": "pending"
+          },
+          "BCL-147": {
+            "state": "pending"
+          },
+          "BCL-149": {
+            "state": "pending"
+          },
+          "BCL-151": {
+            "state": "pending"
+          },
+          "BCL-157": {
+            "state": "pending"
+          },
+          "BCL-158": {
+            "state": "pending"
+          },
+          "BCL-159": {
+            "state": "pending"
+          },
+          "BCL-160": {
+            "state": "pending"
+          },
+          "BCL-161": {
+            "state": "pending"
+          },
+          "BCL-166": {
+            "state": "pending"
+          },
+          "BCL-171": {
+            "state": "pending"
+          },
+          "BCL-175": {
+            "state": "pending"
+          },
+          "DO-1": {
+            "state": "pending"
+          },
+          "DO-2": {
+            "state": "fixed",
+            "observation": "Checking the installed observability now",
+            "observed_at": "2026-11-24T06:57:54Z",
+            "started_at": "2026-11-24T06:57:54Z",
+            "updated_at": "2026-11-24T06:57:54Z",
+            "check_id": "18966e5e07f741b19c51fad8a6eb4539",
+            "evidence": "Checked: The installed observability version, the collector freshness and gap-name tests, and a live collect after install\nExpected: The installed copy matches the shipped version, those tests pass, and a live collect has a last event time, is marked read, names gaps without using a bare wrapper name, and does not total incomplete tokens\nObserved: All three checks passed on the installed copy; the before and after observability snapshots had the same finding count, and the live collect was marked collected with a last event time",
+            "details": "Logs: ~/.agents/artifacts/bcl-120/verify-r6-fallback.sh, verify-r6-121.sh, verify-r6-do2.sh, verify-r6-do3.sh; installed batched-change-list 0.1.74 from 828e2f90b3ef10fe496ac5bf09d8bf2206a8b528; plugin sha 605fd900, skill sha 25236cf8, installed_at 2026-11-24T06:55:44Z; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability; dev-obs before 704287b7 (146 findings, 12:27:41 IST), after 1def6b50 (146 findings, 12:30:02 IST), same build. Run r6-828e2f90-120. Official collect now marks bcl_events collected with last_event_at, read_in_collect true, coverage 1/35, tokens 1088149.",
+            "finished_at": "2026-11-24T07:00:28.790663Z"
+          },
+          "DO-3": {
+            "state": "fixed",
+            "observation": "Checking the installed observability now",
+            "observed_at": "2026-11-24T06:57:54Z",
+            "started_at": "2026-11-24T06:57:54Z",
+            "updated_at": "2026-11-24T06:57:54Z",
+            "check_id": "b9bd8628ee29459c84383ada03a6996b",
+            "evidence": "Checked: The installed observability version, the pull-request and round filter tests, and the shared query path\nExpected: The installed copy matches the shipped version, a pull-request and round query returns only that round's stamped rows plus unstamped counts, and the dashboard uses the same query as the agent\nObserved: All three checks passed on the installed copy",
+            "details": "Logs: ~/.agents/artifacts/bcl-120/verify-r6-fallback.sh, verify-r6-121.sh, verify-r6-do2.sh, verify-r6-do3.sh; installed batched-change-list 0.1.74 from 828e2f90b3ef10fe496ac5bf09d8bf2206a8b528; plugin sha 605fd900, skill sha 25236cf8, installed_at 2026-11-24T06:55:44Z; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability; dev-obs before 704287b7 (146 findings, 12:27:41 IST), after 1def6b50 (146 findings, 12:30:02 IST), same build. Run r6-828e2f90-120. Official collect now marks bcl_events collected with last_event_at, read_in_collect true, coverage 1/35, tokens 1088149.",
+            "finished_at": "2026-11-24T07:00:28.802836Z"
+          },
+          "BCL-176": {
+            "state": "pending"
+          },
+          "BCL-177": {
+            "state": "pending"
+          },
+          "PR120-r5-codex-reviewer-model-fallback": {
+            "state": "fixed",
+            "observation": "Checking the installed change-list and observability now",
+            "observed_at": "2026-11-24T06:57:54Z",
+            "started_at": "2026-11-24T06:57:54Z",
+            "updated_at": "2026-11-24T06:57:54Z",
+            "check_id": "514c89cf28c645a5a076aa72d338cac6",
+            "evidence": "Checked: The installed change-list version, the fallback tests, and the stay-in-review hook\nExpected: The installed copy matches the shipped version, those tests pass, and a rejected reviewer model leaves the lane in review so a later review can be recorded\nObserved: All three checks passed on the installed copy",
+            "details": "Logs: ~/.agents/artifacts/bcl-120/verify-r6-fallback.sh, verify-r6-121.sh, verify-r6-do2.sh, verify-r6-do3.sh; installed batched-change-list 0.1.74 from 828e2f90b3ef10fe496ac5bf09d8bf2206a8b528; plugin sha 605fd900, skill sha 25236cf8, installed_at 2026-11-24T06:55:44Z; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability; dev-obs before 704287b7 (146 findings, 12:27:41 IST), after 1def6b50 (146 findings, 12:30:02 IST), same build. Run r6-828e2f90-120. Official collect now marks bcl_events collected with last_event_at, read_in_collect true, coverage 1/35, tokens 1088149.",
+            "finished_at": "2026-11-24T07:00:28.765609Z"
+          },
+          "PR120-r6-gate-denominator": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -11764,9 +11924,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-24T08:29:54Z",
-      "now": "2026-11-24T08:29:54Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-24T08:34:04Z",
+      "now": "2026-11-24T08:34:04Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -13621,7 +13781,8 @@
       "present",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 7,
@@ -13701,8 +13862,8 @@
             "ACU-20"
           ],
           "worktree": "bcl120-r7-ship",
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "files": [
             "plugins/agent-computer-use/bin/island_activity.py",
             "plugins/agent-computer-use/bin/island_hook.py",
@@ -13712,7 +13873,7 @@
             "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandCodexThreadsTests.swift"
           ],
           "reason": "Product first: the island already shows Codex CLI runs and must also show Grok Bot's own subagents as running, done, or stopped with a reason, from a supported credential-free record. Do not read credentials, dual-drive Comet, or touch port 8765, pid 1338, or ~/.cache/macos-cua/samantha-activity.jsonl. About 90k tokens.",
-          "stage_entered_at": "2026-11-24T08:29:54Z",
+          "stage_entered_at": "2026-11-24T08:34:04Z",
           "failure_history": [],
           "plan_review_history": [
             {
@@ -13747,7 +13908,7 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T08:29:48Z",
+          "updated_at": "2026-11-24T08:34:04Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13766,9 +13927,9 @@
             "started_at": "2026-11-24T08:29:54Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "Grok Bot",
-            "at": "2026-11-24T08:29:54Z"
+            "at": "2026-11-24T08:34:04Z"
           }
         },
         {
@@ -14253,22 +14414,34 @@
       "cycle": 12
     },
     "verification_run": {
-      "id": "r6-828e2f90-120",
-      "build": "bcl 0.1.74 and developer-observability 0.1.37",
-      "revision": "828e2f90b3ef10fe496ac5bf09d8bf2206a8b528",
-      "installed_at": "2026-11-24T06:55:44Z",
-      "install_evidence": "bcl install-local from list worktree at 828e2f90 (batched-change-list 0.1.74): plugin sha 605fd900, skill sha 25236cf8; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability and runtime/install.py kept the existing config",
+      "id": "r7-acu-0.2.163-11517de1-120",
+      "build": "agent-computer-use 0.2.163",
+      "revision": "11517de13a09f8f8d2506261a62e24e7c2caa367",
+      "installed_at": "2026-11-24T08:31:56Z",
+      "install_evidence": "bcl install for ACU-20, ACU-10 and ACU-21 from worktree bcl120-r7-ship at 11517de13a09f8f8d2506261a62e24e7c2caa367 (agent-computer-use 0.2.163). rsync to ~/.agents/plugins/agent-computer-use (460 files, sha256 d8758713f3dc0ee9094921adc9cf41b4bb6e82a28c76e4f6b7ff50b90f369a3e) and the Cursor and Codex versioned caches. Created ~/.grok/hooks.json from the shipped snippet and left ~/.grok/hooks/cmux-session.json untouched. Replaced the CUAService binary in /Applications/Agent Computer Use.app with --replace-binary (keeps the existing signature and TCC) and restarted only that app service to pid 56893. Left 127.0.0.1:8765 (pid 1338) and the observability viewer on 8780 (pid 79851) running.",
       "cycle": 12,
       "status": "active",
       "checks": {
         "ACU-10": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "The installed computer-use plugin is the new 0.2.163 build, including the usage tests for Grok Voice and the GPT live model.",
+          "observed_at": "2026-11-24T08:34:03Z",
+          "started_at": "2026-11-24T08:34:03Z",
+          "updated_at": "2026-11-24T08:34:03Z"
         },
         "ACU-20": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "The installed computer-use plugin is the new 0.2.163 build, the official Grok hook is present, and the island service is running after the binary was replaced.",
+          "observed_at": "2026-11-24T08:34:03Z",
+          "started_at": "2026-11-24T08:34:03Z",
+          "updated_at": "2026-11-24T08:34:03Z"
         },
         "ACU-21": {
-          "state": "pending"
+          "state": "checking",
+          "observation": "The installed computer-use plugin is the new 0.2.163 build, including the two tests that used to flake under load.",
+          "observed_at": "2026-11-24T08:34:03Z",
+          "started_at": "2026-11-24T08:34:03Z",
+          "updated_at": "2026-11-24T08:34:03Z"
         },
         "BCL-94": {
           "state": "pending"
@@ -14295,15 +14468,7 @@
           "state": "pending"
         },
         "BCL-121": {
-          "state": "fixed",
-          "observation": "Checking the installed change-list now",
-          "observed_at": "2026-11-24T06:57:54Z",
-          "started_at": "2026-11-24T06:57:54Z",
-          "updated_at": "2026-11-24T06:57:54Z",
-          "check_id": "d7afbb7c6d9f44d1a474645b7d08b546",
-          "evidence": "Checked: The installed change-list version, the review-cap tests, and the fallback and identity-replace tests beside them\nExpected: The installed copy matches the shipped version, a second plan review and a fourth review are refused until a standalone finding is filed, a lane still under review cannot gain a finding, and the fallback tests still pass\nObserved: All three checks passed on the installed copy",
-          "details": "Logs: ~/.agents/artifacts/bcl-120/verify-r6-fallback.sh, verify-r6-121.sh, verify-r6-do2.sh, verify-r6-do3.sh; installed batched-change-list 0.1.74 from 828e2f90b3ef10fe496ac5bf09d8bf2206a8b528; plugin sha 605fd900, skill sha 25236cf8, installed_at 2026-11-24T06:55:44Z; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability; dev-obs before 704287b7 (146 findings, 12:27:41 IST), after 1def6b50 (146 findings, 12:30:02 IST), same build. Run r6-828e2f90-120. Official collect now marks bcl_events collected with last_event_at, read_in_collect true, coverage 1/35, tokens 1088149.",
-          "finished_at": "2026-11-24T07:00:28.778306Z"
+          "state": "pending"
         },
         "BCL-124": {
           "state": "pending"
@@ -14369,26 +14534,10 @@
           "state": "pending"
         },
         "DO-2": {
-          "state": "fixed",
-          "observation": "Checking the installed observability now",
-          "observed_at": "2026-11-24T06:57:54Z",
-          "started_at": "2026-11-24T06:57:54Z",
-          "updated_at": "2026-11-24T06:57:54Z",
-          "check_id": "18966e5e07f741b19c51fad8a6eb4539",
-          "evidence": "Checked: The installed observability version, the collector freshness and gap-name tests, and a live collect after install\nExpected: The installed copy matches the shipped version, those tests pass, and a live collect has a last event time, is marked read, names gaps without using a bare wrapper name, and does not total incomplete tokens\nObserved: All three checks passed on the installed copy; the before and after observability snapshots had the same finding count, and the live collect was marked collected with a last event time",
-          "details": "Logs: ~/.agents/artifacts/bcl-120/verify-r6-fallback.sh, verify-r6-121.sh, verify-r6-do2.sh, verify-r6-do3.sh; installed batched-change-list 0.1.74 from 828e2f90b3ef10fe496ac5bf09d8bf2206a8b528; plugin sha 605fd900, skill sha 25236cf8, installed_at 2026-11-24T06:55:44Z; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability; dev-obs before 704287b7 (146 findings, 12:27:41 IST), after 1def6b50 (146 findings, 12:30:02 IST), same build. Run r6-828e2f90-120. Official collect now marks bcl_events collected with last_event_at, read_in_collect true, coverage 1/35, tokens 1088149.",
-          "finished_at": "2026-11-24T07:00:28.790663Z"
+          "state": "pending"
         },
         "DO-3": {
-          "state": "fixed",
-          "observation": "Checking the installed observability now",
-          "observed_at": "2026-11-24T06:57:54Z",
-          "started_at": "2026-11-24T06:57:54Z",
-          "updated_at": "2026-11-24T06:57:54Z",
-          "check_id": "b9bd8628ee29459c84383ada03a6996b",
-          "evidence": "Checked: The installed observability version, the pull-request and round filter tests, and the shared query path\nExpected: The installed copy matches the shipped version, a pull-request and round query returns only that round's stamped rows plus unstamped counts, and the dashboard uses the same query as the agent\nObserved: All three checks passed on the installed copy",
-          "details": "Logs: ~/.agents/artifacts/bcl-120/verify-r6-fallback.sh, verify-r6-121.sh, verify-r6-do2.sh, verify-r6-do3.sh; installed batched-change-list 0.1.74 from 828e2f90b3ef10fe496ac5bf09d8bf2206a8b528; plugin sha 605fd900, skill sha 25236cf8, installed_at 2026-11-24T06:55:44Z; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability; dev-obs before 704287b7 (146 findings, 12:27:41 IST), after 1def6b50 (146 findings, 12:30:02 IST), same build. Run r6-828e2f90-120. Official collect now marks bcl_events collected with last_event_at, read_in_collect true, coverage 1/35, tokens 1088149.",
-          "finished_at": "2026-11-24T07:00:28.802836Z"
+          "state": "pending"
         },
         "BCL-176": {
           "state": "pending"
@@ -14397,17 +14546,36 @@
           "state": "pending"
         },
         "PR120-r5-codex-reviewer-model-fallback": {
-          "state": "fixed",
-          "observation": "Checking the installed change-list and observability now",
-          "observed_at": "2026-11-24T06:57:54Z",
-          "started_at": "2026-11-24T06:57:54Z",
-          "updated_at": "2026-11-24T06:57:54Z",
-          "check_id": "514c89cf28c645a5a076aa72d338cac6",
-          "evidence": "Checked: The installed change-list version, the fallback tests, and the stay-in-review hook\nExpected: The installed copy matches the shipped version, those tests pass, and a rejected reviewer model leaves the lane in review so a later review can be recorded\nObserved: All three checks passed on the installed copy",
-          "details": "Logs: ~/.agents/artifacts/bcl-120/verify-r6-fallback.sh, verify-r6-121.sh, verify-r6-do2.sh, verify-r6-do3.sh; installed batched-change-list 0.1.74 from 828e2f90b3ef10fe496ac5bf09d8bf2206a8b528; plugin sha 605fd900, skill sha 25236cf8, installed_at 2026-11-24T06:55:44Z; developer-observability 0.1.37 copied to ~/.agents/plugins/developer-observability; dev-obs before 704287b7 (146 findings, 12:27:41 IST), after 1def6b50 (146 findings, 12:30:02 IST), same build. Run r6-828e2f90-120. Official collect now marks bcl_events collected with last_event_at, read_in_collect true, coverage 1/35, tokens 1088149.",
-          "finished_at": "2026-11-24T07:00:28.765609Z"
+          "state": "pending"
         },
         "PR120-r6-gate-denominator": {
+          "state": "pending"
+        },
+        "PR120-r6-stale-job-finish": {
+          "state": "pending"
+        },
+        "PR120-r6-collect-job-coverage": {
+          "state": "pending"
+        },
+        "DO-4": {
+          "state": "pending"
+        },
+        "DO-5": {
+          "state": "pending"
+        },
+        "DO-6": {
+          "state": "pending"
+        },
+        "DO-7": {
+          "state": "pending"
+        },
+        "DO-8": {
+          "state": "pending"
+        },
+        "DO-9": {
+          "state": "pending"
+        },
+        "DO-10": {
           "state": "pending"
         }
       }
@@ -14502,7 +14670,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T08:29:54Z",
+    "last_written_at": "2026-11-24T08:34:04Z",
     "fix_order": {
       "ids": [
         "DO-4",
