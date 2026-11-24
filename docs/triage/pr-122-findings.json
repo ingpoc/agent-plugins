@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T15:22:33Z",
-      "now": "2026-11-24T15:22:33Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T15:39:24Z",
+      "now": "2026-11-24T15:39:24Z — Review started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T15:22:33Z",
+    "last_written_at": "2026-11-24T15:39:24Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12491,7 +12491,8 @@
     },
     "stages_reached": [
       "collect",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "plan": {
       "cycle": 14,
@@ -12505,8 +12506,6 @@
             "PR121-r2-live-state-guard"
           ],
           "worktree": "samantha-next-r12",
-          "status": "planned",
-          "phase": "fix",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
@@ -12516,12 +12515,44 @@
           "reason": "Keep the live registry writable only by the official command, including rollover.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-guard.sh",
-            "method": "Run the live-state guard tests and the default-root rollover test."
+            "method": "Run the live-state guard tests and the default-root rollover test.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
+          "codex": {
+            "implementer_session": "grokbot-122-r1-guard",
+            "reviewer_session": "grokbot-122-r1-guard-review",
+            "job": {
+              "id": "c3fb8952e9f14507bb8f0ecf47e16446",
+              "phase": "fix",
+              "started_at": "2026-11-24T15:38:18Z",
+              "command": "confirm-guard.sh",
+              "heartbeat_at": "2026-11-24T15:38:20Z",
+              "plan_sha256": "e1e609fec5300f47e303c77ff1c6f25999b7ba40c63e8bb8ad3b9184a7900b59",
+              "finding_ids": [
+                "PR121-r2-live-state-guard"
+              ],
+              "worktree": "samantha-next-r12",
+              "model": "Grok Bot",
+              "lane_sha256": "85aef41a1c0c01aa9333cd5abb8a8fc08ba4095cbacc5577d725977ee723c592",
+              "cycle": 14,
+              "round": 1,
+              "pid": 28215,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T15:38:20Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "tool_fault_streak": 0
+          },
+          "status": "review",
+          "phase": "review",
+          "stage_entered_at": "2026-11-24T15:38:20Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T15:22:33Z",
-          "stage_entered_at": "2026-11-24T15:22:33Z"
+          "updated_at": "2026-11-24T15:39:19Z"
         },
         {
           "id": "R1-TOKENS",
@@ -12544,10 +12575,11 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
             "method": "Run event and collect-coverage tests after the writers record tokens and session work."
           },
+          "stage_entered_at": "2026-11-24T15:22:33Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T15:22:33Z",
-          "stage_entered_at": "2026-11-24T15:22:33Z"
+          "codex": {},
+          "updated_at": "2026-11-24T15:39:19Z"
         },
         {
           "id": "R1-JOBUX",
@@ -12559,8 +12591,6 @@
             "BCL-149"
           ],
           "worktree": "samantha-next-r12",
-          "status": "planned",
-          "phase": "fix",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/render.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_lifecycle.py",
@@ -12569,12 +12599,44 @@
           "reason": "Job status-accuracy: the page should show live job progress, keep failed output, and not treat tool faults as code failures.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-jobux.sh",
-            "method": "Run job-lifecycle and lane-state tests covering live progress, retained output, and tool faults."
+            "method": "Run job-lifecycle and lane-state tests covering live progress, retained output, and tool faults.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
           },
+          "codex": {
+            "implementer_session": "grokbot-122-r1-jobux",
+            "reviewer_session": "grokbot-122-r1-jobux-review",
+            "job": {
+              "id": "c90f1bee31c74eea9c9d0b720a953282",
+              "phase": "review",
+              "started_at": "2026-11-24T15:39:24Z",
+              "command": "true",
+              "heartbeat_at": "2026-11-24T15:39:24Z",
+              "plan_sha256": "c06c5647d35b2c5a3ac0ff656ce6a551942e5bf68ff8fc2d197defed10c07d68",
+              "finding_ids": [
+                "BCL-159",
+                "DO-8",
+                "BCL-149"
+              ],
+              "worktree": "samantha-next-r12",
+              "model": "Grok Bot",
+              "lane_sha256": "d6107db03312c69d29e3502ccd4270b16963a461a51209afb1c42e7d813fc4a6",
+              "cycle": 14,
+              "round": 1
+            },
+            "fix_status": "passed",
+            "tool_fault_streak": 0,
+            "review_status": "running",
+            "reviewer_model": "Grok Bot"
+          },
+          "status": "review",
+          "phase": "review",
+          "stage_entered_at": "2026-11-24T15:37:56Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T15:22:33Z",
-          "stage_entered_at": "2026-11-24T15:22:33Z"
+          "updated_at": "2026-11-24T15:39:19Z"
         },
         {
           "id": "R1-COSMETIC",
@@ -12584,21 +12646,51 @@
             "DO-13",
             "DO-11"
           ],
-          "worktree": "samantha-next-r12",
-          "status": "planned",
-          "phase": "fix",
+          "worktree": "gurusharan",
           "files": [
             "plugins/developer-observability/runtime/viewer.py"
           ],
           "reason": "Viewer polish carried from #121: breadcrumb round, Needs-you wrap, and remaining per-round row polish.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-cosmetic.sh",
-            "method": "Run a focused viewer test for breadcrumb round and Needs-you wrapping once those tests exist."
+            "method": "Run a focused viewer test for breadcrumb round and Needs-you wrapping once those tests exist.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
           },
+          "codex": {
+            "implementer_session": "grokbot-122-r1-cosmetic",
+            "reviewer_session": "grokbot-122-r1-cosmetic-review",
+            "job": {
+              "id": "e8f57fb355e34cc895c5ec96791a6469",
+              "phase": "fix",
+              "started_at": "2026-11-24T15:38:04Z",
+              "command": "commit-cosmetic.sh",
+              "heartbeat_at": "2026-11-24T15:38:05Z",
+              "plan_sha256": "e1e609fec5300f47e303c77ff1c6f25999b7ba40c63e8bb8ad3b9184a7900b59",
+              "finding_ids": [
+                "DO-13"
+              ],
+              "worktree": "gurusharan",
+              "model": "Grok Bot",
+              "lane_sha256": "e1f25c2a7bba72c579546ce7b51527391b93c62aaf73e03f4729cd288a1ae412",
+              "cycle": 14,
+              "round": 1,
+              "pid": 27728,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T15:38:05Z",
+              "finished_phase_status": "passed"
+            },
+            "fix_status": "passed",
+            "tool_fault_streak": 0
+          },
+          "status": "review",
+          "phase": "review",
+          "stage_entered_at": "2026-11-24T15:38:05Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T15:22:33Z",
-          "stage_entered_at": "2026-11-24T15:22:33Z"
+          "updated_at": "2026-11-24T15:39:19Z"
         },
         {
           "id": "R4-106",
@@ -12609,7 +12701,10 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
+          "status": "blocked",
+          "phase": "fix",
           "blocked_reason": "Needs Guru later round",
+          "stage_entered_at": "2026-11-24T15:22:33Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12664,11 +12759,8 @@
             }
           ],
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
-          "status": "blocked",
           "codex": {},
-          "phase": "fix",
-          "updated_at": "2026-11-24T15:22:33Z",
-          "stage_entered_at": "2026-11-24T15:22:33Z"
+          "updated_at": "2026-11-24T15:39:19Z"
         },
         {
           "id": "R4-171",
@@ -12679,7 +12771,10 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
+          "status": "blocked",
+          "phase": "fix",
           "blocked_reason": "Needs Guru later round",
+          "stage_entered_at": "2026-11-24T15:22:33Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -12745,11 +12840,8 @@
             }
           ],
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
-          "status": "blocked",
           "codex": {},
-          "phase": "fix",
-          "updated_at": "2026-11-24T15:22:33Z",
-          "stage_entered_at": "2026-11-24T15:22:33Z"
+          "updated_at": "2026-11-24T15:39:19Z"
         },
         {
           "id": "R2-DO1",
@@ -12760,6 +12852,9 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
+          "status": "parked",
+          "parked_to": 2,
+          "stage_entered_at": "2026-11-24T15:22:33Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -12822,11 +12917,8 @@
               "owner_override": true
             }
           ],
-          "status": "parked",
           "codex": {},
-          "parked_to": 2,
-          "updated_at": "2026-11-24T15:22:33Z",
-          "stage_entered_at": "2026-11-24T15:22:33Z"
+          "updated_at": "2026-11-24T15:39:19Z"
         }
       ]
     }
