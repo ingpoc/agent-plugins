@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T08:09:21Z",
-      "now": "2026-11-24T08:09:21Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T08:09:32Z",
+      "now": "2026-11-24T08:09:32Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13761,8 +13761,8 @@
             "ACU-10"
           ],
           "worktree": "bcl120-r7-acu10",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/providers.py",
             "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/live_session.py",
@@ -13770,7 +13770,7 @@
             "plugins/agent-computer-use/runtime/voice-cua/tests/test_usage_and_backoff.py"
           ],
           "reason": "Product: re-read provider usage fields for Grok Voice and the GPT live model, with AirPods Pro and typed prompts allowed for checks. Keep unknown rather than zero when a provider still omits counts; do not invent tokens. Serial live checks only; never touch port 8765, pid 1338, or the live Samantha activity log, and do not unlock the Mini or retry notarization. Not a duplicate of DO-2 or collect-job-coverage. About 80k tokens.",
-          "stage_entered_at": "2026-11-24T08:09:21Z",
+          "stage_entered_at": "2026-11-24T08:09:22Z",
           "failure_history": [],
           "plan_review_history": [
             {
@@ -13784,20 +13784,22 @@
           ],
           "codex": {
             "job": {
-              "id": "7c33bf874b794d3ebd1c8444896947aa",
-              "phase": "fix",
-              "started_at": "2026-11-24T08:09:21Z",
-              "command": "run-record-r7-acu10-fix.sh",
-              "heartbeat_at": "2026-11-24T08:09:21Z",
+              "id": "9831f77fcaf54a84aea79bbcf2a88c95",
+              "phase": "review",
+              "started_at": "2026-11-24T08:09:32Z",
+              "command": "run-record-r7-acu10-review.sh",
+              "heartbeat_at": "2026-11-24T08:09:32Z",
               "plan_sha256": "01f22297541454d2413c930b3e2ea6a75951463db517e35f8429ff5aa78ebd99",
               "worktree": "bcl120-r7-acu10",
-              "model": "Grok Bot inline fix (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
               "round": 7
             },
             "tool_fault_streak": 0,
             "implementer_session": "grokbot-r7-acu10",
-            "fix_status": "running"
+            "fix_status": "passed",
+            "review_status": "running",
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
           "updated_at": "2026-11-24T08:09:21Z",
           "verify": {
@@ -14451,7 +14453,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T08:09:21Z",
+    "last_written_at": "2026-11-24T08:09:32Z",
     "fix_order": {
       "ids": [
         "DO-4",
