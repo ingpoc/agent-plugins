@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Each issue can carry a root-cause trail (first failing run, root cause identified, fix verified, and regressions as new cycles) with time to root cause and time to verified, plus its linked jobs with model, version and tokens. Every value says whether it was recorded, derived from notes, or not recorded, and official and estimated tokens are never added together. The issues API and observability_issues take include=trail,jobs,rollup, GET /api/issues/<id> returns one issue's trail and jobs, and the viewer shows the same trail in the issue drawer, a three-dot cue on issue rows, and a collapsed Timing and tokens line. The emitter field contract is in docs/trail-emitter-contract.md.
+- Past-round and run views cut the trail at that round or run end and show later steps as not yet at round end. A carried issue keeps the failure history from earlier PRs, jobs are credited through the lane the issue was in when they ran, step summaries are a few plain words, and the issues list no longer carries run check details, raw findings or job receipts: GET /api/issues/<id> has those, and the drawer fetches them when Raw data opens. On phones the issue title gets its own line.
 
 ## 0.1.38
 

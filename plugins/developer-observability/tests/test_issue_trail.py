@@ -98,7 +98,7 @@ class IssueTrailTests(unittest.TestCase):
         issue = self._issue(build_issues("agent-plugins", scope="all", include="trail"), "DO-3")
         steps = self._steps(issue)
         self.assertEqual({step["provenance"] for step in issue["trail"]}, {"recorded"})
-        self.assertEqual(steps[(1, "root_cause")]["what"], "stale cache key")
+        self.assertEqual(steps[(1, "root_cause")]["what"], "Stale cache key")
         self.assertEqual(issue["timing"][0]["ttr"]["ms"], 30 * 60000)
         self.assertEqual({job["job_id"] for job in _fold_jobs()}, {"j1", "j2"})
 

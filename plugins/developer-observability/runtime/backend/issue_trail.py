@@ -94,11 +94,36 @@ def read_trail_events(state_dir=None):
     return by_issue
 
 
-def _words(text, limit=6):
+_PATH_RE = re.compile(r"(?:[\w.~-]*/)+[\w.-]*(?::\d+(?:-\d+)?)?|\b[\w-]+\.(?:py|mjs|js|ts|tsx|sh|json|jsonl|md|html|css|yaml|yml)(?::\d+(?:-\d+)?)?\b")
+_TAIL_WORDS = {"a", "an", "the", "of", "to", "for", "in", "on", "at", "by", "with", "from", "and", "or", "but", "that",
+               "which", "is", "are", "was", "were", "be", "does", "do", "did", "not", "no", "can", "cannot", "its", "their",
+               "what", "so", "than", "as", "it", "this", "has", "have", "until", "when", "over", "far", "still", "no longer"}
+_WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9'’+-]*|\d+(?:\.\d+)?")
+
+
+def _plain(text, limit=5):
+    """3-5 plain words from free text: no markdown, paths, links or list numbers; None if it can't."""
     if not isinstance(text, str) or not text.strip():
         return None
-    words = re.sub(r"\s+", " ", text).strip().split(" ")
-    return " ".join(words[:limit]) + ("…" if len(words) > limit else "")
+    value = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
+    value = re.sub(r"`[^`]*`|https?://\S+|\*\*|__|#+ ", " ", value)
+    value = _PATH_RE.sub(" ", value)
+    for piece in re.split(r"[.;:!?\n—–()]|\s-\s|\s\d+[.)]\s", value):
+        piece = re.sub(r"^\s*(?:\d+[.)]|[-*•>])\s*", "", piece)
+        words = _WORD_RE.findall(piece)
+        while words and words[0].lower() in {"the", "a", "an", "and", "but", "so"}:
+            words = words[1:]
+        words = words[:limit]
+        while words and words[-1].lower() in _TAIL_WORDS:
+            words = words[:-1]
+        if len(words) >= 2:
+            out = " ".join(words)
+            return out[0].upper() + out[1:]
+    return None
+
+
+def _norm(text):
+    return " ".join(_WORD_RE.findall(str(text or "").lower()))
 
 
 def _step(cycle, name, ts, ts_p, run_id=None, evidence=None, source=None, what=None, note=None, run_p=None, ev_p=None):
@@ -109,7 +134,7 @@ def _step(cycle, name, ts, ts_p, run_id=None, evidence=None, source=None, what=N
         fields["ts"] = "missing"
     return {"cycle": cycle, "step": name, "status": "done", "ts": ts if ts else None, "run_id": run_id,
             "evidence_url": evidence, "provenance": fields["ts"], "field_provenance": fields,
-            "source": source, "what": _words(what), "note": note}
+            "source": source, "what": _plain(what), "note": note}
 
 
 def _pending(cycle, name, note=None):
@@ -160,6 +185,7 @@ def job_row(job, provenance, cycle=None):
             "tokens": total, "tokens_in": inp if source != "none" and isinstance(inp, int) else None,
             "tokens_out": out if source != "none" and isinstance(out, int) else None,
             "tokens_source": source, "tokens_method": method if source != "none" else None,
+            "harness": (str(job.get("model")).strip()[:40] or None) if not model and isinstance(job.get("model"), str) else None,
             "link_provenance": provenance}
 
 
@@ -174,15 +200,18 @@ def _job_ids(job):
     return ids
 
 
-def linked_jobs(issue_id, lane_id, jobs):
-    """Jobs stamped with this issue id (recorded), else on its lane (derived, shared credit)."""
+def linked_jobs(issue, jobs, lane_credit=None):
+    """Jobs stamped with this issue id (recorded), else on the lane the issue was in when the job ran
+    (derived, shared credit). lane_credit(job, issue) decides lane membership; default is the current lane."""
+    issue_id = issue.get("id")
+    lane = issue.get("lane") if isinstance(issue.get("lane"), dict) else {}
     rows = []
     for job in jobs:
         if not job.get("job_id") or job.get("event") in TRAIL_EVENTS:
             continue
         if issue_id in _job_ids(job):
             rows.append((job, "recorded"))
-        elif lane_id and job.get("group_id") == lane_id:
+        elif lane_credit(job, issue) if lane_credit else (lane.get("id") and job.get("group_id") == lane.get("id")):
             rows.append((job, "derived"))
     rows.sort(key=lambda row: _instant(row[0].get("started_at") or row[0].get("at")) or datetime.min.replace(tzinfo=timezone.utc))
     return rows
@@ -201,8 +230,10 @@ def _first_fail(issue, emitted, events, tracker, end_at):
         if event.get("kind") in FAIL_KINDS and not str(event.get("ref") or "").startswith("job:"):
             ref = event.get("ref")
             run = _CHECK_REF.match(ref).group("run") if ref and _CHECK_REF.match(ref) else None
-            candidates.append(_step(1, "first_fail", event["at"], "recorded", run, _evidence_for(ref, tracker, identifier)
-                                    or f"tracker://{tracker}#/findings/{identifier}", "failure_history" if not run else "verification_history.checks",
+            source_tracker = f"{str(event['pr']).lstrip('#')}.json" if event.get("carried") and event.get("pr") else tracker
+            candidates.append(_step(1, "first_fail", event["at"], "recorded", run, _evidence_for(ref, source_tracker, identifier)
+                                    or f"tracker://{source_tracker}#/findings/{identifier}",
+                                    ("failure_history" if not run else "verification_history.checks") + (f" (carried from #{str(event['pr']).lstrip('#')})" if event.get("carried") else ""),
                                     event.get("summary")))
     seen = issue.get("first_seen") if isinstance(issue.get("first_seen"), dict) else {}
     source = seen.get("source")
@@ -248,11 +279,18 @@ def _root_cause(cycle, start, stop, emitted, raw, jobs, lane_plan, tracker, iden
     return min(pool, key=lambda row: _instant(row["ts"])) if pool else None
 
 
-def build_trail(issue, emitted, jobs, tracker, lane_plan=None, merged_at=None, end_at=None, now=None):
+def build_trail(issue, emitted, jobs, tracker, lane_plan=None, merged_at=None, end_at=None, now=None,
+                full_events=None, inherited=None):
+    """full_events: the issue's unbounded events (past-round views bound issue.events).
+    inherited: failure events carried from earlier PRs' trackers for the same id."""
     now = end_at or now or datetime.now(timezone.utc)
     identifier = issue.get("id")
     raw = issue.get("raw") if isinstance(issue.get("raw"), dict) else {}
-    events = sorted((event for event in (issue.get("events") or [])
+    all_emitted = list(emitted)
+    own = list(issue.get("events") or [])
+    seen_keys = {(event.get("kind"), event.get("at")) for event in own}
+    own += [event for event in (inherited or []) if (event.get("kind"), event.get("at")) not in seen_keys]
+    events = sorted((event for event in own
                      if _instant(event.get("at")) and (end_at is None or _instant(event["at"]) <= end_at)
                      and event.get("kind") not in {"first_seen", "job"}),
                     key=lambda event: _instant(event["at"]))
@@ -297,7 +335,7 @@ def build_trail(issue, emitted, jobs, tracker, lane_plan=None, merged_at=None, e
                                "verified": None, "inconclusive": None, "fails": 1})
             elif kind == "inconclusive":
                 after.append({"ts": event["at"], "kind": "inconclusive", "run_id": run,
-                              "text": "Inconclusive later, did not reopen"})
+                              "text": "Verify inconclusive after the pass"})
     for row in emitted:
         if TRAIL_EVENTS.get(row.get("event")) == "fix_verified":
             cycle = cycles[-1]
@@ -319,7 +357,14 @@ def build_trail(issue, emitted, jobs, tracker, lane_plan=None, merged_at=None, e
         if last["verified"] is None and _instant(merged_at) and (end_at is None or _instant(merged_at) <= end_at):
             last["verified"] = _step(len(cycles), "fix_verified", merged_at, "derived", None, None,
                                      f"status verified_fixed at #{tracker.split('.')[0]} merge", "Marked verified at merge")
-        if last["verified"] is None:
+        # Status-only fallback only when no dated verify evidence exists anywhere; otherwise the verify
+        # happened after this round or run ended and the step stays pending (SPEC-trail r2).
+        dated_later = end_at is not None and (
+            any(_instant(raw.get(key)) for key in ("verified_at", "resolved_at", "fixed_at", "closed_at"))
+            or _instant(merged_at) is not None
+            or any(event.get("kind") in PASS_KINDS and _instant(event.get("at")) for event in (full_events or []) + own)
+            or any(TRAIL_EVENTS.get(row.get("event")) == "fix_verified" for row in all_emitted))
+        if last["verified"] is None and not dated_later:
             last["verified"] = _step(len(cycles), "fix_verified", None, "missing", None, None, "status verified_fixed", "Marked verified")
     steps, timing, starts = [], [], []
     for number, cycle in enumerate(cycles, 1):
@@ -347,6 +392,11 @@ def build_trail(issue, emitted, jobs, tracker, lane_plan=None, merged_at=None, e
         starts.append(_instant(begin["ts"]))
         timing.append({"cycle": number, "ttr": _duration(begin, cause, now), "ttv": _duration(begin, verified, now),
                        "fix_to_verify": _duration(cause, verified, now) if cause["status"] == "done" else None})
+    title = _norm(raw.get("title") or issue.get("title"))
+    for step in steps:
+        # A summary that only repeats the issue title adds nothing; leave it out.
+        if step.get("what") and title and title.startswith(_norm(step["what"])):
+            step["what"] = None
     linked = []
     for job, link in jobs:
         at = _instant(job.get("started_at") or job.get("at"))
@@ -384,12 +434,20 @@ def token_counts(rows):
     return counts, sums
 
 
-def decorate(issues, jobs, emitted_by_issue, tracker_for, lane_plan_for, merged_for, include, end_at=None, now=None):
+def _trail_for(issue, ctx, end_at=None, now=None):
+    linked = linked_jobs(issue, ctx["jobs"], ctx.get("lane_credit"))
+    full = ctx["full_events_for"](issue) if ctx.get("full_events_for") else None
+    inherited = ctx["inherited_for"](issue) if ctx.get("inherited_for") else None
+    return build_trail(issue, ctx["emitted"].get(issue.get("id"), []), linked, ctx["tracker_for"](issue),
+                       ctx["lane_plan_for"](issue, linked), ctx["merged_for"](issue), end_at=end_at, now=now,
+                       full_events=full, inherited=inherited)
+
+
+def decorate(issues, ctx, include, end_at=None, now=None):
+    """ctx: jobs, emitted, tracker_for, lane_plan_for, merged_for and optional lane_credit,
+    full_events_for, inherited_for."""
     for issue in issues:
-        lane = issue.get("lane") if isinstance(issue.get("lane"), dict) else {}
-        linked = linked_jobs(issue.get("id"), lane.get("id"), jobs)
-        result = build_trail(issue, emitted_by_issue.get(issue.get("id"), []), linked, tracker_for(issue),
-                             lane_plan_for(issue, linked), merged_for(issue), end_at=end_at, now=now)
+        result = _trail_for(issue, ctx, end_at=end_at, now=now)
         if "trail" in include:
             issue.update(trail=result["trail"], cycle=result["cycle"], timing=result["timing"], after=result["after"])
         if "jobs" in include:
@@ -406,24 +464,21 @@ def _median(values):
     return int(statistics.median(values))
 
 
-def rollup(issue_sets, rounds, jobs, emitted_by_issue, tracker_for, lane_plan_for, merged_for, now=None):
+def rollup(issue_sets, rounds, ctx, now=None):
     """rollup[] per (pr, round) plus one '#pr all' row per PR; medians over cycles verified in scope."""
     now = now or datetime.now(timezone.utc)
     cycles_by_pr = {}
     for pr, issues in issue_sets.items():
         rows = []
         for issue in issues:
-            lane = issue.get("lane") if isinstance(issue.get("lane"), dict) else {}
-            linked = linked_jobs(issue.get("id"), lane.get("id"), jobs)
-            result = build_trail(issue, emitted_by_issue.get(issue.get("id"), []), linked, tracker_for(issue),
-                                 lane_plan_for(issue, linked), merged_for(issue), now=now)
+            result = _trail_for(issue, ctx, now=now)
             for timing in result["timing"]:
                 verified = next((step for step in result["trail"] if step["cycle"] == timing["cycle"]
                                  and step["step"] == "fix_verified"), None)
                 if verified and verified["status"] == "done":
                     rows.append({"at": _instant(verified["ts"]), "ttr": timing["ttr"], "ttv": timing["ttv"]})
         cycles_by_pr[pr] = rows
-    all_jobs = [job for job in jobs if job.get("job_id")]
+    all_jobs = [job for job in ctx["jobs"] if job.get("job_id")]
     def summary(scope, pr, number, cycles, scoped_jobs):
         def med(key):
             if not cycles:
@@ -432,7 +487,7 @@ def rollup(issue_sets, rounds, jobs, emitted_by_issue, tracker_for, lane_plan_fo
             if not values:
                 return {"ms": None, "provenance": "missing"}
             derived = any(row[key] and row[key]["provenance"] != "recorded" for row in cycles if row[key] and row[key]["ms"] is not None)
-            return {"ms": _median(values), "provenance": "derived" if derived else "recorded"}
+            return {"ms": _median(values), "provenance": "derived" if derived else "recorded", "inputs": len(values)}
         derived_inputs = sum(1 for row in cycles if any(row[key] and row[key]["provenance"] != "recorded" for key in ("ttr", "ttv")))
         usage = [job_row(job, "time_span") for job in scoped_jobs]
         counts, sums = token_counts(usage)
