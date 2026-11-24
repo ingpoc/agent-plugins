@@ -11252,9 +11252,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T14:33:52Z",
-      "now": "2026-11-24T14:33:52Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-24T14:41:09Z",
+      "now": "2026-11-24T14:41:09Z — Install in progress"
     },
     "rollover": {
       "source_pr": 120,
@@ -12724,7 +12724,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T14:33:52Z",
+    "last_written_at": "2026-11-24T14:41:09Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -13024,7 +13024,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "cycle": 13,
@@ -13316,31 +13317,35 @@
               "at": "2026-11-24T11:45:44Z"
             }
           ],
-          "status": "review",
+          "status": "installing",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "1adc5e4b1e034c859a6474d511a70487",
-              "phase": "review",
-              "started_at": "2026-11-24T14:33:52Z",
-              "command": "write-review-do4-do12.sh",
-              "heartbeat_at": "2026-11-24T14:33:52Z",
+              "id": "14a186e86669457ea12b16594ed1c7f7",
+              "phase": "presuite",
+              "started_at": "2026-11-24T14:34:12Z",
+              "command": "env",
+              "heartbeat_at": "2026-11-24T14:37:13Z",
               "plan_sha256": "b492bd391fd64291d28cd66d0685b85da03924e5b2e23180cb9ccdf7ad5bedea",
               "worktree": "samantha-next-r11",
               "model": "Grok Bot",
               "lane_sha256": "7255f8d886c6e9acf974cef492de81efd6e80d4918e254144fda3534bb49cb65",
               "cycle": 13,
-              "round": 3
+              "round": 3,
+              "pid": 93953,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T14:37:13Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "implementer_session": "grok-bot-r3-do4-do12",
             "implementer_model": "Grok Bot",
             "effort": "medium",
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot"
           },
-          "phase": "review",
-          "stage_entered_at": "2026-11-24T14:32:46Z",
+          "phase": "install",
+          "stage_entered_at": "2026-11-24T14:41:09Z",
           "updated_at": "2026-11-24T14:33:47Z",
           "unblock_history": [
             {
@@ -13354,7 +13359,21 @@
               "by_cycle": 13,
               "round": 3
             }
-          ]
+          ],
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T14:37:13Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T14:41:09Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T14:41:09Z"
+          }
         },
         {
           "id": "R2-INTRO",
@@ -13421,8 +13440,8 @@
             "failed": 0,
             "total": 1
           },
-          "parked_to": 3,
-          "blocked_reason": "Second failure",
+          "parked_to": 4,
+          "blocked_reason": "Needs Guru later round",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -13477,11 +13496,11 @@
             }
           ],
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
-          "status": "blocked",
+          "status": "parked",
           "codex": {},
           "phase": "fix",
-          "stage_entered_at": "2026-11-24T14:29:22Z",
-          "updated_at": "2026-11-24T14:29:22Z"
+          "stage_entered_at": "2026-11-24T14:41:01Z",
+          "updated_at": "2026-11-24T14:41:01Z"
         },
         {
           "id": "R4-171",
@@ -13497,8 +13516,8 @@
             "failed": 0,
             "total": 1
           },
-          "parked_to": 3,
-          "blocked_reason": "Second failure",
+          "parked_to": 4,
+          "blocked_reason": "Needs Guru later round",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13564,11 +13583,11 @@
             }
           ],
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
-          "status": "blocked",
+          "status": "parked",
           "codex": {},
           "phase": "fix",
-          "stage_entered_at": "2026-11-24T14:29:22Z",
-          "updated_at": "2026-11-24T14:29:22Z"
+          "stage_entered_at": "2026-11-24T14:41:01Z",
+          "updated_at": "2026-11-24T14:41:01Z"
         },
         {
           "id": "R2-DO1",
@@ -13662,7 +13681,7 @@
             "BCL-161",
             "BCL-130"
           ],
-          "status": "planned",
+          "status": "parked",
           "phase": "fix",
           "files": [
             "plugins/batched-change-list/bin/bcl",
@@ -13676,8 +13695,10 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T14:29:22Z",
-          "stage_entered_at": "2026-11-24T14:29:22Z"
+          "updated_at": "2026-11-24T14:41:01Z",
+          "stage_entered_at": "2026-11-24T14:41:01Z",
+          "parked_to": 4,
+          "blocked_reason": "Hold for ready-lane install"
         },
         {
           "id": "R3-COSMETIC",
@@ -13686,7 +13707,7 @@
           "finding_ids": [
             "DO-13"
           ],
-          "status": "planned",
+          "status": "parked",
           "phase": "fix",
           "files": [
             "plugins/developer-observability/ui/app.js",
@@ -13699,8 +13720,10 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T14:33:47Z",
-          "stage_entered_at": "2026-11-24T14:29:22Z"
+          "updated_at": "2026-11-24T14:41:01Z",
+          "stage_entered_at": "2026-11-24T14:41:01Z",
+          "parked_to": 4,
+          "blocked_reason": "Hold for ready-lane install"
         }
       ]
     },
@@ -15038,7 +15061,7 @@
     {
       "id": "DO-12",
       "title": "Tracker is missing first seen, last seen, state changes, and related scope fields",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "source": "User requested",
       "summary": "The viewer and the issues API cannot tell what is current, what came back, or what happened in a chosen window, because the tracker does not keep structured first-seen and last-seen times, a history of state changes, when a round or pull request started, which issues a job belongs to, or the stored merge-gate threshold.",
@@ -15059,7 +15082,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T14:41:09Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:32:19Z",
         "source": "lane_failure"
