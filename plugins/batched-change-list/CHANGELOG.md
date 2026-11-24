@@ -1,3 +1,7 @@
+## 0.1.74
+
+- A rejected Codex reviewer model is recorded as a named model_rejected tool fault; the lane stays in review with a passed fix so a later review can record a Grok Bot verdict, after one Astra 6.2 retry (PR120-r5-codex-reviewer-model-fallback). A second plan review, or a fourth post-fix review, is refused until remaining items are filed as standalone findings, and a finding cannot be added to a lane under review (BCL-121).
+
 ## 0.1.73
 
 - Job and stage events are written for a per-round view, with Codex tokens bound by a verified open-file stamp and a named gap when the source is missing; a review records the last verdict-starting block, keeps a complete CHANGES result on a nonzero exit or a missing Must-fix heading, and does not hang if a descendant retains a pipe (BCL-177, BCL-149 slice).
