@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T16:51:15Z",
-      "now": "2026-11-24T16:51:15Z — Lane R4-171 updated"
+      "stage": "install",
+      "updated_at": "2026-11-24T16:52:40Z",
+      "now": "2026-11-24T16:52:40Z — Install in progress"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:51:15Z",
+    "last_written_at": "2026-11-24T16:52:40Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12492,7 +12492,8 @@
     "stages_reached": [
       "collect",
       "plan_fix",
-      "review"
+      "review",
+      "install"
     ],
     "plan": {
       "cycle": 14,
@@ -12521,8 +12522,8 @@
             "failed": 0,
             "total": 1
           },
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "codex": {
             "implementer_session": "grokbot-122-r1-guard",
             "reviewer_session": "grokbot-122-r1-guard-review",
@@ -12558,7 +12559,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T15:38:20Z",
+          "stage_entered_at": "2026-11-24T16:52:40Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12566,7 +12567,16 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:03:40Z"
+          "updated_at": "2026-11-24T16:03:40Z",
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T16:52:40Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent",
+            "at": "2026-11-24T16:52:40Z"
+          }
         },
         {
           "id": "R1-TOKENS",
@@ -12578,8 +12588,8 @@
             "DO-6"
           ],
           "worktree": "samantha-next-r12",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
             "plugins/developer-observability"
@@ -12628,7 +12638,7 @@
             "tool_fault_streak": 0,
             "review_status": "passed"
           },
-          "stage_entered_at": "2026-11-24T16:04:42Z",
+          "stage_entered_at": "2026-11-24T16:52:40Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T16:03:40Z",
@@ -12636,6 +12646,15 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T16:44:21Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T16:52:40Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent",
+            "at": "2026-11-24T16:52:40Z"
           }
         },
         {
@@ -12662,8 +12681,8 @@
             "failed": 0,
             "total": 3
           },
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "codex": {
             "implementer_session": "grokbot-122-r1-jobux",
             "reviewer_session": "grokbot-122-r1-jobux-review",
@@ -12700,7 +12719,7 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-24T15:59:06Z",
+          "stage_entered_at": "2026-11-24T16:52:40Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -12720,7 +12739,16 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:03:40Z"
+          "updated_at": "2026-11-24T16:03:40Z",
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T16:52:40Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent",
+            "at": "2026-11-24T16:52:40Z"
+          }
         },
         {
           "id": "R1-COSMETIC",
@@ -12742,8 +12770,8 @@
             "failed": 0,
             "total": 1
           },
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "codex": {
             "implementer_session": "grokbot-122-r1-cosmetic",
             "reviewer_session": "grokbot-122-r1-cosmetic-review",
@@ -12779,7 +12807,7 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot"
           },
-          "stage_entered_at": "2026-11-24T16:04:12Z",
+          "stage_entered_at": "2026-11-24T16:52:40Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T16:03:40Z",
@@ -12787,6 +12815,15 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-24T16:44:21Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T16:52:40Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot subagent",
+            "at": "2026-11-24T16:52:40Z"
           }
         },
         {
@@ -13313,7 +13350,7 @@
       "observed": "22 Nov 2026 10:20 IST, bcl 0.1.60, PR 119 lane R2-144",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2",
         "report": "bcl-119 progress.md",
@@ -13330,7 +13367,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:52:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.136233Z",
         "source": "verification_check"
@@ -13346,7 +13390,7 @@
       "observed": "22 Nov 2026 11:43 IST, bcl 0.1.61, PR 119 lane R2-146",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "PR 119 round 2",
         "kind": "fix",
@@ -13362,7 +13406,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:52:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T15:39:24Z",
         "source": "review"
@@ -13378,7 +13429,7 @@
       "observed": "22 Nov 2026 15:17 IST, bcl 0.1.62, PR 119 lane R2-150",
       "priority": "high",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "filed_by": "Guru 15:17 IST (via parent)",
         "kind": "fix",
@@ -13394,7 +13445,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:52:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T15:39:24Z",
         "source": "review"
@@ -13499,7 +13557,7 @@
       "recommendation": "Have the official job runner store the job model and a token source or an explicit none source on finish, so collect can name the model instead of the wrapper and raise coverage on jobs that have usage.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "snapshots": "devobs-r6-before 704287b7 at 12:27:41 IST; devobs-r6-after 1def6b50 at 12:30:02 IST; coverage 1/35, tokens 1088149, incomplete 18, last_event_at 2026-11-24T06:59:41Z.",
         "metric": "Before: official collect coverage 1/35 and many wrapper-named gaps. After: a short official run reports model-named coverage for jobs with usage and wrapper-free named gaps for the rest.",
@@ -13514,7 +13572,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:52:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.162842Z",
         "source": "verification_check"
@@ -13523,7 +13588,7 @@
     {
       "id": "DO-6",
       "title": "Implementer session time is not recorded as a job, so the time bar stays incomplete",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "source": "Agent reported",
       "summary": "Work done in a Grok Bot implementer session is not recorded as a job, so a large share of a round's wall time never appears in the default view's time bar.",
@@ -13541,7 +13606,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:52:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.172770Z",
         "source": "verification_check"
@@ -13550,7 +13622,7 @@
     {
       "id": "DO-8",
       "title": "Failed job output is not retained for the Why column",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "source": "Agent reported",
       "summary": "When a job fails, the tracker often keeps only an empty or generic first error line and does not mark raw logs as available, so the default view cannot show why the attempt failed.",
@@ -13568,7 +13640,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:52:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T15:39:24Z",
         "source": "review"
@@ -13613,7 +13692,7 @@
       "observed": "24 Nov 2026 17:51 IST (Asia/Calcutta), PR 121, Luna session 01a20d35-5e3b-77f2-98d7-a953abb136e1. The job wrote a test fixture (example/project/123) over ~/.agents/state/batched-change-list/registry.json, then restored registry.json.bak-before-111 (14 Nov 2026, only lists 107 and 110). bcl status then said the #121 list was not adopted. Live 107-121.json files were intact. The registry was repaired at 18:07 IST from those live files and worktree homes, with a backup at registry.json.bak-20261124-1759-restored-from-nov14. The 8780 viewer and port 8765 were not involved.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "created_at": "2026-11-24T13:03:55Z",
       "first_seen": {
         "at": "2026-11-24T13:03:55Z",
@@ -13621,7 +13700,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:52:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T14:05:51.189600Z",
         "source": "verification_check"
@@ -13637,7 +13723,7 @@
       "recommendation": "When a run is selected, take the breadcrumb round from that run, or show a dash as other window views do. On a narrow screen, shorten the Needs-you reason to “No attempts” or let it wrap under the id.",
       "priority": "low",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "review": "Non-blocking P3s from the 2d1e049c ship write-up at ~/.agents/artifacts/bcl-121/r3/ux-2d1e049c/FINDINGS.md (source /workspace/do-viewer-review/live-v3-2d1e049c/FINDINGS.md). Screenshots last-run-120.png and mobile.png.",
         "metric": "Breadcrumb round should match the selected run's round; Needs-you second line fully visible at 390px."
@@ -13649,7 +13735,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:52:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     }
   ]
 }
