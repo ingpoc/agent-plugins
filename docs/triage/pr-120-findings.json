@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T06:59:41Z",
-      "now": "2026-11-24T06:59:41Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-24T07:03:42Z",
+      "now": "2026-11-24T07:03:42Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 119,
@@ -13498,6 +13498,96 @@
         },
         "round": 5,
         "cycle": 12
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-24T07:03:42Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: R6-FALLBACK",
+          "Codex review: R6-FALLBACK",
+          "Polling and rework review: R6-FALLBACK",
+          "Test command: R6-FALLBACK: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-fallback.sh",
+          "Codex write: R6-121",
+          "Codex review: R6-121",
+          "Polling and rework review: R6-121",
+          "Test command: R6-121: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-121.sh",
+          "Codex write: R6-DO2",
+          "Codex review: R6-DO2",
+          "Polling and rework review: R6-DO2",
+          "Test command: R6-DO2: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do2.sh",
+          "Codex write: R6-DO3",
+          "Codex review: R6-DO3",
+          "Polling and rework review: R6-DO3",
+          "Test command: R6-DO3: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do3.sh"
+        ],
+        "none": [
+          "Stage: Install",
+          "Parallel group count: 4",
+          "Codex write: R6-FALLBACK",
+          "Codex review: R6-FALLBACK",
+          "Polling and rework review: R6-FALLBACK",
+          "Test command: R6-FALLBACK: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-fallback.sh",
+          "Codex write: R6-121",
+          "Codex review: R6-121",
+          "Test command: R6-121: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-121.sh",
+          "Codex write: R6-DO2",
+          "Codex review: R6-DO2",
+          "Polling and rework review: R6-DO2",
+          "Test command: R6-DO2: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do2.sh",
+          "Codex write: R6-DO3",
+          "Codex review: R6-DO3",
+          "Test command: R6-DO3: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do3.sh",
+          "Stage: Verify"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: R6-121",
+                "evidence": "Two of the three parallel implementer jobs (BCL-121 and DO-3) exited 0 after their commits, then the final tracker write failed: job completion belonged to a stale plan candidate (job-fix-r6-121.log at 12:07 IST, job-fix-r6-do3.log at 12:10 IST, Asia/Calcutta). The plan hash had changed after another lane's finish, session record, and review were written. Each lane needed a no-op receipt before review. Before: 2 stale-plan finish failures and 2 no-op receipts in one three-lane run. After: a successful finish can be recorded even if the plan changed while the job ran, or parallel jobs share a generation that does not invalidate finish. Official collect snapshots 704287b7 and 1def6b50 (146 findings each) are now collected, but this failure is still only in the job logs (PR120-r6-stale-job-finish).",
+                "outcome": "issue",
+                "issue_id": "PR120-r6-stale-job-finish"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Stage: Plan & fix",
+                "evidence": "Last round spent 244,914 tokens on seven plan reviews before the first 177 fix, 42% of that round's Codex spend. This round used one plan review per lane (already passed before the cap shipped) and did not rerun plan review. The cap is now installed in 0.1.74 (BCL-121 verified on 828e2f90). Before: 7 pre-fix plan reviews and 244,914 tokens. After, starting next round: a second plan review is refused until a standalone finding is filed. Do not revert 0.1.74; re-measure plan-review count and tokens on the next round's first fix. Official collect after install (1def6b50, 12:30 IST) is marked collected with last_event_at and 1,088,149 tokens, but coverage is still 1/35, so next-round plan-review totals may still need job logs until PR120-r6-collect-job-coverage lands.",
+                "outcome": "issue",
+                "issue_id": "BCL-121"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Polling and rework review: R6-DO3",
+                "evidence": "Last-round waste checks: official collect from 0.1.73/0.1.36 was stale (read_in_collect false, last_event_at unknown, coverage 0/13, tokens 0, gaps named python3; snapshots 0cda0dd1 and 9e04f496). After 0.1.37, snapshots 704287b7 (12:27:41 IST) and 1def6b50 (12:30:02 IST) both have 146 findings, bcl_events status collected, read_in_collect true, last_event_at set, tokens 1,088,149, incomplete 18 not totaled, and gaps named as wrappers rather than a bare python3. The freshness metric moved; do not revert 0.1.73, 0.1.36, 0.1.74, or 0.1.37. Coverage is still 1/35 because most finish events lack a model and a token source. Before: collected, but 1 of 35 jobs has a token total. After: official finishes store the job model and a token source or a named gap that is not only the wrapper (PR120-r6-collect-job-coverage). The scoped presuite from BCL-176 still held (CI=1 python3 scripts/check.py --jobs 6 --changed-since 77d2c0b0, check ok on the second run after a first failure in an existing identity test and a collect-isolation test; do not revert 176). This round's measured Luna tokens were 312,191 across three fixes (37,653 + 115,981 + 158,557), with no product review CHANGES.",
+                "outcome": "issue",
+                "issue_id": "PR120-r6-collect-job-coverage"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Stage: Review",
+                "evidence": "Codex reviewer models remain unavailable on this Mini ChatGPT login, so reviews were Grok Bot subagent reviews recorded through bcl, including after the fallback shipped. The fallback is now installed in 0.1.74, so the next rejected-reviewer event should retry and stay in review without a no-op fix (PR120-r5-codex-reviewer-model-fallback, verified). Do not revert that commit. Before this ship: a rejected reviewer required a no-op fix. After: the installed runner keeps the lane in review. Re-measure the next time a reviewer model is rejected.",
+                "outcome": "issue",
+                "issue_id": "PR120-r5-codex-reviewer-model-fallback"
+              }
+            ]
+          }
+        },
+        "round": 6,
+        "cycle": 12
       }
     ],
     "archive": {
@@ -13527,7 +13617,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 6,
@@ -14180,7 +14271,8 @@
           "updated_at": "2026-11-24T06:19:20Z"
         }
       ],
-      "cycle": 12
+      "cycle": 12,
+      "status": "closed"
     },
     "verification_run": {
       "id": "r6-828e2f90-120",
@@ -14344,32 +14436,57 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-24T06:11:53Z",
+      "at": "2026-11-24T07:03:42Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 1",
-        "Codex write: R5-177",
-        "Codex review: R5-177",
-        "Polling and rework review: R5-177",
-        "Test command: R5-177: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh"
+        "Parallel group count: 4",
+        "Codex write: R6-FALLBACK",
+        "Codex review: R6-FALLBACK",
+        "Polling and rework review: R6-FALLBACK",
+        "Test command: R6-FALLBACK: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-fallback.sh",
+        "Codex write: R6-121",
+        "Codex review: R6-121",
+        "Polling and rework review: R6-121",
+        "Test command: R6-121: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-121.sh",
+        "Codex write: R6-DO2",
+        "Codex review: R6-DO2",
+        "Polling and rework review: R6-DO2",
+        "Test command: R6-DO2: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do2.sh",
+        "Codex write: R6-DO3",
+        "Codex review: R6-DO3",
+        "Polling and rework review: R6-DO3",
+        "Test command: R6-DO3: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do3.sh"
       ],
       "none": [
         "Stage: Install",
-        "Parallel group count: 1",
-        "Codex review: R5-177",
-        "Test command: R5-177: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh"
+        "Parallel group count: 4",
+        "Codex write: R6-FALLBACK",
+        "Codex review: R6-FALLBACK",
+        "Polling and rework review: R6-FALLBACK",
+        "Test command: R6-FALLBACK: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-fallback.sh",
+        "Codex write: R6-121",
+        "Codex review: R6-121",
+        "Test command: R6-121: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-121.sh",
+        "Codex write: R6-DO2",
+        "Codex review: R6-DO2",
+        "Polling and rework review: R6-DO2",
+        "Test command: R6-DO2: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do2.sh",
+        "Codex write: R6-DO3",
+        "Codex review: R6-DO3",
+        "Test command: R6-DO3: /Users/gurusharan/.agents/artifacts/bcl-120/verify-r6-do3.sh",
+        "Stage: Verify"
       ],
       "sections": {
         "delete": {
           "items": [
             {
-              "item": "Polling and rework review: R5-177",
-              "evidence": "After the first Terra CHANGES (54,709 tokens, review-177-1-terra.md) Luna wrote a second fix (130,582 tokens, luna-177-2.log). The next Terra review failed immediately (model_not_found, review-177-2-terra.log), an Astra 6.2 probe failed the same way (astra-probe-177.log), and the workflow required a no-op fix before a substitute Grok Bot review could be recorded. Two Grok Bot reviews then passed, with no token source. That recovery added a tool-fault job, a failed probe, a no-op fix, and two substitute reviews, and none of it needed a second product write. Before: those five extra jobs to recover from a rejected reviewer. After: a rejected reviewer automatically retries the next allowed reviewer and records the substitution, with no no-op fix. Dev-obs collector 0.1.36 snapshots 0cda0dd1 and 9e04f496 still report bcl_jobs coverage 0/13 and tokens 0, so these figures are from Codex logs (PR120-r5-codex-reviewer-model-fallback, BCL-149).",
+              "item": "Polling and rework review: R6-121",
+              "evidence": "Two of the three parallel implementer jobs (BCL-121 and DO-3) exited 0 after their commits, then the final tracker write failed: job completion belonged to a stale plan candidate (job-fix-r6-121.log at 12:07 IST, job-fix-r6-do3.log at 12:10 IST, Asia/Calcutta). The plan hash had changed after another lane's finish, session record, and review were written. Each lane needed a no-op receipt before review. Before: 2 stale-plan finish failures and 2 no-op receipts in one three-lane run. After: a successful finish can be recorded even if the plan changed while the job ran, or parallel jobs share a generation that does not invalidate finish. Official collect snapshots 704287b7 and 1def6b50 (146 findings each) are now collected, but this failure is still only in the job logs (PR120-r6-stale-job-finish).",
               "outcome": "issue",
-              "issue_id": "PR120-r5-codex-reviewer-model-fallback"
+              "issue_id": "PR120-r6-stale-job-finish"
             }
           ]
         },
@@ -14377,7 +14494,7 @@
           "items": [
             {
               "item": "Stage: Plan & fix",
-              "evidence": "Plan review ran seven times before the first fix: six CHANGES and one PASS (73,234 + 36,450 + 31,510 + 35,861 + 30,546 + 12,733 + 24,580 = 244,914 tokens; planreview-r5-177.md through planreview-r5-177-7.md). That is 42% of this round's measured Codex spend (579,503) and worse than round 4's 157 lane (three plan reviews, 131,323 tokens). The same session-binding must-fix was restated in reviews 2 through 5. A cap of one plan review per lane has been claimed since 0.1.64 (BCL-121), but a second plan review was not refused. Before: 7 plan reviews and 244,914 tokens before the first fix. After: a second plan review is refused until open items are filed, and plan-review tokens before the first fix stay at or under two attempts. Codex logs only; official collect still has no usable token total (DO-2).",
+              "evidence": "Last round spent 244,914 tokens on seven plan reviews before the first 177 fix, 42% of that round's Codex spend. This round used one plan review per lane (already passed before the cap shipped) and did not rerun plan review. The cap is now installed in 0.1.74 (BCL-121 verified on 828e2f90). Before: 7 pre-fix plan reviews and 244,914 tokens. After, starting next round: a second plan review is refused until a standalone finding is filed. Do not revert 0.1.74; re-measure plan-review count and tokens on the next round's first fix. Official collect after install (1def6b50, 12:30 IST) is marked collected with last_event_at and 1,088,149 tokens, but coverage is still 1/35, so next-round plan-review totals may still need job logs until PR120-r6-collect-job-coverage lands.",
               "outcome": "issue",
               "issue_id": "BCL-121"
             }
@@ -14386,34 +14503,28 @@
         "optimize": {
           "items": [
             {
-              "item": "Codex write: R5-177",
-              "evidence": "Measured Codex tokens from job logs: 579,503 (plan reviews 244,914, fix 1 149,298, review 1 54,709, fix 2 130,582) against a 120,000 estimate. Round 4 used 1,528,794 across four lanes and parked two; this round used one lane and shipped, but still spent 4.8 times the estimate, with 130,582 tokens of product rework after the first review (22% of the Codex total). The round 4 waste fix BCL-177 did move capture: official collect 0.1.36 now reports bcl_jobs in collector_stats (13 jobs, coverage 0/13, tokens 0, incomplete 14, gaps all named python3; snapshots 0cda0dd1 and 9e04f496, 146 findings each) where collector 0.1.34 recorded none. The token total itself still did not land, because this round's Codex work ran before 0.1.73 was installed and collect marks bcl_events stale with read_in_collect false and last_event_at unknown. Do not revert 0.1.73 or 0.1.36; re-measure next round on jobs run under the installed runner. If those jobs still show coverage 0, revert the capture commits and record why. Grok Bot work has no usage source (DO-2).",
+              "item": "Polling and rework review: R6-DO3",
+              "evidence": "Last-round waste checks: official collect from 0.1.73/0.1.36 was stale (read_in_collect false, last_event_at unknown, coverage 0/13, tokens 0, gaps named python3; snapshots 0cda0dd1 and 9e04f496). After 0.1.37, snapshots 704287b7 (12:27:41 IST) and 1def6b50 (12:30:02 IST) both have 146 findings, bcl_events status collected, read_in_collect true, last_event_at set, tokens 1,088,149, incomplete 18 not totaled, and gaps named as wrappers rather than a bare python3. The freshness metric moved; do not revert 0.1.73, 0.1.36, 0.1.74, or 0.1.37. Coverage is still 1/35 because most finish events lack a model and a token source. Before: collected, but 1 of 35 jobs has a token total. After: official finishes store the job model and a token source or a named gap that is not only the wrapper (PR120-r6-collect-job-coverage). The scoped presuite from BCL-176 still held (CI=1 python3 scripts/check.py --jobs 6 --changed-since 77d2c0b0, check ok on the second run after a first failure in an existing identity test and a collect-isolation test; do not revert 176). This round's measured Luna tokens were 312,191 across three fixes (37,653 + 115,981 + 158,557), with no product review CHANGES.",
               "outcome": "issue",
-              "issue_id": "DO-2"
-            },
-            {
-              "item": "Stage: Review",
-              "evidence": "The scoped presuite from BCL-176 still held. The 0.1.73 ship used CI=1 python3 scripts/check.py --jobs 6 --changed-since 302a1a70 and passed on the second run after a first failure in the new job-runner tests (job-presuite-177-2.log, check ok; test_bcl.py about 172s). The later snapshot-only push used --changed-since 77d2c0b0 (docs only, check ok in 15s). This was not a full-suite accident, so the 176 metric moved and should not be reverted. Official collect did not record suite duration (bcl_events stale in snapshots 0cda0dd1 and 9e04f496).",
-              "outcome": "issue",
-              "issue_id": "BCL-176"
+              "issue_id": "PR120-r6-collect-job-coverage"
             }
           ]
         },
         "automate": {
           "items": [
             {
-              "item": "Stage: Verify",
-              "evidence": "Evidence-quality verdict: medium for pass/fail, low for tokens. Verify 5/5 passed on the installed 0.1.73 change-list and 0.1.36 observability (verify-r5-177.log). Before-snapshot 0cda0dd1 (11:34 IST, 146 findings) and after-snapshot 9e04f496 (11:35 IST, 146 findings, snapshot 388368a8) have the same finding count, but bcl_events is marked stale with read_in_collect false and last_event_at unknown, so Introspect cannot take a per-round token total or filter from the official snapshot. collector_stats still show 13 jobs, coverage 0/13, tokens 0, and gaps named python3 rather than the job model. Introspect therefore still uses Codex job logs for 579,503 tokens and cannot separate this pull request or round inside collect. That is a filter and capture gap, not a new event format. Before: official collect cannot filter this list and round or yield a complete token total. After: a collect snapshot can be filtered to this pull request and round, names the job model or a real token-source gap, and is marked collected with a last event time when the log exists (DO-3, DO-2).",
+              "item": "Stage: Review",
+              "evidence": "Codex reviewer models remain unavailable on this Mini ChatGPT login, so reviews were Grok Bot subagent reviews recorded through bcl, including after the fallback shipped. The fallback is now installed in 0.1.74, so the next rejected-reviewer event should retry and stay in review without a no-op fix (PR120-r5-codex-reviewer-model-fallback, verified). Do not revert that commit. Before this ship: a rejected reviewer required a no-op fix. After: the installed runner keeps the lane in review. Re-measure the next time a reviewer model is rejected.",
               "outcome": "issue",
-              "issue_id": "DO-3"
+              "issue_id": "PR120-r5-codex-reviewer-model-fallback"
             }
           ]
         }
       },
-      "round": 5,
+      "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T07:00:28Z",
+    "last_written_at": "2026-11-24T07:03:42Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
@@ -15423,6 +15534,40 @@
       "priority": "high",
       "source": "Agent reported",
       "status": "untested"
+    },
+    {
+      "title": "A finished job cannot record its result if another lane's receipt was written while it ran",
+      "summary": "When two jobs run at the same time, writing one job's finish or session onto the plan can make the other job's finish fail, even when the child already exited successfully. The work is done, but the lane is left as if the job were still running.",
+      "impact": "Parallel lanes need a no-op receipt to re-enter review, and a clean product fix can look unfinished. That adds extra jobs and delays a combined ship.",
+      "done_when": "A job that exits successfully can record its finish even if the plan changed while it ran, or parallel jobs share a generation that does not invalidate a later finish, and a test covers a finish after another lane's receipt was written.",
+      "observed": "24 Nov 2026, 12:08–12:10 IST, Asia/Calcutta. Two of three parallel implementer jobs exited 0 after commits, then the final tracker write failed because job completion belonged to a stale plan candidate. Each lane needed a later no-op receipt before review. The plan hash had changed after another lane's finish, session record, and review were written.",
+      "recommendation": "Let a successful finish land against the current plan when the job id is still running, or keep a stable plan generation for in-flight jobs so a receipt on another lane does not invalidate them.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "lanes": "R6-121 job 947b61265d184d2b922aea49bf15a996 and R6-DO3 job 08e131b7a81941f5ae17100c87d6b293; logs job-fix-r6-121.log and job-fix-r6-do3.log; no-op receipts then recorded through bcl job --phase fix -- /usr/bin/true.",
+        "metric": "Before: 2 of 3 parallel finish writes failed after exit 0, plus 2 no-op receipts. After: 0 stale-plan finish failures on a three-lane parallel run."
+      },
+      "id": "PR120-r6-stale-job-finish",
+      "created_at": "2026-11-24T07:02:02Z"
+    },
+    {
+      "title": "Official collect still misses tokens for most change-list jobs",
+      "summary": "A live collect after the latest observability install marks the change-list log collected and reports a last event time, but only one in 35 finished jobs has a complete token total. Most gaps are still named as wrapper commands because the job finish did not store a model or a token source.",
+      "impact": "Introspect can see that the log was collected, but still cannot trust the official token total or name the model for most jobs, so it falls back to reading implementer logs by hand.",
+      "done_when": "Every official job finish stores the job's model and a token source or a named gap that is not only the wrapper command, and a live collect of a three-job run reports coverage of the jobs that have a usage source plus named gaps for the rest, without totaling incomplete tokens.",
+      "observed": "24 Nov 2026, 12:27–12:30 IST, Asia/Calcutta. Official collect snapshots 704287b7 and 1def6b50 both report 146 findings, bcl_events collected with a last event time and read_in_collect true, coverage 1/35, tokens 1088149, 18 incomplete, and many gaps named as wrapper scripts or python3 (wrapper).",
+      "recommendation": "Have the official job runner store the job model and a token source or an explicit none source on finish, so collect can name the model instead of the wrapper and raise coverage on jobs that have usage.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "snapshots": "devobs-r6-before 704287b7 at 12:27:41 IST; devobs-r6-after 1def6b50 at 12:30:02 IST; coverage 1/35, tokens 1088149, incomplete 18, last_event_at 2026-11-24T06:59:41Z.",
+        "metric": "Before: official collect coverage 1/35 and many wrapper-named gaps. After: a short official run reports model-named coverage for jobs with usage and wrapper-free named gaps for the rest."
+      },
+      "id": "PR120-r6-collect-job-coverage",
+      "created_at": "2026-11-24T07:02:02Z"
     }
   ]
 }
