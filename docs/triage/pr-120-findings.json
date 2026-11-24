@@ -11481,8 +11481,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-24T05:56:11Z",
-      "now": "2026-11-24T05:56:11Z — Review started"
+      "updated_at": "2026-11-24T05:56:21Z",
+      "now": "2026-11-24T05:56:21Z — Presuite started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13178,7 +13178,7 @@
           ],
           "label": "BCL-177",
           "status": "review",
-          "worktree": "bcl120-r5-177",
+          "worktree": "samantha-next-r10",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r5-177.sh",
             "status": "pending",
@@ -13191,22 +13191,26 @@
             "implementer_session": "01a20c01-4fd3-76b1-b5c7-c05e95e22500",
             "reviewer_session": "codex-terra-120-177-2",
             "job": {
-              "id": "feedc664b7c54f3aab222e7b3412a6ae",
-              "phase": "review",
-              "started_at": "2026-11-24T05:56:11Z",
-              "command": "run-record-177-3-grok.sh",
-              "heartbeat_at": "2026-11-24T05:56:11Z",
+              "id": "f5eecd13e6794225affee114719106a0",
+              "phase": "presuite",
+              "started_at": "2026-11-24T05:56:21Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-24T05:59:16Z",
               "plan_sha256": "24cbbc0299efb5555bb9c4853e744bff7bcf3e0de5288b468b1090244be88378",
-              "worktree": "bcl120-r5-177",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "worktree": "samantha-next-r10",
+              "model": "check.py --changed-since 302a1a70",
               "cycle": 12,
-              "round": 5
+              "round": 5,
+              "pid": 28937,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T05:59:16Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
             "must_fix_note": "Reviewer exited 1",
-            "review_status": "running"
+            "review_status": "passed"
           },
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
@@ -13263,7 +13267,12 @@
           ],
           "updated_at": "2026-11-24T05:34:13Z",
           "stage_entered_at": "2026-11-24T05:56:00Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T05:59:16Z"
+          }
         },
         {
           "id": "R4-171",
@@ -13889,7 +13898,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T05:56:11Z"
+    "last_written_at": "2026-11-24T05:59:16Z"
   },
   "findings": [
     {
