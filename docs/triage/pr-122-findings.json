@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T15:40:57Z",
-      "now": "2026-11-24T15:40:57Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T15:53:06Z",
+      "now": "2026-11-24T15:53:06Z — Fix started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T15:40:57Z",
+    "last_written_at": "2026-11-24T15:53:06Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12545,16 +12545,16 @@
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "tool_fault_streak": 0,
             "review_status": "passed",
-            "reviewer_model": "Grok Bot"
+            "reviewer_model": "Grok Bot",
+            "tool_fault_streak": 0
           },
           "status": "review",
           "phase": "review",
           "stage_entered_at": "2026-11-24T15:38:20Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T15:39:19Z"
+          "updated_at": "2026-11-24T15:53:06Z"
         },
         {
           "id": "R1-TOKENS",
@@ -12566,7 +12566,7 @@
             "DO-6"
           ],
           "worktree": "samantha-next-r12",
-          "status": "planned",
+          "status": "running",
           "phase": "fix",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/events.py",
@@ -12575,13 +12575,39 @@
           "reason": "Same-class coverage: official collect still misses job tokens, receipts, and implementer session work.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-122/verify/r1-tokens.sh",
-            "method": "Run event and collect-coverage tests after the writers record tokens and session work."
+            "method": "Run event and collect-coverage tests after the writers record tokens and session work.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
           },
-          "stage_entered_at": "2026-11-24T15:22:33Z",
+          "codex": {
+            "implementer_session": "grokbot-122-r1-tokens",
+            "reviewer_session": "grokbot-122-r1-tokens-review",
+            "fix_status": "running",
+            "job": {
+              "id": "a767e6ad90b143b2ad2e38ed1c438ff3",
+              "phase": "fix",
+              "started_at": "2026-11-24T15:53:06Z",
+              "command": "commit-tokens.sh",
+              "heartbeat_at": "2026-11-24T15:53:06Z",
+              "plan_sha256": "ec9669f3e3483036c4624aff34bf407edbe6550e472d463761e078c528b2dde1",
+              "finding_ids": [
+                "PR120-r6-collect-job-coverage",
+                "BCL-147",
+                "DO-6"
+              ],
+              "worktree": "samantha-next-r12",
+              "model": "Grok Bot",
+              "lane_sha256": "f9ccad631e267ec040352ad2849b7f9521b96a5b5da894f570e41b7bb3079739",
+              "cycle": 14,
+              "round": 1
+            }
+          },
+          "stage_entered_at": "2026-11-24T15:53:06Z",
           "failure_history": [],
           "plan_review_history": [],
-          "codex": {},
-          "updated_at": "2026-11-24T15:39:19Z"
+          "updated_at": "2026-11-24T15:53:06Z"
         },
         {
           "id": "R1-JOBUX",
@@ -12615,7 +12641,7 @@
               "phase": "review",
               "started_at": "2026-11-24T15:40:57Z",
               "command": "python3",
-              "heartbeat_at": "2026-11-24T15:40:57Z",
+              "heartbeat_at": "2026-11-24T15:40:58Z",
               "plan_sha256": "c06c5647d35b2c5a3ac0ff656ce6a551942e5bf68ff8fc2d197defed10c07d68",
               "finding_ids": [
                 "BCL-159",
@@ -12626,13 +12652,17 @@
               "model": "Grok Bot",
               "lane_sha256": "d6107db03312c69d29e3502ccd4270b16963a461a51209afb1c42e7d813fc4a6",
               "cycle": 14,
-              "round": 1
+              "round": 1,
+              "pid": 33378,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T15:40:58Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "tool_fault_streak": 0,
+            "review_status": "passed",
             "reviewer_model": "Grok Bot",
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "review_status": "running"
+            "tool_fault_streak": 0
           },
           "status": "review",
           "phase": "review",
@@ -12651,7 +12681,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T15:39:19Z"
+          "updated_at": "2026-11-24T15:53:06Z"
         },
         {
           "id": "R1-COSMETIC",
@@ -12698,16 +12728,16 @@
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
-            "tool_fault_streak": 0,
             "review_status": "passed",
-            "reviewer_model": "Grok Bot"
+            "reviewer_model": "Grok Bot",
+            "tool_fault_streak": 0
           },
           "status": "review",
           "phase": "review",
           "stage_entered_at": "2026-11-24T15:38:05Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T15:39:19Z"
+          "updated_at": "2026-11-24T15:53:06Z"
         },
         {
           "id": "R4-106",
@@ -12777,7 +12807,7 @@
           ],
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
           "codex": {},
-          "updated_at": "2026-11-24T15:39:19Z"
+          "updated_at": "2026-11-24T15:53:06Z"
         },
         {
           "id": "R4-171",
@@ -12858,7 +12888,7 @@
           ],
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
           "codex": {},
-          "updated_at": "2026-11-24T15:39:19Z"
+          "updated_at": "2026-11-24T15:53:06Z"
         },
         {
           "id": "R2-DO1",
@@ -12935,7 +12965,7 @@
             }
           ],
           "codex": {},
-          "updated_at": "2026-11-24T15:39:19Z"
+          "updated_at": "2026-11-24T15:53:06Z"
         }
       ]
     }
