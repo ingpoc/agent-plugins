@@ -11,3 +11,5 @@ Quota-out fallback: fixes and reviews run on Codex first; if the Codex quota run
 Run the repository's full check once per lane, right before push, with `bcl job --phase presuite --ids ID [--ids ID] -- python3 scripts/check.py`; it already runs the skill suite, chart and strict shape checks, so fix jobs run only the lane's tests and lanes shipping together share one job. The page shows this as **Pre-push suite** within Review. The pre-push suite is a source check, not the post-install Verify stage. Install requires a passed suite and a passed review or recorded one-file skip for each lane.
 
 `check_install_sessions.py` validates the selected lane and review receipts before Install.
+
+After a fix has passed, `bcl review --ids ID` starts the review stage and puts that lane in review, including a fix carried from the previous round. Then record the verdict with `bcl job --phase review`.

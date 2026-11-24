@@ -826,6 +826,7 @@ def carry_plan_runtime_state(groups, previous, same_round):
             continue
         if prior and unchanged and (same_round or gated(prior)):
             requested_status, requested_phase = group.get("status"), group.get("phase")
+            requested_parked_to = group.get("parked_to")
             for field in protected_group:
                 if field in prior and (same_round or field in LANE["gate_paths"] or
                                        field in ("plan_review_count", "plan_review_passes") or
@@ -851,6 +852,19 @@ def carry_plan_runtime_state(groups, previous, same_round):
                     codex[field] = copy.deepcopy(previous_codex[field])
                 else:
                     codex.pop(field, None)
+            requested_parked = LANE["status_aliases"].get(requested_status, requested_status) == "parked"
+            if (same_round and requested_parked and type(requested_parked_to) is int
+                    and requested_parked_to >= 1):
+                group["status"] = "parked"
+                group["parked_to"] = requested_parked_to
+            review_cleared = previous_codex.get("review_status") in LANE["review_cleared"]
+            if (not same_round and prior.get("status") != "blocked"
+                    and previous_codex.get("fix_status") == "passed" and not review_cleared
+                    and not (prior.get("status") == "parked" and prior.get("blocked_reason"))):
+                group["status"] = "review"
+                group["phase"] = "review"
+                group.pop("parked_to", None)
+                codex["fix_status"] = copy.deepcopy(previous_codex["fix_status"])
             if group.get("status") == "blocked" and not group.get("phase"):
                 group["phase"] = prior.get("phase") or "fix"
             continue
@@ -3248,7 +3262,8 @@ def run(args, parser):
                             raise ValueError("verify.summary must be at most 10 words")
                         target_status = LANE["status_aliases"].get(patch.get("status"), patch.get("status"))
                         if target_status in ("blocked", "parked"):
-                            if patch.get("reason") and not patch.get("blocked_reason"):
+                            if (patch.get("reason") and not patch.get("blocked_reason")
+                                    and (target_status == "blocked" or group.get("status") == "blocked")):
                                 patch["blocked_reason"] = patch["reason"]
                             if target_status == "parked" and patch.get("parked_to") is None:
                                 patch["parked_to"] = RENDERER.rollover_round(tracking) + 1
@@ -3262,7 +3277,6 @@ def run(args, parser):
                         check_install_sessions.validate_group_codex(group)
                         validate_plan_group_fields(group, RENDERER.rollover_round(tracking))
                         require_restore_lane(group, findings)
-                        validate_plan_groups(plan)
                         validate_dependencies(plan['groups'], findings, tracking)
                         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                         stamp_plan_group(group, stamp)
@@ -3459,6 +3473,13 @@ def run(args, parser):
                                 group.update(status='installing', phase='install',
                                              install={**install, 'status': 'running', 'started_at': timestamp})
                                 stamp_stage_model(group, 'install', stage_model, timestamp)
+                    elif stage == 'review':
+                        for group in matched:
+                            if set(ids).intersection(group.get('finding_ids', [])):
+                                codex = group.get('codex') if isinstance(group.get('codex'), dict) else {}
+                                if codex.get('fix_status') == 'passed':
+                                    group.update(status='review', phase='review')
+                                    stamp_stage_model(group, 'review', stage_model, timestamp)
                     elif stage == 'verify':
                         start_verification_lanes(store["document"], ids, timestamp, stage_model)
                     tracking["workflow"] = {"stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
@@ -3529,6 +3550,10 @@ def run(args, parser):
                 stamp_changed_stages(_pending_stage_snapshot, store["document"], _pending_stage_timestamp)
             validate_ids(findings)
             store["document"]["findings"] = findings
+            tracking = store["document"].get("tracking")
+            plan = tracking.get("plan") if isinstance(tracking, dict) else None
+            if isinstance(plan, dict):
+                validate_plan_groups(plan)
             before_sync_stage = copy.deepcopy(store["document"])
             invalidate_dependents(store["document"], json.loads(original))
             old_findings = {item.get("id"): item for item in json.loads(original).get("findings", [])}
