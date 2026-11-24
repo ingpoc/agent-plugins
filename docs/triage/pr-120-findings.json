@@ -11924,9 +11924,8 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-24T08:54:18Z",
-      "now": "2026-11-24T08:54:18Z — Introspection recorded"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-24T09:00:57Z"
     },
     "rollover": {
       "source_pr": 119,
@@ -13871,7 +13870,8 @@
       "plan_fix",
       "install",
       "verify",
-      "introspect"
+      "introspect",
+      "report_rollover"
     ],
     "plan": {
       "round": 7,
@@ -13884,7 +13884,7 @@
             "DO-4"
           ],
           "worktree": "bcl120-r7-doview",
-          "status": "planned",
+          "status": "parked",
           "phase": "review",
           "files": [
             "plugins/developer-observability/runtime/viewer.py",
@@ -13893,7 +13893,7 @@
             "plugins/developer-observability/ui/dashboard.html",
             "plugins/developer-observability/bin/developer-observability"
           ],
-          "reason": "The computer-use lanes have shipped. This viewer lane is reopened so the blocking live-review issues can be fixed, without counting the earlier build as verified.",
+          "reason": "UX re-pass of 8621ca7d was DON'T SHIP (stale dashboard.html bundle). Lane stays out of the #120 merge; first fix is on the next list, then a new 8780 re-pass.",
           "failure_history": [],
           "plan_review_history": [
             {
@@ -13905,8 +13905,8 @@
               "at": "2026-11-24T07:17:51Z"
             }
           ],
-          "updated_at": "2026-11-24T08:40:34Z",
-          "stage_entered_at": "2026-11-24T08:40:34Z",
+          "updated_at": "2026-11-24T08:54:41Z",
+          "stage_entered_at": "2026-11-24T08:54:41Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -15110,7 +15110,7 @@
       "round": 7,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T08:54:18Z",
+    "last_written_at": "2026-11-24T09:00:57Z",
     "fix_order": {
       "ids": [
         "DO-4",
