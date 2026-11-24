@@ -63,7 +63,22 @@ class RoundViewTests(unittest.TestCase):
                             "phase": "fix",
                             "finding_ids": ["BCL-171"],
                             "worktree": "bcl42-r5-171",
-                            "reason": "Parked until an owner unblocks.",
+                            "reason": "Needs an owner to unblock.",
+                        },
+                        {
+                            "id": "R4-106",
+                            "name": "bcl106",
+                            "label": "BCL-106",
+                            "status": "parked",
+                            "phase": "fix",
+                            "finding_ids": ["BCL-106"],
+                            "worktree": "bcl42-r5-106",
+                            "parked_to": 8,
+                            "reason": "Parked to round 8",
+                            "failure_history": [{
+                                "reason": "Failed at [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/verify_driver.py)",
+                                "attempt_id": "a1",
+                            }],
                         },
                     ],
                 },
@@ -82,6 +97,8 @@ class RoundViewTests(unittest.TestCase):
             "findings": [
                 {"id": "ACU-20", "status": "in_progress", "title": "Island should show Grok subagents"},
                 {"id": "BCL-171", "status": "blocked", "title": "Blocked until owner unblocks"},
+                {"id": "BCL-106", "status": "blocked", "title": "R4-106 has failed attempts",
+                 "observed": "See [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/verify_driver.py)"},
             ],
         }
         _write_tracker(self.root, "demo", "42", self.tracker)
@@ -107,7 +124,7 @@ class RoundViewTests(unittest.TestCase):
         self.assertIsNone(result["gate"]["threshold"])
         self.assertEqual(result["gate"]["fixed"], 1)
         self.assertEqual(result["gate"]["pending"], 1)
-        self.assertEqual({group["id"] for group in result["groups"]}, {"R7-ACU20", "R4-171"})
+        self.assertEqual({group["id"] for group in result["groups"]}, {"R7-ACU20", "R4-171", "R4-106"})
         self.assertEqual(len(result["jobs"]), 1)
         job = result["jobs"][0]
         self.assertEqual(job["group_id"], "R7-ACU20")
@@ -115,8 +132,8 @@ class RoundViewTests(unittest.TestCase):
         self.assertTrue(job["group_id_inferred"])
         self.assertEqual(job["tokens"]["total"], 15)
         self.assertEqual(job["duration_ms"], 212000)
-        self.assertEqual(result["needs_you"][0]["kind"], "blocked")
-        self.assertEqual(result["needs_you"][0]["group_id"], "R4-171")
+        blocked = next(card for card in result["needs_you"] if card.get("group_id") == "R4-171")
+        self.assertEqual(blocked["kind"], "blocked")
         self.assertLessEqual(len(result["needs_you"]), 3)
 
     def test_missing_project_is_unavailable(self):
@@ -163,15 +180,38 @@ class RoundViewTests(unittest.TestCase):
         self.assertEqual(result["time_tokens"]["tokens"], 120)
         self.assertIsNone(result["gate"]["run_id"])
         self.assertEqual(result["gate"]["fixed"], 14)
+        self.assertEqual(result["status_counts"].get("verified_fixed"), 14)
 
     def test_needs_you_cards_include_fact_gap_and_action(self):
         result = build_round("demo", pr="42", state_dir=str(self.root))
-        card = result["needs_you"][0]
+        card = next(item for item in result["needs_you"] if item.get("group_id") == "R4-171")
         self.assertEqual(card["kind"], "blocked")
         self.assertTrue(card["fact"])
         self.assertTrue(card["gap"])
         self.assertEqual(card["action"]["target"], "R4-171")
         self.assertEqual(card["action"]["label"], "Open lane")
+
+    def test_parked_lane_and_needs_share_one_status_and_hide_home_paths(self):
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        group = next(item for item in result["groups"] if item["id"] == "R4-106")
+        self.assertEqual(group["view_status"], "parked")
+        self.assertEqual(group["why"], "Parked to round 8")
+        cards = [card for card in result["needs_you"] if card.get("group_id") == "R4-106"]
+        self.assertTrue(cards)
+        self.assertEqual(cards[0]["kind"], "parked")
+        self.assertEqual(cards[0]["view_status"], "parked")
+        blob = json.dumps(result)
+        self.assertNotIn("/Users/", blob)
+        self.assertNotIn("gurusharan/code", blob)
+
+    def test_blocked_lane_stays_blocked_on_every_surface(self):
+        result = build_round("demo", pr="42", state_dir=str(self.root))
+        group = next(item for item in result["groups"] if item["id"] == "R4-171")
+        self.assertEqual(group["view_status"], "blocked")
+        card = next(card for card in result["needs_you"] if card.get("group_id") == "R4-171")
+        self.assertEqual(card["kind"], "blocked")
+        self.assertEqual(card["view_status"], "blocked")
+
 
 
 

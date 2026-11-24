@@ -12,6 +12,52 @@ _ROUND_RE = re.compile(r"^R(\d+)-", re.I)
 _WORKTREE_ROUND_RE = re.compile(r"-r(\d+)-", re.I)
 
 
+_ABS_PATH_RE = re.compile(
+    r"(?:file://)?(/?(?:Users|home)/[^\s\]\)'\"<>]+)",
+    re.I,
+)
+_MD_PATH_RE = re.compile(
+    r"\[([^\]]+)\]\((?:file://)?(/?(?:Users|home)/[^)]+)\)",
+    re.I,
+)
+
+
+def _public_text(value):
+    """Drop absolute home paths from UI text; keep the visible label or basename."""
+    if not isinstance(value, str) or not value:
+        return value
+    def md(match):
+        return match.group(1) or Path(match.group(2)).name
+    text = _MD_PATH_RE.sub(md, value)
+    def bare(match):
+        return Path(match.group(1).rstrip("/")).name or "file"
+    return _ABS_PATH_RE.sub(bare, text)
+
+
+def _view_status(group):
+    """Single status every surface uses. The lane status wins over finding status."""
+    status = str((group or {}).get("status") or "").strip().lower()
+    if (group or {}).get("id") == "DEFER" and status not in {"parked", "deferred"}:
+        return "deferred"
+    return status or "unknown"
+
+
+def _lane_why(group):
+    status = _view_status(group)
+    if status in {"parked", "deferred"}:
+        target = group.get("parked_to")
+        if target is not None:
+            return f"Parked to round {target}"
+        return _public_text(group.get("reason") or "This lane is parked.")
+    if status == "blocked":
+        return _public_text(group.get("blocked_reason") or group.get("reason") or "This lane is blocked.")
+    reason = group.get("reason") or ""
+    if re.search(r"(?i)\bparked\b", reason):
+        return _public_text(group.get("blocked_reason") or "") or None
+    return _public_text(reason) or None
+
+
+
 def _state_root(state_dir=None):
     return Path(state_dir or os.environ.get("BCL_STATE_DIR", "~/.agents/state/batched-change-list")).expanduser()
 
@@ -208,13 +254,13 @@ def _group_payload(group, findings_by_id):
             "title": item.get("title"),
             "status": item.get("status"),
             "priority": item.get("priority"),
-            "summary": item.get("summary"),
-            "observed": item.get("observed"),
-            "recommendation": item.get("recommendation"),
+            "summary": _public_text(item.get("summary")),
+            "observed": _public_text(item.get("observed")),
+            "recommendation": _public_text(item.get("recommendation")),
         })
     verify = group.get("verify") if isinstance(group.get("verify"), dict) else None
     presuite = group.get("presuite") if isinstance(group.get("presuite"), dict) else None
-    return {
+    payload = {
         "id": group.get("id"),
         "name": group.get("name"),
         "label": group.get("label"),
@@ -228,12 +274,19 @@ def _group_payload(group, findings_by_id):
         "updated_at": group.get("updated_at"),
         "verify": verify,
         "presuite": presuite,
-        "failure_history": group.get("failure_history") if isinstance(group.get("failure_history"), list) else [],
+        "failure_history": [
+            ({**item, "reason": _public_text(item.get("reason"))} if isinstance(item, dict) else item)
+            for item in (group.get("failure_history") or [])
+        ] if isinstance(group.get("failure_history"), list) else [],
         "codex": group.get("codex") if isinstance(group.get("codex"), dict) else {},
         "files": group.get("files") if isinstance(group.get("files"), list) else [],
-        "blocked_reason": group.get("blocked_reason"),
+        "blocked_reason": _public_text(group.get("blocked_reason")),
         "parked_to": group.get("parked_to"),
     }
+    payload["reason"] = _public_text(payload.get("reason"))
+    payload["view_status"] = _view_status(payload)
+    payload["why"] = _lane_why(payload)
+    return payload
 
 
 def _status_counts(findings):
@@ -295,11 +348,12 @@ def _round_groups(groups, jobs, selected_round, current_round):
     if selected_round is None or selected_round == current_round:
         return list(groups)
     matching = [group for group in groups if _round_from_group_id(group.get("id")) == selected_round]
-    if matching:
-        return matching
     seen = {group.get("id") for group in matching}
     for job in jobs:
-        if job.get("round") != selected_round:
+        job_round = job.get("round")
+        if job_round is None and job.get("group_id"):
+            job_round = _round_from_group_id(job.get("group_id"))
+        if job_round != selected_round:
             continue
         group_id = job.get("group_id")
         if not group_id or group_id in seen:
@@ -309,9 +363,11 @@ def _round_groups(groups, jobs, selected_round, current_round):
             "name": group_id,
             "label": group_id,
             "status": "historical",
+            "view_status": "historical",
             "phase": job.get("phase"),
             "finding_ids": [],
             "reason": None,
+            "why": None,
         })
         seen.add(group_id)
     matching.sort(key=lambda group: str(group.get("id") or ""))
@@ -331,32 +387,43 @@ def _rank_needs(groups, findings_by_id, parked, jobs, selected_round):
             "priority": priority,
             "kind": kind,
             "title": title,
-            "why": why,
-            "fact": fact,
-            "gap": gap,
-            "guess": guess,
-            "evidence": evidence,
+            "why": _public_text(why),
+            "fact": _public_text(fact),
+            "gap": _public_text(gap),
+            "guess": _public_text(guess),
+            "evidence": _public_text(evidence),
             "action": action,
             **extra,
         })
 
     for group in groups:
-        if group.get("status") == "blocked":
-            reason = group.get("blocked_reason") or group.get("reason") or "This lane is blocked."
+        status = group.get("view_status") or _view_status(group)
+        if status == "blocked":
+            reason = group.get("why") or group.get("blocked_reason") or group.get("reason") or "This lane is blocked."
+            reason = _public_text(reason)
             add(0, "blocked", f"{group.get('id')} is blocked", reason,
                 group_id=group.get("id"), finding_ids=group.get("finding_ids") or [],
+                view_status=status,
                 fact=reason, gap="This lane cannot move until the block is cleared.",
                 evidence=reason, action={"label": "Open lane", "target": group.get("id")})
-        elif group.get("status") not in {"deferred", "verified", "review"}:
+        elif status in {"parked", "deferred"}:
+            reason = group.get("why") or "This lane is parked."
+            add(0, status, f"{group.get('id')} is {status}", reason,
+                group_id=group.get("id"), finding_ids=group.get("finding_ids") or [],
+                view_status=status,
+                fact=_public_text(reason), gap="This lane stays parked until it is unparked.",
+                evidence=_public_text(reason), action={"label": "Open lane", "target": group.get("id")})
+        elif status not in {"verified", "review"}:
             history = group.get("failure_history") or []
             real = [item for item in history if isinstance(item, dict) and not item.get("tool_fault")]
             if real:
                 add(1, "failed_attempts", f"{group.get('id')} has failed attempts",
-                    real[-1].get("reason") or "This lane recorded a failed attempt.",
+                    _public_text(real[-1].get("reason") or "This lane recorded a failed attempt."),
                     group_id=group.get("id"), finding_ids=group.get("finding_ids") or [],
-                    fact=real[-1].get("reason") or "This lane recorded a failed attempt.",
+                    view_status=status,
+                    fact=_public_text(real[-1].get("reason") or "This lane recorded a failed attempt."),
                     gap="The last failed attempt still needs a passing rerun.",
-                    evidence=real[-1].get("reason") or real[-1].get("attempt_id"),
+                    evidence=_public_text(real[-1].get("reason") or real[-1].get("attempt_id")),
                     action={"label": "Open lane", "target": group.get("id")})
         elif isinstance(group.get("presuite"), dict) and group["presuite"].get("status") == "failed":
             add(1, "failed_attempts", f"{group.get('id')} presuite failed",
@@ -381,14 +448,16 @@ def _rank_needs(groups, findings_by_id, parked, jobs, selected_round):
             "The time bar cannot close these runs.")
 
     for group in groups:
-        if group.get("status") == "blocked":
+        status = group.get("view_status") or _view_status(group)
+        # Group status is canonical: do not relabel a parked or planned lane as blocked.
+        if status in {"blocked", "parked", "deferred"}:
             continue
         for fid in group.get("finding_ids") or []:
             item = findings_by_id.get(fid) or {}
             if item.get("status") == "blocked":
                 add(0, "blocked", item.get("title") or fid,
-                    item.get("observed") or item.get("summary") or "This finding is blocked.",
-                    group_id=group.get("id"), finding_ids=[fid])
+                    _public_text(item.get("observed") or item.get("summary") or "This finding is blocked."),
+                    group_id=group.get("id"), finding_ids=[fid], view_status="blocked")
 
     if isinstance(parked, dict) and parked.get("needs"):
         needs = parked.get("needs")
@@ -437,9 +506,9 @@ def build_round(project, pr=None, round=None, state_dir=None):
            or (selected_round is not None and job.get("round") == selected_round)
     ]
     if selected_round is not None:
-        visible_jobs = [job for job in jobs if job.get("round") == selected_round or job.get("round") is None and job.get("group_id") in {
-            group.get("id") for group in all_groups if _round_from_group_id(group.get("id")) == selected_round
-        }]
+        visible_jobs = [job for job in jobs
+                        if job.get("round") == selected_round
+                        or (job.get("round") is None and _round_from_group_id(job.get("group_id")) == selected_round)]
     else:
         visible_jobs = jobs
     groups = _round_groups(all_groups, visible_jobs, selected_round, current_round)
@@ -526,7 +595,17 @@ def build_round(project, pr=None, round=None, state_dir=None):
             "total": len(checks) if viewing_current else 0,
             "threshold": threshold if viewing_current else None,
         },
-        "status_counts": _status_counts(findings) if viewing_current else {},
+        "status_counts": (
+            _status_counts(findings) if viewing_current
+            else {**_status_counts([
+                finding for group in groups for finding in (group.get("findings") or [])
+                if isinstance(finding, dict)
+            ]), **({"verified_fixed": next(
+                (item.get("fixed") for item in compact_history
+                 if item.get("round") == selected_round and isinstance(item.get("fixed"), int)),
+                0,
+            )} )}
+        ),
         "parked": parked_out,
         "needs_you": needs,
         "needs_you_more": more,

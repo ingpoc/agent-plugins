@@ -89,6 +89,26 @@ function applyScale(scale, output) {
   if (output) output.textContent = `${Math.round(next * 100)}%`;
 }
 
+export function appliedFilterCount(kindFilter, selectedRound) {
+  // The selected round is the view, not a filter.
+  void selectedRound;
+  return (kindFilter && kindFilter !== 'all') ? 1 : 0;
+}
+
+export function displayStatus(group) {
+  return String((group && (group.view_status || group.status)) || '').toLowerCase() || 'unknown';
+}
+
+export function publicText(value) {
+  if (typeof value !== 'string' || !value) return value;
+  return value
+    .replace(/\[([^\]]+)\]\((?:file:\/\/)?(\/?(?:Users|home)\/[^)]+)\)/gi, '$1')
+    .replace(/(?:file:\/\/)?\/?(?:Users|home)\/[^\s\]\)\'"<>]+/gi, (path) => {
+      const parts = path.replace(/^file:\/\//i, '').split('/').filter(Boolean);
+      return parts[parts.length - 1] || 'file';
+    });
+}
+
 export function mountRoundView(ctx) {
   const {call, $, text, filters, applyTextSize, TEXT_SIZES} = ctx;
   const root = document.getElementById('round-view');
@@ -193,7 +213,7 @@ export function mountRoundView(ctx) {
     const scaleOut = el('output', {id: 'ts-val', 'aria-live': 'polite', text: `${Math.round(currentScale() * 100)}%`});
     applyScale(currentScale() || scale, scaleOut);
 
-    const filterCount = (kindFilter && kindFilter !== 'all') ? 1 : 0;
+    const filterCount = appliedFilterCount(kindFilter, data?.round);
     const pop = el('details', {class: 'pop', id: 'round-filter-pop'}, [
       el('summary', {'aria-label': `Filter, ${filterCount} applied`}, [
         'Filter ',
@@ -291,13 +311,13 @@ export function mountRoundView(ctx) {
       el('div', {class: 'needs'}, needsCards.map((card) => {
         const action = card.action || (card.group_id ? {label: 'Open lane', target: card.group_id} : null);
         return el('article', {class: 'card need'}, [
-          el('p', {class: 'kicker', text: `${card.rank}. ${labelKind(card.kind)}`}, card.group_id ? [el('span', {class: 'mono', text: ` · ${card.group_id}`})] : []),
-          el('h3', {text: card.title || ''}),
-          card.fact ? el('p', {class: 'fact'}, [el('b', {text: 'Fact. '}), card.fact]) : null,
-          card.gap ? el('p', {class: 'gap'}, [el('b', {text: 'Gap. '}), card.gap]) : null,
-          card.guess ? el('p', {class: 'guess'}, [el('b', {text: 'Guess. '}), card.guess]) : null,
-          !card.fact && card.why ? el('p', {class: 'fact'}, [el('b', {text: 'Fact. '}), card.why]) : null,
-          card.evidence ? el('p', {class: 'muted ev-line', text: `Evidence: ${card.evidence}`}) : null,
+          el('p', {class: 'kicker', text: `${card.rank}. ${labelKind(card.view_status || card.kind)}`}, card.group_id ? [el('span', {class: 'mono', text: ` · ${card.group_id}`})] : []),
+          el('h3', {text: publicText(card.title) || ''}),
+          card.fact ? el('p', {class: 'fact'}, [el('b', {text: 'Fact. '}), publicText(card.fact)]) : null,
+          card.gap ? el('p', {class: 'gap'}, [el('b', {text: 'Gap. '}), publicText(card.gap)]) : null,
+          card.guess ? el('p', {class: 'guess'}, [el('b', {text: 'Guess. '}), publicText(card.guess)]) : null,
+          !card.fact && card.why ? el('p', {class: 'fact'}, [el('b', {text: 'Fact. '}), publicText(card.why)]) : null,
+          card.evidence ? el('p', {class: 'muted ev-line', text: `Evidence: ${publicText(card.evidence)}`}) : null,
           action ? el('button', {type: 'button', class: 'act', text: action.label || 'Open lane', onclick: () => openLane(action.target || card.group_id)}) : null,
         ]);
       })),
@@ -322,14 +342,14 @@ export function mountRoundView(ctx) {
     const summary = el('section', {class: 'summary', 'aria-labelledby': 'sum-h'}, [
       el('h2', {id: 'sum-h', class: 'sr', text: 'Round summary'}),
       el('div', {class: 'gate'}, [
-        gateRing(viewingCurrent && threshold != null ? (gate.fixed || 0) / Math.max(threshold, 1) : (verified ? 1 : 0), ringLabel),
+        gateRing(viewingCurrent && threshold != null ? (gate.fixed || 0) / Math.max(threshold, 1) : ((viewingCurrent ? verified : (gate.fixed || verified)) ? 1 : 0), ringLabel),
         el('p', {}, [summaryBits]),
       ]),
     ]);
 
     const liveGroups = data.groups || [];
     const selected = data.round;
-    const currentGroups = liveGroups.filter((group) => groupBelongs(group, selected) && !isParkedGroup(group) && kindAllows(group.status));
+    const currentGroups = liveGroups.filter((group) => groupBelongs(group, selected) && !isParkedGroup(group) && kindAllows(displayStatus(group)));
     const parkedGroups = liveGroups.filter((group) => isParkedGroup(group) || (selected != null && !groupBelongs(group, selected) && data.viewing_current));
     const jobsFor = (id) => (data.jobs || []).filter((job) => job.group_id === id && (selected == null || job.round == null || job.round === selected));
 
@@ -341,12 +361,12 @@ export function mountRoundView(ctx) {
         const tokens = jobs.reduce((sum, job) => sum + (typeof job.tokens?.total === 'number' ? job.tokens.total : 0), 0);
         const minutes = jobs.reduce((sum, job) => sum + (typeof job.duration_ms === 'number' ? job.duration_ms : 0), 0);
         const model = jobs.map((job) => job.model || job.agent).find(Boolean) || '—';
-        const why = group.blocked_reason || group.reason || '';
-        const node = el('details', {class: `lane ${statusClass(group.status)}`, id: `lane-${group.id}`}, [
+        const why = publicText(group.why || ((displayStatus(group) === 'blocked') ? (group.blocked_reason || group.reason) : group.reason) || '');
+        const node = el('details', {class: `lane ${statusClass(displayStatus(group))}`, id: `lane-${group.id}`}, [
           el('summary', {}, [
             el('span', {class: 'id mono', text: group.id}),
             el('span', {class: 'name', text: shortName(group)}),
-            el('span', {class: `tag ${statusClass(group.status)}`, text: phaseTrack(group)}),
+            el('span', {class: `tag ${statusClass(displayStatus(group))}`, text: phaseTrack(group)}),
             el('span', {class: 'why', text: why || '—'}),
             el('span', {class: 'muted', text: durationLabel(minutes) || '—'}),
             el('span', {class: 'muted', text: tokens ? formatTokens(tokens) : '—'}),
@@ -358,7 +378,7 @@ export function mountRoundView(ctx) {
             group.findings?.length ? el('ul', {}, group.findings.map((finding) => el('li', {}, [
               el('strong', {class: 'mono', text: finding.id}),
               ` ${finding.title || ''} `,
-              el('span', {class: 'muted', text: finding.status || ''}),
+              el('span', {class: 'muted', text: displayStatus(group)}),
             ]))) : null,
             el('h3', {text: 'Jobs'}),
             jobs.length ? el('div', {class: 'table-wrap'}, [el('table', {class: 'jobs'}, [
@@ -374,7 +394,7 @@ export function mountRoundView(ctx) {
             ])]) : el('p', {class: 'muted', text: 'No recorded job for this lane.'}),
             el('details', {class: 'ev'}, [
               el('summary', {text: 'Raw evidence'}),
-              el('pre', {class: 'mono', text: JSON.stringify({id: group.id, status: group.status, phase: group.phase, parked_to: group.parked_to, findings: group.findings || [], jobs}, null, 2)}),
+              el('pre', {class: 'mono', text: JSON.stringify({id: group.id, view_status: displayStatus(group), status: group.status, phase: group.phase, parked_to: isParkedGroup(group) ? group.parked_to : undefined, why: group.why, findings: group.findings || [], jobs}, null, 2)}),
             ]),
           ]),
         ]);
@@ -429,7 +449,7 @@ export function mountRoundView(ctx) {
   }
 
   function isParkedGroup(group) {
-    const status = String(group.status || '').toLowerCase();
+    const status = displayStatus(group);
     return status === 'deferred' || status === 'parked' || group.id === 'DEFER';
   }
 
@@ -440,9 +460,7 @@ export function mountRoundView(ctx) {
   }
 
   function phaseTrack(group) {
-    const status = group.status || '—';
-    const phase = group.phase ? ` · ${group.phase}` : '';
-    return status + phase;
+    return displayStatus(group) || '—';
   }
 
   function kindAllows(kind) {

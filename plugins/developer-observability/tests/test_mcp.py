@@ -127,8 +127,19 @@ class MCPTests(unittest.TestCase):
         subprocess.run(['node','--input-type=module','--check'],input=scripts[0],text=True,check=True,capture_output=True)
 
     def test_bundle_reproducible(self):
+        """Freshness check: a rebuild must match the committed dashboard.html.
+        This is the one bundle-vs-sources test; do not add a second rebuild assertion.
+        """
         if not (ROOT/'node_modules').exists():
             self.skipTest('UI build dependencies not installed; shipped bundle tested by stdio')
         before = (ROOT/'ui/dashboard.html').read_bytes()
         subprocess.run(['npm','run','build'],cwd=ROOT,check=True,capture_output=True)
         self.assertEqual(before, (ROOT/'ui/dashboard.html').read_bytes())
+
+    def test_shipped_bundle_includes_round_view_sources(self):
+        """Fails when dashboard.html was not rebuilt from ui/round-view.js (no esbuild required)."""
+        source = (ROOT/'ui/round-view.js').read_text()
+        bundle = (ROOT/'ui/dashboard.html').read_text()
+        for marker in ('What we know', 'Raw evidence', 'tracker_unavailable'):
+            self.assertIn(marker, source)
+            self.assertIn(marker, bundle)
