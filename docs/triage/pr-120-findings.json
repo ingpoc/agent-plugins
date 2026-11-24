@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T08:12:08Z",
-      "now": "2026-11-24T08:12:08Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-24T08:29:54Z",
+      "now": "2026-11-24T08:29:54Z — Install in progress"
     },
     "rollover": {
       "source_pr": 119,
@@ -13620,7 +13620,8 @@
       "collect",
       "present",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 7,
@@ -13633,7 +13634,7 @@
             "DO-4"
           ],
           "worktree": "bcl120-r7-doview",
-          "status": "review",
+          "status": "parked",
           "phase": "review",
           "files": [
             "plugins/developer-observability/runtime/viewer.py",
@@ -13642,7 +13643,7 @@
             "plugins/developer-observability/ui/dashboard.html",
             "plugins/developer-observability/bin/developer-observability"
           ],
-          "reason": "Guru 12:37 IST approved a localhost observability viewer as a top lane. It reuses the DO-3 MCP App page and backend, one fixed port per project, never the reserved Samantha port. Round 6 is already introspected and DO-3 is closed, so this is a new finding in round 7. About 90k tokens.",
+          "reason": "Live click-through found blocking issues in the default viewer, so this lane stays out of the current build and will be fixed after the computer-use lanes ship.",
           "failure_history": [],
           "plan_review_history": [
             {
@@ -13654,8 +13655,8 @@
               "at": "2026-11-24T07:17:51Z"
             }
           ],
-          "updated_at": "2026-11-24T07:18:47Z",
-          "stage_entered_at": "2026-11-24T08:11:55Z",
+          "updated_at": "2026-11-24T08:19:15Z",
+          "stage_entered_at": "2026-11-24T08:19:15Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13664,23 +13665,33 @@
           },
           "codex": {
             "job": {
-              "id": "6e3c1e5d1f70421dbb02aa063b100fc3",
-              "phase": "review",
-              "started_at": "2026-11-24T08:12:08Z",
-              "command": "run-record-r7-doview3-review.sh",
-              "heartbeat_at": "2026-11-24T08:12:08Z",
+              "id": "1a3e72ed7c2048d8ace7971049f24875",
+              "phase": "presuite",
+              "started_at": "2026-11-24T08:12:16Z",
+              "command": "run-presuite-r7-doview-2.sh",
+              "heartbeat_at": "2026-11-24T08:12:33Z",
               "plan_sha256": "01f22297541454d2413c930b3e2ea6a75951463db517e35f8429ff5aa78ebd99",
               "worktree": "bcl120-r7-doview",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "check.py --changed-since 48c4f7cc",
               "cycle": 12,
-              "round": 7
+              "round": 7,
+              "pid": 9792,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T08:12:33Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
             "implementer_session": "grokbot-r7-doview",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
-            "review_status": "running"
-          }
+            "review_status": "passed"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T08:12:33Z"
+          },
+          "parked_to": 8
         },
         {
           "id": "R7-ACU20",
@@ -13689,9 +13700,9 @@
           "finding_ids": [
             "ACU-20"
           ],
-          "worktree": "bcl120-r7-acu20",
-          "status": "review",
-          "phase": "review",
+          "worktree": "bcl120-r7-ship",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "plugins/agent-computer-use/bin/island_activity.py",
             "plugins/agent-computer-use/bin/island_hook.py",
@@ -13701,7 +13712,7 @@
             "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandCodexThreadsTests.swift"
           ],
           "reason": "Product first: the island already shows Codex CLI runs and must also show Grok Bot's own subagents as running, done, or stopped with a reason, from a supported credential-free record. Do not read credentials, dual-drive Comet, or touch port 8765, pid 1338, or ~/.cache/macos-cua/samantha-activity.jsonl. About 90k tokens.",
-          "stage_entered_at": "2026-11-24T08:08:44Z",
+          "stage_entered_at": "2026-11-24T08:29:54Z",
           "failure_history": [],
           "plan_review_history": [
             {
@@ -13715,19 +13726,19 @@
           ],
           "codex": {
             "job": {
-              "id": "622d7fcb44f649b3aba7100739951c84",
-              "phase": "review",
-              "started_at": "2026-11-24T08:09:10Z",
-              "command": "run-record-r7-acu20-review.sh",
-              "heartbeat_at": "2026-11-24T08:09:10Z",
-              "plan_sha256": "521de15db424a2afd3b57e9fa0c255601fb1dc67bb79fae9e55cbdb6fe0c71fd",
-              "worktree": "bcl120-r7-acu20",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "id": "b02998e6d1504f91ae9c185e7f765224",
+              "phase": "presuite",
+              "started_at": "2026-11-24T08:19:58Z",
+              "command": "run-presuite-r7-acu-ship.sh",
+              "heartbeat_at": "2026-11-24T08:23:21Z",
+              "plan_sha256": "fb68038fe8e90176b729275f6a67198231edd74a175e10193e109add8f2e0792",
+              "worktree": "bcl120-r7-ship",
+              "model": "check.py --changed-since 48c4f7cc",
               "cycle": 12,
               "round": 7,
-              "pid": 97162,
+              "pid": 26259,
               "exit_code": 0,
-              "finished_at": "2026-11-24T08:09:10Z",
+              "finished_at": "2026-11-24T08:23:21Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13736,12 +13747,28 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T08:08:32Z",
+          "updated_at": "2026-11-24T08:29:48Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r7-acu-20.sh",
+            "method": "Installed hook tests plus a live hook post for running, done, and stopped."
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T08:23:21Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T08:29:54Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T08:29:54Z"
           }
         },
         {
@@ -13751,9 +13778,9 @@
           "finding_ids": [
             "ACU-10"
           ],
-          "worktree": "bcl120-r7-acu10",
-          "status": "review",
-          "phase": "review",
+          "worktree": "bcl120-r7-ship",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/providers.py",
             "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/live_session.py",
@@ -13761,7 +13788,7 @@
             "plugins/agent-computer-use/runtime/voice-cua/tests/test_usage_and_backoff.py"
           ],
           "reason": "Product: re-read provider usage fields for Grok Voice and the GPT live model, with AirPods Pro and typed prompts allowed for checks. Keep unknown rather than zero when a provider still omits counts; do not invent tokens. Serial live checks only; never touch port 8765, pid 1338, or the live Samantha activity log, and do not unlock the Mini or retry notarization. Not a duplicate of DO-2 or collect-job-coverage. About 80k tokens.",
-          "stage_entered_at": "2026-11-24T08:09:22Z",
+          "stage_entered_at": "2026-11-24T08:29:54Z",
           "failure_history": [],
           "plan_review_history": [
             {
@@ -13775,19 +13802,19 @@
           ],
           "codex": {
             "job": {
-              "id": "9831f77fcaf54a84aea79bbcf2a88c95",
-              "phase": "review",
-              "started_at": "2026-11-24T08:09:32Z",
-              "command": "run-record-r7-acu10-review.sh",
-              "heartbeat_at": "2026-11-24T08:09:33Z",
-              "plan_sha256": "01f22297541454d2413c930b3e2ea6a75951463db517e35f8429ff5aa78ebd99",
-              "worktree": "bcl120-r7-acu10",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "id": "b02998e6d1504f91ae9c185e7f765224",
+              "phase": "presuite",
+              "started_at": "2026-11-24T08:19:58Z",
+              "command": "run-presuite-r7-acu-ship.sh",
+              "heartbeat_at": "2026-11-24T08:23:21Z",
+              "plan_sha256": "fb68038fe8e90176b729275f6a67198231edd74a175e10193e109add8f2e0792",
+              "worktree": "bcl120-r7-ship",
+              "model": "check.py --changed-since 48c4f7cc",
               "cycle": 12,
               "round": 7,
-              "pid": 98906,
+              "pid": 26259,
               "exit_code": 0,
-              "finished_at": "2026-11-24T08:09:33Z",
+              "finished_at": "2026-11-24T08:23:21Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13796,12 +13823,28 @@
             "review_status": "passed",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
-          "updated_at": "2026-11-24T08:09:21Z",
+          "updated_at": "2026-11-24T08:29:48Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r7-acu-10.sh",
+            "method": "Installed unit tests that record real Grok Voice and GPT-live token counts."
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T08:23:21Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T08:29:54Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T08:29:54Z"
           }
         },
         {
@@ -13811,15 +13854,15 @@
           "finding_ids": [
             "ACU-21"
           ],
-          "worktree": "bcl120-r7-acu21",
-          "status": "review",
-          "phase": "review",
+          "worktree": "bcl120-r7-ship",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "scripts/test_release_agent_computer_use.py",
             "plugins/agent-computer-use/runtime/voice-cua/tests/test_dev_tools.py"
           ],
           "reason": "Product: replace the short fixed waits in test_connected_but_unresponsive_service_times_out_on_runtime_contract and test_background_jobs_track_and_stop_only_the_returned_job_id so both pass 50 runs under four busy CPU loops and the pre-push suite passes first time. Tests only; do not edit production voice or island files owned by the other ACU lanes. About 40k tokens.",
-          "stage_entered_at": "2026-11-24T07:37:45Z",
+          "stage_entered_at": "2026-11-24T08:29:54Z",
           "failure_history": [
             {
               "attempt_id": "72cf8d0cbf3941a7884d76f8033e848e",
@@ -13856,19 +13899,19 @@
           ],
           "codex": {
             "job": {
-              "id": "25eab18edfb84a14b54c79a13a9e2780",
+              "id": "b02998e6d1504f91ae9c185e7f765224",
               "phase": "presuite",
-              "started_at": "2026-11-24T07:38:16Z",
-              "command": "run-presuite-r7-acu21.sh",
-              "heartbeat_at": "2026-11-24T07:41:48Z",
-              "plan_sha256": "4456f0e9a8b96460a04c1c8a2ee591b9bc76d68cf4eec6fb24fed6bc272cd72f",
-              "worktree": "bcl120-r7-acu21",
+              "started_at": "2026-11-24T08:19:58Z",
+              "command": "run-presuite-r7-acu-ship.sh",
+              "heartbeat_at": "2026-11-24T08:23:21Z",
+              "plan_sha256": "fb68038fe8e90176b729275f6a67198231edd74a175e10193e109add8f2e0792",
+              "worktree": "bcl120-r7-ship",
               "model": "check.py --changed-since 48c4f7cc",
               "cycle": 12,
               "round": 7,
-              "pid": 40134,
+              "pid": 26259,
               "exit_code": 0,
-              "finished_at": "2026-11-24T07:41:48Z",
+              "finished_at": "2026-11-24T08:23:21Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -13878,17 +13921,28 @@
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-24T07:36:38Z",
+          "updated_at": "2026-11-24T08:29:48Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-120/verify-r7-acu-21.sh",
+            "method": "The two previously flaky tests, 50 times in a row under four busy CPU loops."
           },
           "presuite": {
             "status": "passed",
             "exit_code": 0,
-            "finished_at": "2026-11-24T07:41:48Z"
+            "finished_at": "2026-11-24T08:23:21Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T08:29:54Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-24T08:29:54Z"
           }
         },
         {
@@ -13899,17 +13953,17 @@
             "BCL-171"
           ],
           "worktree": "bcl120-r5-171",
-          "status": "blocked",
+          "status": "parked",
           "phase": "fix",
-          "parked_to": 7,
+          "parked_to": 8,
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_collect_observability.py",
             "plugins/batched-change-list/skills/batched-change-list/references/collect.md"
           ],
-          "reason": "Parked for a later round; stays closed until an owner unblock",
+          "reason": "Parked to round 8; these blocked lanes stay closed until an owner unblocks, and must not hold this release-check. No gate override.",
           "blocked_reason": "Second failure",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T08:16:37Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13976,7 +14030,7 @@
           ],
           "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
           "codex": {},
-          "updated_at": "2026-11-24T07:10:46Z",
+          "updated_at": "2026-11-24T08:16:37Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13992,17 +14046,17 @@
             "BCL-106"
           ],
           "worktree": "bcl120-r5-106",
-          "status": "blocked",
+          "status": "parked",
           "phase": "fix",
-          "parked_to": 7,
+          "parked_to": 8,
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_verify_driver.py",
             "plugins/batched-change-list/skills/batched-change-list/references/verify.md"
           ],
-          "reason": "Parked for a later round; stays closed until an owner unblock",
+          "reason": "Parked to round 8; these blocked lanes stay closed until an owner unblocks, and must not hold this release-check. No gate override.",
           "blocked_reason": "Second failure",
-          "stage_entered_at": "2026-11-24T07:07:37Z",
+          "stage_entered_at": "2026-11-24T08:16:37Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -14058,7 +14112,7 @@
           ],
           "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
           "codex": {},
-          "updated_at": "2026-11-24T07:10:46Z",
+          "updated_at": "2026-11-24T08:16:37Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -14448,7 +14502,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T08:12:08Z",
+    "last_written_at": "2026-11-24T08:29:54Z",
     "fix_order": {
       "ids": [
         "DO-4",
