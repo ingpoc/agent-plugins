@@ -11480,9 +11480,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T04:43:35Z",
-      "now": "2026-11-24T04:43:35Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T04:43:44Z",
+      "now": "2026-11-24T04:43:44Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13259,7 +13259,7 @@
             "plugins/batched-change-list/skills/batched-change-list/references/collect.md"
           ],
           "reason": "Carried from round 4 after a second counted review. Tight must-fix only: when a fresh collector snapshot is reused, detect and report that it does not cover the requested --project-dir; keep the fresh-snapshot rule. Guru 24 Nov 09:36 IST continue authorized working this parked lane in round 5 after unblock and a plan review. Estimate about 80k tokens.",
-          "status": "running",
+          "status": "review",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -13301,29 +13301,30 @@
             }
           ],
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "53dc103186894c0fb1efcbb61e8db2fc",
-              "phase": "fix",
-              "started_at": "2026-11-24T04:43:35Z",
-              "command": "true",
-              "heartbeat_at": "2026-11-24T04:43:35Z",
+              "id": "060493f71d274cb9b07506247d1f0164",
+              "phase": "review",
+              "started_at": "2026-11-24T04:43:44Z",
+              "command": "run-record-171-verdict.sh",
+              "heartbeat_at": "2026-11-24T04:43:44Z",
               "plan_sha256": "14de10ee41df11aed412a7051b50e15d097b767fd120ee50bb918d1a53655f90",
               "worktree": "bcl120-r5-171",
-              "model": "record-171-verdict (no-op fix to re-enter review after tool-fault runner_exit)",
+              "model": "gpt-6.1-terra medium (review, re-record)",
               "cycle": 12,
               "round": 5
             },
-            "tool_fault_streak": 1,
+            "tool_fault_streak": 0,
             "model": "gpt-6-luna fast medium (Codex CLI)",
             "implementer_session": "01a20bc8-294f-73e2-9e7d-b7a24fcf28df",
             "reviewer_session": "codex-terra-120-171-3",
-            "reviewer_model": "gpt-6.1-terra medium (review)",
-            "must_fix_note": "Reviewer exited 1"
+            "reviewer_model": "gpt-6.1-terra medium (review, re-record)",
+            "must_fix_note": "Reviewer exited 1",
+            "review_status": "running"
           },
-          "phase": "fix",
+          "phase": "review",
           "updated_at": "2026-11-24T04:34:01Z",
-          "stage_entered_at": "2026-11-24T04:35:04Z",
+          "stage_entered_at": "2026-11-24T04:43:35Z",
           "unblock_history": [
             {
               "at": "2026-11-24T04:16:26Z",
@@ -13844,7 +13845,7 @@
       "round": 4,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T04:43:35Z"
+    "last_written_at": "2026-11-24T04:43:44Z"
   },
   "findings": [
     {
