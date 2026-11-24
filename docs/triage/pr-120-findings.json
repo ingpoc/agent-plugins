@@ -11631,9 +11631,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T06:19:20Z",
-      "now": "2026-11-24T06:19:20Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-24T06:20:48Z",
+      "now": "2026-11-24T06:20:48Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13398,9 +13398,22 @@
       "round": 6,
       "groups": [
         {
-          "status": "planned",
-          "phase": "pending",
-          "codex": {},
+          "status": "review",
+          "phase": "plan_review",
+          "codex": {
+            "job": {
+              "id": "bf697dc366324286bb3b4f0aebe4d803",
+              "phase": "plan_review",
+              "started_at": "2026-11-24T06:20:48Z",
+              "command": "run-record-r6-planreview.sh",
+              "heartbeat_at": "2026-11-24T06:20:48Z",
+              "plan_sha256": "76b90262c5cf69b905b69ff6ffb9ac3cf293babc17a6b6dfedce112463bdcea4",
+              "worktree": "bcl120-r6-fallback",
+              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "cycle": 12,
+              "round": 6
+            }
+          },
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13422,7 +13435,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:19:20Z"
+          "stage_entered_at": "2026-11-24T06:20:48Z"
         },
         {
           "status": "planned",
@@ -14079,7 +14092,7 @@
       "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:19:20Z",
+    "last_written_at": "2026-11-24T06:20:48Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
