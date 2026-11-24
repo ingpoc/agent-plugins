@@ -11764,9 +11764,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T07:37:46Z",
-      "now": "2026-11-24T07:37:46Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T08:08:41Z",
+      "now": "2026-11-24T08:08:41Z — Fix started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13699,8 +13699,8 @@
             "ACU-20"
           ],
           "worktree": "bcl120-r7-acu20",
-          "status": "review",
-          "phase": "plan_review",
+          "status": "running",
+          "phase": "fix",
           "files": [
             "plugins/agent-computer-use/bin/island_activity.py",
             "plugins/agent-computer-use/bin/island_hook.py",
@@ -13710,7 +13710,7 @@
             "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandCodexThreadsTests.swift"
           ],
           "reason": "Product first: the island already shows Codex CLI runs and must also show Grok Bot's own subagents as running, done, or stopped with a reason, from a supported credential-free record. Do not read credentials, dual-drive Comet, or touch port 8765, pid 1338, or ~/.cache/macos-cua/samantha-activity.jsonl. About 90k tokens.",
-          "stage_entered_at": "2026-11-24T07:20:53Z",
+          "stage_entered_at": "2026-11-24T08:08:41Z",
           "failure_history": [],
           "plan_review_history": [
             {
@@ -13724,25 +13724,22 @@
           ],
           "codex": {
             "job": {
-              "id": "8630c088c1194890b9f7a1e793e1bda3",
-              "phase": "plan_review",
-              "started_at": "2026-11-24T07:20:53Z",
-              "command": "run-record-r7-acu20-planreview.sh",
-              "heartbeat_at": "2026-11-24T07:20:53Z",
-              "plan_sha256": "98694a6ff430c209e5ecd737a474396a415498512fd702dd641b0607f6d509a2",
+              "id": "1c8bf71fdb4a4cd7b067b091eec4f106",
+              "phase": "fix",
+              "started_at": "2026-11-24T08:08:41Z",
+              "command": "run-record-r7-acu20-fix.sh",
+              "heartbeat_at": "2026-11-24T08:08:41Z",
+              "plan_sha256": "521de15db424a2afd3b57e9fa0c255601fb1dc67bb79fae9e55cbdb6fe0c71fd",
               "worktree": "bcl120-r7-acu20",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "Grok Bot inline fix (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
-              "round": 7,
-              "pid": 1588,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T07:20:53Z",
-              "finished_phase_status": "passed"
+              "round": 7
             },
-            "plan_review_status": "passed",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "implementer_session": "grokbot-r7-acu20",
+            "fix_status": "running"
           },
-          "updated_at": "2026-11-24T07:10:46Z",
+          "updated_at": "2026-11-24T08:08:32Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
@@ -13859,23 +13856,27 @@
           ],
           "codex": {
             "job": {
-              "id": "1cdc88bfaca64a3ab2f727c5c634b045",
-              "phase": "review",
-              "started_at": "2026-11-24T07:37:46Z",
-              "command": "run-record-r7-acu21-review.sh",
-              "heartbeat_at": "2026-11-24T07:37:46Z",
+              "id": "25eab18edfb84a14b54c79a13a9e2780",
+              "phase": "presuite",
+              "started_at": "2026-11-24T07:38:16Z",
+              "command": "run-presuite-r7-acu21.sh",
+              "heartbeat_at": "2026-11-24T07:41:48Z",
               "plan_sha256": "4456f0e9a8b96460a04c1c8a2ee591b9bc76d68cf4eec6fb24fed6bc272cd72f",
               "worktree": "bcl120-r7-acu21",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "check.py --changed-since 48c4f7cc",
               "cycle": 12,
-              "round": 7
+              "round": 7,
+              "pid": 40134,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T07:41:48Z",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "fix_status": "passed",
             "implementer_session": "grokbot-r7-acu21",
             "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
-            "review_status": "running"
+            "review_status": "passed"
           },
           "updated_at": "2026-11-24T07:36:38Z",
           "verify": {
@@ -13883,6 +13884,11 @@
             "fixed": 0,
             "failed": 0,
             "total": 1
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T07:41:48Z"
           }
         },
         {
@@ -14442,7 +14448,7 @@
       "round": 6,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T07:37:46Z",
+    "last_written_at": "2026-11-24T08:08:41Z",
     "fix_order": {
       "ids": [
         "DO-4",
@@ -15509,7 +15515,8 @@
       "status": "untested",
       "details": {
         "snapshots": "devobs-r6-before 704287b7 at 12:27:41 IST; devobs-r6-after 1def6b50 at 12:30:02 IST; coverage 1/35, tokens 1088149, incomplete 18, last_event_at 2026-11-24T06:59:41Z.",
-        "metric": "Before: official collect coverage 1/35 and many wrapper-named gaps. After: a short official run reports model-named coverage for jobs with usage and wrapper-free named gaps for the rest."
+        "metric": "Before: official collect coverage 1/35 and many wrapper-named gaps. After: a short official run reports model-named coverage for jobs with usage and wrapper-free named gaps for the rest.",
+        "also reported as DO-spec-job-model": "Job events have no model, model version, effort, or fallback list Job events have no model field, and the lane model field sometimes holds a command or a review fallback sentence instead of a model id and version, so the default view cannot label which model ran a job. 24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/. SPEC section 9 item 3: no model on job events; Luna appears with no version; fallback prose was stored in the model field. This is the same class as o"
       },
       "id": "PR120-r6-collect-job-coverage",
       "created_at": "2026-11-24T07:02:02Z"
@@ -15531,6 +15538,102 @@
         "MCP resource today": "The dashboard is only ui://developer-observability/dashboard on the stdio MCP server."
       },
       "created_at": "2026-11-24T07:10:26Z"
+    },
+    {
+      "id": "DO-5",
+      "title": "Change-list job events still have no group or round fields",
+      "status": "untested",
+      "priority": "high",
+      "source": "Agent reported",
+      "summary": "The default round view can only infer a job's lane from the worktree name, because job events still have no group or round fields. That inference fails when a worktree is shared, unnamed, or does not contain the lane id.",
+      "impact": "Lane drill-down and the time and token bars can attach jobs to the wrong lane, or drop them, so the default view cannot be trusted as a complete account of the round.",
+      "observed": "24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/.",
+      "recommendation": "Have every change-list job start and finish event include the lane id and the round, written by the job runner, not inferred later.",
+      "done_when": "A finished job event includes the lane id and the round without inference, a job whose worktree name does not contain the lane id still links to that lane, and a test covers a stamped event and a missing-field gap.",
+      "details": {
+        "spec gap": "SPEC section 9 item 2. events.jsonl has no group_id or round. observability_round now infers those fields on the read path when the worktree matches a plan group (17 jobs on PR 120 round 7). BCL-177 asked for a group stamp and is already verified_fixed, so this remaining writer gap is filed separately."
+      },
+      "created_at": "2026-11-24T08:04:16Z"
+    },
+    {
+      "id": "DO-6",
+      "title": "Implementer session time is not recorded as a job, so the time bar stays incomplete",
+      "status": "untested",
+      "priority": "high",
+      "source": "Agent reported",
+      "summary": "Work done in a Grok Bot implementer session is not recorded as a job, so a large share of a round's wall time never appears in the default view's time bar.",
+      "impact": "The time bar understates how long a round took and hides unrecorded session work as a hatched or missing span.",
+      "observed": "24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/.",
+      "recommendation": "Record session start and finish as a job, or an equivalent timed event, so the time bar can include that work, or mark it as a named unrecorded span.",
+      "done_when": "A Grok Bot implementer session in a round appears as a timed job or a named unrecorded span in the round view, and the time bar accounts for it.",
+      "details": {
+        "spec gap": "SPEC section 9 item 5. About 15 of 21 Round 7 minutes had no job. implementer_session values such as grokbot-r7-doview are stored on the plan, not as job start and finish events."
+      },
+      "created_at": "2026-11-24T08:04:16Z"
+    },
+    {
+      "id": "DO-7",
+      "title": "Blocked and parked lanes do not carry a stored reason or a target round",
+      "status": "untested",
+      "priority": "high",
+      "source": "Agent reported",
+      "summary": "Blocked lanes on the tracker have no stored blocked reason or target round, and deferred is not in the status enum, so the default view has to guess why a lane is waiting and where it was parked.",
+      "impact": "Needs-you cards and lane rows cannot state a stored reason or target round for blocked or parked work, which is what the user must act on.",
+      "observed": "24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/.",
+      "recommendation": "Store a blocked reason and a target round on blocked or parked groups, and include deferred in the status enum or map it to a documented parked state.",
+      "done_when": "Blocked and parked groups expose a blocked reason and a target round, deferred is a documented status or is mapped to parked, and the default view shows those fields without guessing.",
+      "details": {
+        "spec gap": "SPEC section 9 item 6. R4-171 and R4-106 are status=blocked with a reason string, but blocked_reason and parked_to are missing. Groups also use status=deferred (R2-DO1, DEFER). The change-list SPEC already asks for those fields."
+      },
+      "created_at": "2026-11-24T08:04:16Z"
+    },
+    {
+      "id": "DO-8",
+      "title": "Failed job output is not retained for the Why column",
+      "status": "untested",
+      "priority": "medium",
+      "source": "Agent reported",
+      "summary": "When a job fails, the tracker often keeps only an empty or generic first error line and does not mark raw logs as available, so the default view cannot show why the attempt failed.",
+      "impact": "Lane drill-down falls back to saying the output was not kept, and a person cannot judge the failure from the viewer.",
+      "observed": "24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/.",
+      "recommendation": "Retain a bounded first error line and enough failure output or a log pointer on the job or attempt record for the viewer Why column.",
+      "done_when": "A failed job or attempt exposes a real first error line or a retained output pointer in the round view, and the Why column does not have to say output was not retained when output existed.",
+      "details": {
+        "spec gap": "SPEC section 9 item 7. first_error_line was 'Failure with an empty message' and raw_logs_available was false on a failed attempt."
+      },
+      "created_at": "2026-11-24T08:04:16Z"
+    },
+    {
+      "id": "DO-9",
+      "title": "Coverage gap items are returned as Python strings, not objects",
+      "status": "untested",
+      "priority": "medium",
+      "source": "Agent reported",
+      "summary": "When coverage detail is requested, coverage gap items are stringified with a Python repr, so a client cannot reliably read source, status, or age as fields.",
+      "impact": "The default view and any other client have to parse strings to show coverage problems, and some items become unreadable.",
+      "observed": "24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/.",
+      "recommendation": "Return coverage gap items as objects with stable fields for source, status, and age when known, and keep redaction without stringifying the whole object.",
+      "done_when": "Coverage detail returns gap items as objects, not Python repr strings, and existing tests are updated for the object shape.",
+      "details": {
+        "spec gap": "SPEC section 9 item 9. observability_api._summary still redacts coverage_gaps with str() when include_coverage is true. The string coverage line is separate and can stay a sentence."
+      },
+      "created_at": "2026-11-24T08:04:16Z"
+    },
+    {
+      "id": "DO-10",
+      "title": "The tracker does not store the merge gate threshold for a cycle",
+      "status": "untested",
+      "priority": "medium",
+      "source": "Agent reported",
+      "summary": "The default view can count verified and pending checks, but the tracker has no explicit gate threshold for the current cycle, so the ring cannot show how many verified fixes are required.",
+      "impact": "The summary has to omit the threshold or assume one, which can be mistaken for the lower report bar.",
+      "observed": "24 Nov 2026 13:30 IST Asia/Calcutta. UI and UX SPEC section 9, measured on the live tracker for PR 120 and the new round tool at commit 57f78423, served at http://127.0.0.1:8780/.",
+      "recommendation": "Store the merge bar threshold on the live tracker or verification run, and have the round view return it without assuming a number.",
+      "done_when": "The round view returns the stored merge bar for the current cycle, not a missing or hard-coded assumption, and a test covers a stored threshold.",
+      "details": {
+        "spec gap": "SPEC section 9 item 11. observability_round returns gate.fixed=4, pending=35, total=39, threshold=null for PR 120 cycle 12. Forced-gate history has used 15, and the merge bar is 16, but neither is stored on the live verification run. PR120-r6-gate-denominator already tracks the official count command using the report bar; this issue is that the threshold itself is not stored for the viewer."
+      },
+      "created_at": "2026-11-24T08:04:16Z"
     }
   ]
 }
