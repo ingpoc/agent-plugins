@@ -11631,9 +11631,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-24T06:27:45Z",
-      "now": "2026-11-24T06:27:45Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-24T06:33:35Z",
+      "now": "2026-11-24T06:33:35Z — Review started"
     },
     "rollover": {
       "source_pr": 119,
@@ -13466,12 +13466,13 @@
               "phase": "fix",
               "started_at": "2026-11-24T06:27:45Z",
               "command": "run-luna-r6-121-job.sh",
-              "heartbeat_at": "2026-11-24T06:27:45Z",
+              "heartbeat_at": "2026-11-24T06:32:47Z",
               "plan_sha256": "9e3279ec5ebf142fe88a2cfc41b7c3473888bbd85fe4005b59825736be046dca",
               "worktree": "bcl120-r6-121",
               "model": "gpt-6-luna fast medium (Codex CLI)",
               "cycle": 12,
-              "round": 6
+              "round": 6,
+              "pid": 86726
             },
             "tool_fault_streak": 0,
             "fix_status": "running"
@@ -13510,26 +13511,27 @@
         },
         {
           "status": "review",
-          "phase": "plan_review",
+          "phase": "review",
           "codex": {
             "job": {
-              "id": "0ce304a49b4f417f9a740e22da4e6cca",
-              "phase": "plan_review",
-              "started_at": "2026-11-24T06:20:51Z",
-              "command": "run-record-r6-planreview.sh",
-              "heartbeat_at": "2026-11-24T06:20:51Z",
-              "plan_sha256": "76b90262c5cf69b905b69ff6ffb9ac3cf293babc17a6b6dfedce112463bdcea4",
+              "id": "8fd5c98ce09d499a90456c3d41ed199b",
+              "phase": "review",
+              "started_at": "2026-11-24T06:33:35Z",
+              "command": "run-record-r6-do2-grok.sh",
+              "heartbeat_at": "2026-11-24T06:33:35Z",
+              "plan_sha256": "be4f8602d10478670207965703c5f5ac2d52f4fcf9bb30c181de604998f26be5",
               "worktree": "bcl120-r6-do2",
               "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
               "cycle": 12,
-              "round": 6,
-              "pid": 75510,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T06:20:51Z",
-              "finished_phase_status": "passed"
+              "round": 6
             },
-            "plan_review_status": "passed",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "fix_status": "passed",
+            "model": "Grok Bot",
+            "implementer_session": "01a20c3d-4e72-7113-862e-a74708f0827b",
+            "reviewer_session": "grokbot-r6-do2-review",
+            "review_status": "running",
+            "reviewer_model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)"
           },
           "verify": {
             "status": "pending",
@@ -13562,31 +13564,28 @@
               "at": "2026-11-24T06:20:51Z"
             }
           ],
-          "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:20:51Z"
+          "updated_at": "2026-11-24T06:33:35Z",
+          "stage_entered_at": "2026-11-24T06:30:33Z"
         },
         {
-          "status": "review",
-          "phase": "plan_review",
+          "status": "running",
+          "phase": "fix",
           "codex": {
             "job": {
-              "id": "e72ac0c650854a4e998805aad9f324e5",
-              "phase": "plan_review",
-              "started_at": "2026-11-24T06:20:52Z",
-              "command": "run-record-r6-planreview.sh",
-              "heartbeat_at": "2026-11-24T06:20:53Z",
-              "plan_sha256": "76b90262c5cf69b905b69ff6ffb9ac3cf293babc17a6b6dfedce112463bdcea4",
+              "id": "08e131b7a81941f5ae17100c87d6f293",
+              "phase": "fix",
+              "started_at": "2026-11-24T06:28:01Z",
+              "command": "run-luna-r6-do3-job.sh",
+              "heartbeat_at": "2026-11-24T06:33:02Z",
+              "plan_sha256": "9e3279ec5ebf142fe88a2cfc41b7c3473888bbd85fe4005b59825736be046dca",
               "worktree": "bcl120-r6-do3",
-              "model": "Grok Bot subagent review (Astra 6.2 and Terra 6.1 unavailable)",
+              "model": "gpt-6-luna fast medium (Codex CLI)",
               "cycle": 12,
               "round": 6,
-              "pid": 75614,
-              "exit_code": 0,
-              "finished_at": "2026-11-24T06:20:53Z",
-              "finished_phase_status": "passed"
+              "pid": 88933
             },
-            "plan_review_status": "passed",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "fix_status": "running"
           },
           "verify": {
             "status": "pending",
@@ -13623,7 +13622,7 @@
             }
           ],
           "updated_at": "2026-11-24T06:19:20Z",
-          "stage_entered_at": "2026-11-24T06:20:53Z"
+          "stage_entered_at": "2026-11-24T06:28:01Z"
         },
         {
           "id": "R4-171",
@@ -14192,7 +14191,7 @@
       "round": 5,
       "cycle": 12
     },
-    "last_written_at": "2026-11-24T06:27:45Z",
+    "last_written_at": "2026-11-24T06:33:35Z",
     "fix_order": {
       "ids": [
         "PR120-r5-codex-reviewer-model-fallback",
