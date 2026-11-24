@@ -1,3 +1,9 @@
+## 0.2.163
+
+- Grok Bot subagents now appear on the Dynamic Island as running, done, or stopped with a reason, from official SubagentStart and SubagentStop hooks. The hook reads no credentials. To enable it, merge the shipped hooks/grok-hooks.json into ~/.grok/hooks; install does not overwrite your hooks (ACU-20).
+- When Grok Voice or the GPT live model reports token or audio-second counts, those counts are recorded. All-zero token fields stay unknown instead of looking like a zero-cost turn (ACU-10).
+- The Island source now accepts a stopped kind, like an error row. This package does not publish a new app build; a running Island older than this source will not show stopped rows until the next app build.
+
 ## 0.2.162
 
 - Skill-only change: the macos-cua and voice-cua verify skills gain their principles files (the template base plus a few skill lines) and link them for skill edits. No app code changed and no new app build is published; the Island has no update prompt, so it offers nothing for this version. Installing it restamps the local app with this version, like any package change.
