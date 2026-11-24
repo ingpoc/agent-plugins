@@ -2155,6 +2155,66 @@ def require_restore_lane(group, findings):
         raise ValueError(f"plan group {group.get('id')}: {', '.join(regressed)} regress against main; this lane must restore "
                          "main's behaviour first (set restores_main true) and any redesign must be filed as its own finding")
 
+def record_hotfix(document, operation):
+    ids = operation.get("ids")
+    if not isinstance(ids, list) or not ids or any(not isinstance(item, str) or not item.strip() for item in ids):
+        raise ValueError("hotfix requires finding ids")
+    ids = [item.strip() for item in ids]
+    if len(ids) != len(set(ids)):
+        raise ValueError("hotfix ids must be unique")
+    reason = require_override_reason(operation.get("reason"), "hotfix")
+    approver = operation.get("by")
+    if not isinstance(approver, str) or not approver.strip():
+        raise ValueError("hotfix requires an approver")
+    stamp = operation.get("timestamp")
+    if not isinstance(stamp, str) or RENDERER.parse_instant(stamp) is None:
+        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    findings = document.get("findings") if isinstance(document.get("findings"), list) else []
+    known = {item.get("id") for item in findings if isinstance(item, dict)}
+    missing = [item for item in ids if item not in known]
+    if missing:
+        raise ValueError("hotfix names unknown finding ID(s): " + ", ".join(missing))
+    tracking = document.setdefault("tracking", {})
+    if not isinstance(tracking, dict):
+        raise ValueError("tracking must be an object")
+    plan = tracking.setdefault("plan", {"cycle": tracking.get("cycle", 1),
+                                        "round": tracking.get("round", 1), "groups": []})
+    if not isinstance(plan, dict):
+        raise ValueError("plan must be an object")
+    groups = plan.setdefault("groups", [])
+    if not isinstance(groups, list):
+        raise ValueError("plan groups must be an array")
+    intersecting = [group for group in groups if isinstance(group, dict)
+                    and set(ids) & set(group.get("finding_ids") or [])]
+    if len({group.get("id") for group in intersecting}) > 1:
+        raise ValueError("hotfix must name findings from one lane")
+    if intersecting:
+        group = intersecting[0]
+        if set(group.get("finding_ids") or []) != set(ids):
+            raise ValueError("hotfix must name every finding in the lane")
+    else:
+        base = "HF-" + (ids[0] if len(ids) == 1 else "lane")
+        used = {group.get("id") for group in groups}
+        name, n = base, 1
+        while name in used:
+            n += 1
+            name = f"{base}-{n}"
+        group = {"id": name, "finding_ids": list(ids), "status": "planned", "phase": "fix",
+                 "reason": reason}
+        groups.append(group)
+    payload = release_check_payload(document, ids)
+    record = {"approver": approver.strip(), "reason": reason, "at": stamp, "ids": list(ids),
+              "cycle": plan.get("cycle", tracking.get("cycle", 1)),
+              "round": plan.get("round", tracking.get("round", 1)),
+              "mini_round": True, "release_check": payload}
+    group["hotfix"] = copy.deepcopy(record)
+    history = tracking.setdefault("hotfix_history", [])
+    if not isinstance(history, list):
+        raise ValueError("hotfix_history must be an array")
+    history.append(copy.deepcopy(record))
+    return record
+
+
 MAX_ROUND_LANES = 4
 
 
@@ -3519,6 +3579,10 @@ def run(args, parser):
                     continue
                 if action == "merge":
                     merge_findings(store["document"], operation, datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+                    findings = store["document"]["findings"]
+                    continue
+                if action == "hotfix":
+                    record_hotfix(store["document"], operation)
                     findings = store["document"]["findings"]
                     continue
                 index = find_index(findings, operation.get("id"))

@@ -3199,6 +3199,25 @@ class ManageFindingsTests(unittest.TestCase):
         self.assertIsNone(group.get("blocked_reason"))
         self.assertEqual(current["findings"][0]["status"], "verified_fixed")
 
+class HotfixTests(ManageFindingsTests):
+    def test_hotfix_records_approver_reason_and_release_check(self):
+        document = copy.deepcopy(self.document)
+        document['findings'][0]['status'] = 'untested'
+        identifier = document['findings'][0]['id']
+        document['tracking'] = {'cycle': 1, 'round': 2, 'plan': {'cycle': 1, 'round': 2, 'groups': []}}
+        record = manage_findings.record_hotfix(document, {'ids': [identifier], 'by': 'Guru',
+            'reason': 'tool bug on the release path', 'timestamp': '2026-11-24T18:40:00Z'})
+        self.assertEqual(record['approver'], 'Guru')
+        self.assertEqual(record['reason'], 'tool bug on the release path')
+        self.assertTrue(record['mini_round'])
+        self.assertIn('clear', record['release_check'])
+        group = document['tracking']['plan']['groups'][0]
+        self.assertEqual(group['finding_ids'], [identifier])
+        self.assertEqual(group['hotfix']['approver'], 'Guru')
+        self.assertEqual(document['tracking']['hotfix_history'][-1]['ids'], [identifier])
+        with self.assertRaisesRegex(ValueError, 'approver'):
+            manage_findings.record_hotfix(document, {'ids': [identifier], 'reason': 'tool bug',
+                'timestamp': '2026-11-24T18:40:00Z'})
 
 
 if __name__ == "__main__":

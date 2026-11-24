@@ -61,6 +61,18 @@ class ReferenceTests(unittest.TestCase):
             1,
         )
 
+    def test_guides_say_every_round_ships(self):
+        release = (SKILL / "references/release.md").read_text(encoding="utf-8").lower()
+        gate = (SKILL / "references/gate.md").read_text(encoding="utf-8").lower()
+        note = DEFINITION["gate"]["note"].lower()
+        for text in (release, gate, note):
+            self.assertIn("each round ships", text)
+            self.assertIn("patch", text)
+        self.assertIn("bcl hotfix", release)
+        self.assertIn("--by", release)
+        self.assertIn("release-check", release)
+
+
 
 if __name__ == "__main__":
     unittest.main()

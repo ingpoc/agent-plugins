@@ -2993,5 +2993,23 @@ elif args[:2] != ['pr', 'edit']:
         self.assertEqual(live.stat().st_mtime_ns, mtime)
 
 
+    def test_hotfix_records_a_one_lane_mini_round(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        result = self.call_without_viewer("hotfix", "--ids", "ISSUE-01", "--by", "Guru",
+                                          "--reason", "tool bug on the release path")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["approver"], "Guru")
+        self.assertEqual(payload["reason"], "tool bug on the release path")
+        self.assertTrue(payload["mini_round"])
+        self.assertIn("clear", payload["release_check"])
+        saved = json.loads(self.data.read_text())
+        group = saved["tracking"]["plan"]["groups"][-1]
+        self.assertEqual(group["finding_ids"], ["ISSUE-01"])
+        self.assertEqual(group["hotfix"]["approver"], "Guru")
+        missing = self.call_without_viewer("hotfix", "--ids", "ISSUE-01", "--reason", "tool bug")
+        self.assertNotEqual(missing.returncode, 0)
+
+
 
 if __name__ == "__main__": unittest.main()

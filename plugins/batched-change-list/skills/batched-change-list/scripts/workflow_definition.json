@@ -24,7 +24,7 @@
     "mobile_loop_label": "under {threshold} verified · repeat",
     "exit_label": "Report at {threshold}+ verified",
     "merge_label": "{threshold}+ verified for Merge previous PR",
-    "note": "Report at {threshold}+ verified or when no counted findings remain open. Rollover requires at least {merge_threshold}+ verified and the rollover threshold. Merge previous PR requires {merge_threshold}+ verified. No-open exception applies only to report."
+    "note": "Report at {threshold}+ verified or when no counted findings remain open. Rollover requires at least {merge_threshold}+ verified and the rollover threshold. Merge previous PR requires {merge_threshold}+ verified. No-open exception applies only to report. Each round ships its verified fixes as a patch. The merge and rollover threshold does not hold a round from shipping."
   },
   "suggested_verdicts": {},
   "lane": {

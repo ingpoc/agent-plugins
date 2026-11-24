@@ -854,6 +854,7 @@ KNOWN_STAGES = frozenset((
     "correct-round",
     "fix",
     "fix-order",
+    "hotfix",
     "install",
     "install-hooks",
     "install-local",
@@ -1045,6 +1046,19 @@ def main():
     if manage_findings.pause_record(tracking) is not None and args.stage in ("job", "install", "verify"):
         parser.error("round paused; run bcl resume")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
+    if args.stage == "hotfix":
+        if not args.ids or not (args.reason or "").strip() or not (args.by or "").strip():
+            parser.error("hotfix requires --ids ID, --by APPROVER, and --reason")
+        operation = {"action": "hotfix", "ids": list(args.ids), "by": args.by, "reason": args.reason}
+        report, base = live_state.report_paths(record, live)
+        try:
+            _job_write(record, live, report, base, [operation])
+        except (OSError, RuntimeError, ValueError) as error:
+            parser.error(str(error))
+        data = json.loads(live.read_text())
+        history = (data.get("tracking") or {}).get("hotfix_history") or []
+        print(json.dumps(history[-1] if history else {}, indent=2))
+        return
     if args.stage == "merge":
         if not args.into or not args.ids or not args.plan:
             parser.error("merge requires --into ID, --ids ID (repeat), and --plan FILE with title, summary, recommendation and done_when")
