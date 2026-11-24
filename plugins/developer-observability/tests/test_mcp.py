@@ -59,7 +59,8 @@ class MCPTests(unittest.TestCase):
                         await client.initialize()
                         self.assertEqual(client.protocol_version, '2025-11-25')
                     tools = (await client.list_tools()).tools
-                    self.assertEqual(len(tools), 15)
+                    self.assertEqual(len(tools), 16)
+                    self.assertIn('observability_round', [t.name for t in tools])
                     usage = await client.call_tool('observability_task_usage', {})
                     self.assertFalse(usage.is_error)
                     self.assertEqual(usage.structured_content['status'], 'not_captured')

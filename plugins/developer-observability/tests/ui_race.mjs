@@ -17,7 +17,7 @@ class App{
   connect(){return Promise.resolve();}
   callServerTool(params){return new Promise(resolve=>pending.push({params,resolve}));}
 }
-const script=(await readFile(new URL('../ui/app.js',import.meta.url),'utf8')).replace("import {App} from '@modelcontextprotocol/ext-apps';",'');
+const script=(await readFile(new URL('../ui/app.js',import.meta.url),'utf8')).replace("import {App} from '@modelcontextprotocol/ext-apps';",'').replace("import {mountRoundView} from './round-view.js';\n",'');
 vm.runInNewContext(script,{App,document:{getElementById:get,createElement:()=>new Element(),querySelectorAll:()=>[]},console});
 get('project').value='A';const oldRequest=get('project').onchange();
 get('decision-result').hidden=false;
