@@ -1,4 +1,5 @@
 import copy
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -366,10 +367,13 @@ class JobLifecycleTests(unittest.TestCase):
         group = doc["tracking"]["plan"]["groups"][0]
         self.assertEqual(group["failure_history"][0]["reason"], "Review incomplete: strict verdict or Must-fix section missing")
         self.assertTrue(group["failure_history"][0]["tool_fault"])
-        self.assertEqual(group["status"], "running")
-        transition(doc, "start-job", "fix", "fix-2")
-        self.assertEqual(group["status"], "running")
-        self.assertEqual(group["phase"], "fix")
+        self.assertEqual(group["status"], "review")
+        self.assertEqual(group["phase"], "review")
+        with self.assertRaisesRegex(ValueError, "stays in review after a tool-fault review"):
+            transition(doc, "start-job", "fix", "fix-2")
+        transition(doc, "start-job", "review", "review-2")
+        self.assertEqual(group["status"], "review")
+        self.assertEqual(group["phase"], "review")
 
     def test_changes_review_still_counts_as_a_code_failure(self):
         doc = document()
@@ -445,12 +449,100 @@ class JobLifecycleTests(unittest.TestCase):
         for n in (1, 2):
             transition(doc, "start-job", "review", f"cut-{n}")
             finish(doc, "review", f"cut-{n}", reply="partial review")
-            transition(doc, "start-job", "fix", f"fix-ok-{n}")
-            finish(doc, "fix", f"fix-ok-{n}")
+            transition(doc, "start-job", "review", f"pass-{n}")
+            finish(doc, "review", f"pass-{n}", reply="VERDICT: PASS\n## Must-fix\nnone\n")
         transition(doc, "start-job", "review", "cut-3")
         finish(doc, "review", "cut-3", reply="partial review")
         self.assertNotEqual(group["status"], "blocked")
         self.assertEqual(group["codex"]["tool_fault_streak"], 1)
+
+    def test_tool_fault_review_leaves_the_lane_in_review(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", code=3, reply="VERDICT: PASS\n## Must-fix\nnone\n")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["status"], "review")
+        self.assertEqual(group["phase"], "review")
+        self.assertEqual(group["codex"]["fix_status"], "passed")
+        self.assertTrue(group["failure_history"][0]["tool_fault"])
+        transition(doc, "start-job", "review", "review-2")
+        finish(doc, "review", "review-2", reply="VERDICT: CHANGES\n## Must-fix\n- add the guard")
+        self.assertEqual(group["status"], "running")
+        self.assertEqual(group["phase"], "fix")
+        self.assertFalse(group["failure_history"][1].get("tool_fault"))
+
+    def test_running_job_accepts_its_own_step_report_and_refuses_a_foreign_job(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "job-a")
+        manager.job_transition(doc, {"action": "report-step", "phase": "fix", "ids": ["ISSUE-01"],
+                                     "cycle": 1, "round": 1, "timestamp": "2026-11-21T00:01:00Z",
+                                     "job_id": "job-a", "step": "Committed first test",
+                                     "result": "ok", "commit": "abc1234"})
+        job = doc["tracking"]["plan"]["groups"][0]["codex"]["job"]
+        self.assertEqual(job["latest_step"]["step"], "Committed first test")
+        self.assertEqual(job["latest_step"]["result"], "ok")
+        self.assertEqual(job["latest_step"]["commit"], "abc1234")
+        self.assertEqual(job["steps"][0]["step"], "Committed first test")
+        self.assertIn("Committed first test", doc["tracking"]["workflow"]["now"])
+        with self.assertRaisesRegex(ValueError, "refused"):
+            manager.job_transition(doc, {"action": "report-step", "phase": "fix", "ids": ["ISSUE-01"],
+                                         "cycle": 1, "round": 1, "timestamp": "2026-11-21T00:02:00Z",
+                                         "job_id": "job-other", "step": "not mine"})
+        finish(doc, "fix", "job-a")
+        with self.assertRaisesRegex(ValueError, "refused"):
+            manager.job_transition(doc, {"action": "report-step", "phase": "fix", "ids": ["ISSUE-01"],
+                                         "cycle": 1, "round": 1, "timestamp": "2026-11-21T00:03:00Z",
+                                         "job_id": "job-a", "step": "too late"})
+
+    def test_finished_jobs_are_kept_for_the_lane_timeline(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "job-a")
+        finish(doc, "fix", "job-a")
+        transition(doc, "start-job", "review", "job-b")
+        finish(doc, "review", "job-b", reply="VERDICT: PASS\n## Must-fix\nnone\n")
+        jobs = manager.lane_jobs(doc["tracking"]["plan"]["groups"][0])
+        self.assertEqual([job["id"] for job in jobs], ["job-a", "job-b"])
+        self.assertEqual(jobs[0]["phase"], "fix")
+        self.assertEqual(jobs[1]["phase"], "review")
+
+    def test_failed_job_keeps_a_first_error_line_and_output_pointer(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "job-a")
+        manager.job_transition(doc, {"action": "finish-job", "phase": "fix", "ids": ["ISSUE-01"],
+                                     "cycle": 1, "round": 1, "timestamp": STAMP, "job_id": "job-a",
+                                     "plan_sha256": manager.plan_candidate_sha256(doc["tracking"]["plan"]),
+                                     "exit_code": 2, "first_error_line": "AssertionError: guard missing",
+                                     "output_path": "/tmp/jobs/job-a.log"})
+        job = doc["tracking"]["plan"]["groups"][0]["codex"]["job"]
+        self.assertEqual(job["first_error_line"], "AssertionError: guard missing")
+        self.assertEqual(job["output_path"], "/tmp/jobs/job-a.log")
+        self.assertTrue(job["output_retained"])
+
+    def test_unblock_validates_every_id_before_writing(self):
+        doc = document()
+        group = doc["tracking"]["plan"]["groups"][0]
+        group.update(status="blocked", phase="fix", blocked_reason="Second failure")
+        before = json.dumps(doc, sort_keys=True)
+        with self.assertRaisesRegex(ValueError, "covered by current plan"):
+            manager.unblock_lane(doc, {"ids": ["ISSUE-01", "ISSUE-MISSING"], "reason": "owner approved",
+                                       "timestamp": STAMP})
+        self.assertEqual(json.dumps(doc, sort_keys=True), before)
+
+    def test_resort_replay_changes_nothing(self):
+        doc = document()
+        manager._record_lane_failure(doc, "ISSUE-01", "cut-1", "review", manager.INCOMPLETE_REVIEW_REASON,
+                                     tool_fault=False, fault_kind="incomplete_review")
+        group = doc["tracking"]["plan"]["groups"][0]
+        manager.resort_failures(doc, {"apply": True, "reason": "confirmed tool fault",
+                                      "timestamp": STAMP, "tool_faults": ["cut-1"]})
+        self.assertTrue(group["failure_history"][0]["tool_fault"])
+        after = json.dumps(doc, sort_keys=True)
+        second = manager.resort_failures(doc, {"apply": True, "reason": "confirmed tool fault",
+                                               "timestamp": "2026-11-21T00:01:00Z", "tool_faults": ["cut-1"]})
+        self.assertEqual(json.dumps(doc, sort_keys=True), after)
+        self.assertFalse(any(lane.get("attempts") for lane in second.get("lanes", [])))
 
 
 if __name__ == "__main__":

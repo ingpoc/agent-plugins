@@ -31,6 +31,11 @@ RENDERER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDERER)
 
 
+def lane_jobs(group):
+    """Finished receipts plus the current job, in start order, without duplicates."""
+    return RENDERER.lane_jobs(group)
+
+
 def stamp_plan_group(group, now):
     group["updated_at"] = now
     codex = group.get("codex")
@@ -1057,8 +1062,19 @@ def resort_failures(document, operation):
     if named and not apply:
         raise ValueError("resort-failures --tool-fault needs --apply and --reason")
     known = {row.get("attempt_id") for _, _, _, ambiguous in candidates for row in ambiguous}
-    if named - known:
-        raise ValueError(f"resort-failures --tool-fault names no ambiguous counted failure: {', '.join(sorted(named - known))}")
+    already = set()
+    plan = (document.get("tracking") or {}).get("plan") if isinstance(document.get("tracking"), dict) else {}
+    groups = plan.get("groups", []) if isinstance(plan, dict) else []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        for row in _lane_history(group, "failure_history", mutate=False):
+            if row.get("tool_fault") and isinstance(row.get("attempt_id"), str):
+                already.add(row["attempt_id"])
+    unknown = named - known - already
+    if unknown:
+        raise ValueError(f"resort-failures --tool-fault names no ambiguous counted failure: {', '.join(sorted(unknown))}")
+    named = named - already
     for group, matches, rows, ambiguous in candidates:
         # Ambiguous legacy rows are uncounted only when the owner names them after reading the reply.
         matches = matches + [row for row in ambiguous if row.get("attempt_id") in named]
@@ -1155,17 +1171,30 @@ def job_transition(document, operation):
             for group in groups:
                 group["worktree"] = worktree
         for group in groups:
-            group_job = {**job, "lane_sha256": lane_candidate_sha256(group, cycle, round_number)}
             codex = group.setdefault("codex", {})
             active_job = codex.get("job")
             if isinstance(active_job, dict) and "exit_code" not in active_job:
                 raise ValueError(f"lane {group['id']} already has a running {active_job.get('phase', 'unknown')} job")
+            if isinstance(active_job, dict) and "exit_code" in active_job:
+                history = codex.setdefault("jobs", [])
+                if not isinstance(history, list):
+                    raise ValueError(f"{group['id']} job history must be an array")
+                if all(not isinstance(row, dict) or row.get("id") != active_job.get("id") for row in history):
+                    history.append(dict(active_job))
+            group_job = {**job, "lane_sha256": lane_candidate_sha256(group, cycle, round_number)}
             if group.get("status") in LANE["groups"]["fix_refused"] or (
                     group.get("status") == "failed" and phase not in LANE["groups"]["work_phases"]):
                 recovery = "; run bcl unblock --reason" if group.get("status") == "blocked" else ""
                 raise ValueError(f"job cannot start blocked, parked, deferred, or failed lane {group['id']}{recovery}")
             failures = _counted_failures(_lane_history(group, "failure_history"))
             if phase == "fix":
+                history = _lane_history(group, "failure_history", mutate=False)
+                last_failure = history[-1] if history else None
+                if (group.get("phase") == "review" and codex.get("fix_status") == "passed"
+                        and last_failure and last_failure.get("tool_fault")
+                        and last_failure.get("source") == "review"
+                        and codex.get("review_status") in {"failed", "incomplete"}):
+                    raise ValueError(f"{group['id']} stays in review after a tool-fault review; rerun the review")
                 if len(failures) >= 2 and not _unblock_covers_failures(group, failures):
                     raise ValueError(f"{group['id']} is blocked after two counted failures; run bcl unblock --reason")
                 if failures:
@@ -1230,6 +1259,15 @@ def job_transition(document, operation):
             codex = group.setdefault("codex", {})
             job = codex.get("job")
             job.update(exit_code=exit_code, finished_at=stamp)
+            first_error = operation.get("first_error_line")
+            if isinstance(first_error, str) and first_error.strip():
+                job["first_error_line"] = first_error.strip()[:240]
+            output_path = operation.get("output_path")
+            if isinstance(output_path, str) and output_path.strip():
+                job["output_path"] = output_path.strip()
+                job["output_retained"] = True
+            elif job.get("first_error_line"):
+                job["output_retained"] = True
             job_tool_fault = False
             if phase in LANE["review_phases"]:
                 status = verdict if exit_code == 0 else None
@@ -1271,14 +1309,15 @@ def job_transition(document, operation):
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
                         codex["must_fix_note"] = reason
-                        if rejected:
+                        if tool_fault:
                             group.update(status="review", phase="review")
-                            substitution = operation.get("substitution")
-                            if isinstance(substitution, str) and substitution.strip():
-                                codex["reviewer_model"] = substitution.strip()
-                                job["model"] = substitution.strip()
-                                job["model_substitution"] = substitution.strip()
-                            job["fault_kind"] = "model_rejected"
+                            if rejected:
+                                substitution = operation.get("substitution")
+                                if isinstance(substitution, str) and substitution.strip():
+                                    codex["reviewer_model"] = substitution.strip()
+                                    job["model"] = substitution.strip()
+                                    job["model_substitution"] = substitution.strip()
+                                job["fault_kind"] = "model_rejected"
                         else:
                             group.update(status="running", phase="fix")
                     else:
@@ -1319,6 +1358,37 @@ def job_transition(document, operation):
             job["heartbeat_at"] = stamp
             if not job_tool_fault:
                 codex["tool_fault_streak"] = 0
+    elif action == "report-step":
+        job_id = operation.get("job_id")
+        step = operation.get("step")
+        if not isinstance(job_id, str) or not job_id.strip():
+            raise ValueError("report-step requires a job id")
+        if not isinstance(step, str) or not step.strip():
+            raise ValueError("report-step requires a step")
+        matched = False
+        entry = {"step": step.strip(), "at": stamp}
+        result = operation.get("result")
+        if isinstance(result, str) and result.strip():
+            entry["result"] = result.strip()
+        commit = operation.get("commit")
+        if isinstance(commit, str) and commit.strip():
+            entry["commit"] = commit.strip()
+        for group in groups:
+            job = (group.get("codex") or {}).get("job")
+            if (not isinstance(job, dict) or job.get("id") != job_id or "exit_code" in job
+                    or job.get("phase") != phase):
+                continue
+            job.setdefault("steps", []).append(entry)
+            job["latest_step"] = entry
+            job["heartbeat_at"] = stamp
+            matched = True
+        if not matched:
+            raise ValueError("report-step is refused for a job that is not this lane's running job")
+        workflow = tracking.get("workflow") if isinstance(tracking.get("workflow"), dict) else {}
+        label = step.strip()
+        if entry.get("result"):
+            label = f"{label}: {entry['result']}"
+        tracking["workflow"] = {**workflow, "updated_at": stamp, "now": f"{stamp} — {label}"}
     else:
         raise ValueError("unknown job transition")
 

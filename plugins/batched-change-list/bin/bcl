@@ -79,6 +79,23 @@ def _stamp_session(path, job_id):
     except OSError:
         return False
 
+def _first_error_line(text, limit=240):
+    if not text:
+        return None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped[:limit]
+    return None
+
+
+def _write_job_output(list_path, job_id, output_text):
+    path = bcl_events.events_path(list_path, os.environ.get("BCL_STATE_DIR")).parent / "jobs" / f"{job_id}.log"
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.write_text(output_text or "", encoding="utf-8")
+    return path
+
+
 def _read_usage(path, job_id):
     """Accept only a verified sidecar or in-file job ID; sum Codex cumulative usage once."""
     try:
@@ -224,6 +241,16 @@ def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exi
             operation["fault_kind"] = fault_kind
         if substitution:
             operation["substitution"] = substitution
+        if job.get("first_error_line"):
+            operation["first_error_line"] = job["first_error_line"]
+        if job.get("output_path"):
+            operation["output_path"] = job["output_path"]
+    elif action == "report-step":
+        operation["step"] = job.get("step")
+        if job.get("result"):
+            operation["result"] = job["result"]
+        if job.get("commit"):
+            operation["commit"] = job["commit"]
     return [operation]
 
 def _run_job(record, live, report, base, groups, phase, ids, command_args, result_file=None, model=None, load_override=None):
@@ -445,6 +472,14 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             job["model"] = GROK_BOT_REVIEW
             # A later review job can record a Grok Bot verdict without a no-op fix.
     try:
+        if code != 0 or (output_text and output_text.strip()):
+            try:
+                log_path = _write_job_output(list_path, job["id"], output_text)
+                job["output_path"] = str(log_path)
+            except OSError:
+                log_path = None
+            if code != 0:
+                job["first_error_line"] = _first_error_line(output_text) or f"exited {code}"
         _job_write_retry(record, live, report, base,
                          _job_operations(phase, ids, cycle, round_number, job, "finish-job", finished_at,
                                          exit_code=code, reply=reply, fault_kind=finish_fault_kind,
@@ -473,7 +508,18 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
     if usage is None: usage_source = "none"
     event = {**event_context, "phase": phase, "agent": Path(command_args[0]).name, "repo": repo.name,
              "exit_code": code, "finished_at": finished_at, "tokens_source": usage_source,
-             "tokens": usage, "session": usage_path.name if usage_path else None}
+             "tokens": usage, "session": usage_path.name if usage_path else None,
+             "model": job.get("model") or event_context.get("model"),
+             "first_error_line": job.get("first_error_line"),
+             "output_path": job.get("output_path")}
+    started = job.get("started_at")
+    if started and finished_at:
+        try:
+            start = datetime.fromisoformat(started.replace("Z", "+00:00"))
+            end = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+            event["wall_time_s"] = max(0, int((end - start).total_seconds()))
+        except ValueError:
+            pass
     bcl_events.job_event(list_path, job["id"], "finish", state_dir=os.environ.get("BCL_STATE_DIR"), **event)
     return (code if code else 0 if result_status == "passed" else 1) if code >= 0 else 128 - code
 
@@ -730,6 +776,7 @@ KNOWN_STAGES = frozenset((
     "report",
     "resort-failures",
     "resume",
+    "report-step",
     "review",
     "rollover",
     "snapshot",
@@ -923,6 +970,35 @@ def main():
     if manage_findings.pause_record(tracking) is not None and args.stage in ("job", "review", "install", "verify"):
         parser.error("round paused; run bcl resume")
     load_override = _require_machine_load(parser, args) if args.stage in ("job", "verify") else None
+    if args.stage == "report-step":
+        job_id = os.environ.get("BCL_JOB_ID")
+        if not job_id:
+            parser.error("report-step must run inside a bcl job (BCL_JOB_ID)")
+        if not command_args:
+            parser.error("report-step requires a step after --")
+        step, result, commit = command_args[0], (command_args[1] if len(command_args) > 1 else None), (
+            command_args[2] if len(command_args) > 2 else None)
+        groups = [group for group in tracking.get("plan", {}).get("groups", [])
+                  if ((group.get("codex") or {}).get("job") or {}).get("id") == job_id
+                  and "exit_code" not in ((group.get("codex") or {}).get("job") or {})]
+        if not groups:
+            parser.error("report-step is refused for a job that is not this lane's running job")
+        job = groups[0]["codex"]["job"]
+        ids = args.ids or list(groups[0].get("finding_ids") or [])
+        if args.ids:
+            covered = {identifier for group in groups for identifier in group.get("finding_ids", [])}
+            if not set(args.ids).issubset(covered):
+                parser.error("report-step IDs must belong to the running job's lane")
+        report, base = live_state.report_paths(record, live)
+        payload = {"id": job_id, "plan_sha256": job["plan_sha256"], "step": step,
+                   "result": result, "commit": commit}
+        try:
+            _job_write(record, live, report, base,
+                       _job_operations(job.get("phase"), ids, job.get("cycle"), job.get("round"),
+                                       payload, "report-step", _utc_now()))
+        except (OSError, RuntimeError, ValueError) as error:
+            parser.error(str(error))
+        return
     if args.stage == "job":
         if args.phase not in workflow_definition.LANE["job_phases"] or not args.ids or not command_args:
             parser.error("job requires --ids ID, --phase plan_review|fix|review|presuite, and -- <command>")

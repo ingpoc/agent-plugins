@@ -141,6 +141,11 @@ def _lane_why(group, jobs=None):
     if last and isinstance(last.get("exit_code"), int) and last.get("exit_code") != 0:
         phase = str(last.get("phase") or "job").replace("_", " ")
         phase = phase[:1].upper() + phase[1:]
+        error = last.get("first_error_line") or last.get("must_fix")
+        if isinstance(error, str) and error.strip():
+            return _clip_words(error.strip())
+        if last.get("output_path") or last.get("output_retained"):
+            return _clip_words(f"{phase} failed · output retained")
         return _clip_words(f"{phase} failed · exit {last.get('exit_code')}")
     if status == "verified":
         return "Verified"
