@@ -10860,9 +10860,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-24T16:04:43Z",
-      "now": "2026-11-24T16:04:43Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-24T16:19:22Z",
+      "now": "2026-11-24T16:19:22Z — Fix started"
     },
     "rollover": {
       "source_pr": 121,
@@ -12188,7 +12188,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T16:04:43Z",
+    "last_written_at": "2026-11-24T16:19:22Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -12527,12 +12527,12 @@
             "implementer_session": "grokbot-122-r1-guard",
             "reviewer_session": "grokbot-122-r1-guard-review",
             "job": {
-              "id": "2e242737e2384de4b950627ad474af58",
+              "id": "682fb9ba161548f583146a5cde05386a",
               "phase": "presuite",
-              "started_at": "2026-11-24T15:59:16Z",
+              "started_at": "2026-11-24T16:04:53Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:02:17Z",
-              "plan_sha256": "ec9669f3e3483036c4624aff34bf407edbe6550e472d463761e078c528b2dde1",
+              "heartbeat_at": "2026-11-24T16:08:25Z",
+              "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
                 "BCL-159",
@@ -12548,9 +12548,9 @@
               "lane_sha256": "52e631c9d304de19bb9218b3c3339cd0412e1a7cedbf2e03d1dc1e7aa5e5b202",
               "cycle": 14,
               "round": 1,
-              "pid": 72928,
+              "pid": 91460,
               "exit_code": 0,
-              "finished_at": "2026-11-24T16:02:17Z",
+              "finished_at": "2026-11-24T16:08:25Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -12562,7 +12562,7 @@
           "presuite": {
             "status": "passed",
             "exit_code": 0,
-            "finished_at": "2026-11-24T16:02:17Z"
+            "finished_at": "2026-11-24T16:08:25Z"
           },
           "failure_history": [],
           "plan_review_history": [],
@@ -12597,13 +12597,18 @@
             "implementer_session": "grokbot-122-r1-tokens",
             "reviewer_session": "grokbot-122-r1-tokens-review",
             "job": {
-              "id": "8bc85c3f96f546ab861f0e01935e286b",
-              "phase": "review",
-              "started_at": "2026-11-24T16:04:43Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T16:04:43Z",
+              "id": "682fb9ba161548f583146a5cde05386a",
+              "phase": "presuite",
+              "started_at": "2026-11-24T16:04:53Z",
+              "command": "run-presuite-r1.sh",
+              "heartbeat_at": "2026-11-24T16:08:25Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
+                "PR121-r2-live-state-guard",
+                "BCL-159",
+                "DO-8",
+                "BCL-149",
+                "DO-13",
                 "PR120-r6-collect-job-coverage",
                 "BCL-147",
                 "DO-6"
@@ -12612,17 +12617,26 @@
               "model": "Grok Bot",
               "lane_sha256": "f9ccad631e267ec040352ad2849b7f9521b96a5b5da894f570e41b7bb3079739",
               "cycle": 14,
-              "round": 1
+              "round": 1,
+              "pid": 91460,
+              "exit_code": 0,
+              "finished_at": "2026-11-24T16:08:25Z",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0,
-            "review_status": "running"
+            "review_status": "passed"
           },
           "stage_entered_at": "2026-11-24T16:04:42Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:03:40Z"
+          "updated_at": "2026-11-24T16:03:40Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T16:08:25Z"
+          }
         },
         {
           "id": "R1-JOBUX",
@@ -12654,12 +12668,12 @@
             "implementer_session": "grokbot-122-r1-jobux",
             "reviewer_session": "grokbot-122-r1-jobux-review",
             "job": {
-              "id": "2e242737e2384de4b950627ad474af58",
+              "id": "682fb9ba161548f583146a5cde05386a",
               "phase": "presuite",
-              "started_at": "2026-11-24T15:59:16Z",
+              "started_at": "2026-11-24T16:04:53Z",
               "command": "run-presuite-r1.sh",
-              "heartbeat_at": "2026-11-24T16:02:17Z",
-              "plan_sha256": "ec9669f3e3483036c4624aff34bf407edbe6550e472d463761e078c528b2dde1",
+              "heartbeat_at": "2026-11-24T16:08:25Z",
+              "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
                 "PR121-r2-live-state-guard",
                 "BCL-159",
@@ -12675,9 +12689,9 @@
               "lane_sha256": "d6107db03312c69d29e3502ccd4270b16963a461a51209afb1c42e7d813fc4a6",
               "cycle": 14,
               "round": 1,
-              "pid": 72928,
+              "pid": 91460,
               "exit_code": 0,
-              "finished_at": "2026-11-24T16:02:17Z",
+              "finished_at": "2026-11-24T16:08:25Z",
               "finished_phase_status": "passed"
             },
             "fix_status": "passed",
@@ -12690,7 +12704,7 @@
           "presuite": {
             "status": "passed",
             "exit_code": 0,
-            "finished_at": "2026-11-24T16:02:17Z"
+            "finished_at": "2026-11-24T16:08:25Z"
           },
           "failure_history": [
             {
@@ -12735,23 +12749,30 @@
             "reviewer_session": "grokbot-122-r1-cosmetic-review",
             "fix_status": "passed",
             "job": {
-              "id": "c3ca9229f5924bf1adf8014ee459b4a6",
-              "phase": "review",
-              "started_at": "2026-11-24T16:04:13Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-24T16:04:13Z",
+              "id": "682fb9ba161548f583146a5cde05386a",
+              "phase": "presuite",
+              "started_at": "2026-11-24T16:04:53Z",
+              "command": "run-presuite-r1.sh",
+              "heartbeat_at": "2026-11-24T16:08:25Z",
               "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
               "finding_ids": [
-                "DO-13"
+                "PR121-r2-live-state-guard",
+                "BCL-159",
+                "DO-8",
+                "BCL-149",
+                "DO-13",
+                "PR120-r6-collect-job-coverage",
+                "BCL-147",
+                "DO-6"
               ],
               "worktree": "samantha-next-r12",
               "model": "Grok Bot",
               "lane_sha256": "4f02cf0be2a6f8eff07c807ac20f779697696226e93adb27587f9a580f51f0fb",
               "cycle": 14,
               "round": 1,
-              "pid": 89509,
+              "pid": 91460,
               "exit_code": 0,
-              "finished_at": "2026-11-24T16:04:13Z",
+              "finished_at": "2026-11-24T16:08:25Z",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -12761,7 +12782,12 @@
           "stage_entered_at": "2026-11-24T16:04:12Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T16:03:40Z"
+          "updated_at": "2026-11-24T16:03:40Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T16:08:25Z"
+          }
         },
         {
           "id": "R4-106",
@@ -12772,10 +12798,9 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "blocked",
-          "blocked_reason": "Needs Guru later round",
+          "status": "running",
           "phase": "fix",
-          "stage_entered_at": "2026-11-24T15:22:33Z",
+          "stage_entered_at": "2026-11-24T16:13:13Z",
           "failure_history": [
             {
               "attempt_id": "b5ea26b4662941549d0c44ae290d09cf",
@@ -12827,11 +12852,48 @@
               "by_cycle": 12,
               "round": 5,
               "owner_override": true
+            },
+            {
+              "at": "2026-11-24T16:13:13Z",
+              "reason": "Guru approved 21:41 IST",
+              "tool_faults": [],
+              "covered_attempts": [
+                "b5ea26b4662941549d0c44ae290d09cf",
+                "950fe02ac3864e49a2f384cbeecc2994",
+                "43677574e10744dcb0f6b2ef6fe0775b"
+              ],
+              "rows_seen": 3,
+              "by_cycle": 14,
+              "round": 1,
+              "owner_override": true
             }
           ],
-          "failure_block_reason": "1. [verify_driver.py:78](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-106/plugins/batched-change-list/skills/batched-change-list/scripts/verify_driver.py:78): The shared command produces no observable evidence of its own execution. The callback records that the runner received a zero status; a runner that skips the command but reports success would still pass the self-test.",
-          "codex": {},
-          "updated_at": "2026-11-24T16:03:40Z"
+          "codex": {
+            "fix_status": "running",
+            "job": {
+              "id": "bf59c295365748c8a0533942f5f377ad",
+              "phase": "fix",
+              "started_at": "2026-11-24T16:19:22Z",
+              "command": "commit-106.sh",
+              "heartbeat_at": "2026-11-24T16:19:22Z",
+              "plan_sha256": "e8af0d8f896daca5cfe487ee7f4ce691941e9121f28674434994c07acf2e26a9",
+              "finding_ids": [
+                "BCL-106"
+              ],
+              "worktree": "samantha-next-r12",
+              "model": "Grok Bot subagent",
+              "lane_sha256": "e3635de546ff1cc2fe2e5977c3b82eaeb03807ed379ac67a3fce9cf85f5bfdfd",
+              "cycle": 14,
+              "round": 1
+            }
+          },
+          "updated_at": "2026-11-24T16:03:40Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
         },
         {
           "id": "R4-171",
@@ -12842,10 +12904,9 @@
           ],
           "worktree": "samantha-next-r12",
           "reason": "Needs Guru later round",
-          "status": "blocked",
-          "blocked_reason": "Needs Guru later round",
+          "status": "running",
           "phase": "fix",
-          "stage_entered_at": "2026-11-24T15:22:33Z",
+          "stage_entered_at": "2026-11-24T16:13:13Z",
           "failure_history": [
             {
               "attempt_id": "07bd7bb03ff445c7a4f03af518037466",
@@ -12908,11 +12969,30 @@
               "by_cycle": 12,
               "round": 5,
               "owner_override": true
+            },
+            {
+              "at": "2026-11-24T16:13:13Z",
+              "reason": "Guru approved 21:41 IST",
+              "tool_faults": [],
+              "covered_attempts": [
+                "07bd7bb03ff445c7a4f03af518037466",
+                "361aad2c4f2549f9a06967b8683360b9",
+                "060493f71d274cb9b07506247d1f0164"
+              ],
+              "rows_seen": 4,
+              "by_cycle": 14,
+              "round": 1,
+              "owner_override": true
             }
           ],
-          "failure_block_reason": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
           "codex": {},
-          "updated_at": "2026-11-24T16:03:40Z"
+          "updated_at": "2026-11-24T16:03:40Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
         },
         {
           "id": "R2-DO1",
@@ -13005,7 +13085,7 @@
       "done_when": "One tested driver runs every check with a built-in self-test, cleanup never changes a verdict, and no per-round copies remain; tests cover each.",
       "observed": "20 Nov 2026 23:10 IST, a PR 118 lane had all four cases passing but failed because its cleanup step misread results; similar checker faults hit PR 117 six times.",
       "recommendation": "Promote one tested driver for shared checks, lane checks, cleanup and judging, delete the per-round copies and keep cleanup out of the verdict; run one self-test step inside the verify start in place of the manual preflight.",
-      "status": "blocked",
+      "status": "in_progress",
       "details": {
         "report": "Interrogate review 21 Nov 00:16-00:30 IST (bcl-interrogate/report.md), finding 7",
         "filed_by": "Guru 00:33 IST t1597u",
@@ -13019,7 +13099,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:13:13Z",
+          "from": "blocked",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T04:34:33Z",
         "source": "review"
@@ -13317,7 +13404,7 @@
       "observed": "22 Nov 2026 18:54 IST, Guru rule and read-only audit; last collector run before today 20 Nov 16:41 IST; fresh snapshot 052d5b22 taken 18:55 IST",
       "priority": "high",
       "source": "User reported",
-      "status": "blocked",
+      "status": "in_progress",
       "needs": "1. [collect_observability.py:91](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r5-171/plugins/batched-change-list/skills/batched-change-list/scripts/collect_observability.py:91) identifies a requested directory only by its basename. A fresh snapshot for `/first/same` therefore passes the coverage check for `/other/same`, silently omitting the requested directory. The check also accepts a matching key whose status is `missing`.",
       "first_seen": {
         "at": null,
@@ -13325,7 +13412,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-24T16:13:13Z",
+          "from": "blocked",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-24T04:43:44Z",
         "source": "review"
