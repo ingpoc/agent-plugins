@@ -1,0 +1,714 @@
+{
+  "title": "Samantha issues and recommended fixes",
+  "tracking": {
+    "pull_request": {
+      "label": "PR #123",
+      "url": "https://origin.cursor.com/gurusharan/agent-plugins/pull/123",
+      "opened_at": null
+    },
+    "worktree": "samantha-next-r13",
+    "verification_history": [],
+    "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
+    "installed_plugins": {
+      "observed_at": "2026-11-08T13:43:48.840859+00:00",
+      "source": "Read personal plugin manifests after installation; manifest versions do not independently identify running processes. Developer Observability 0.1.23 was also probed as a fresh MCP at PR head b631aa7.",
+      "versions": {
+        "agent-computer-use": "0.2.121",
+        "developer-observability": "0.1.23",
+        "context-ledger": "0.1.39",
+        "comet-control": "0.1.23"
+      }
+    },
+    "workflow": {
+      "stage": "collect",
+      "updated_at": "2026-11-24T19:08:04Z",
+      "now": "2026-11-24T19:08:04Z — Started collection"
+    },
+    "rollover": {
+      "source_pr": 122,
+      "unresolved_ids": [
+        "DO-1",
+        "PR122-parked-backlog"
+      ],
+      "excluded_ids": [],
+      "forced_gate_overrides": [
+        {
+          "cycle": 1,
+          "action": "set-stage",
+          "forced_at": "2026-11-14T11:20:27Z",
+          "verified_fixed": 8,
+          "threshold": 15,
+          "reason": "Guru approved rollover at 18 verified fixes (all count), 2026-11-14 16:48 IST",
+          "all_verified_fixed": 18
+        },
+        {
+          "cycle": 1,
+          "action": "rollover",
+          "forced_at": "2026-11-14T11:22:03Z",
+          "verified_fixed": 8,
+          "threshold": 15,
+          "reason": "Guru approved rollover at 18 verified fixes (all count), 2026-11-14 16:48 IST",
+          "all_verified_fixed": 18
+        },
+        {
+          "cycle": 9,
+          "action": "rollover",
+          "forced_at": "2026-11-20T12:05:55Z",
+          "verified_fixed": 0,
+          "threshold": 16
+        }
+      ],
+      "source_merge": {
+        "commit_sha": "c5037da9ef9f6ebd2c21a44e854de12c149cc4b9",
+        "merged_at": "2026-11-14T16:10:45Z",
+        "stacked_prs": {
+          "status": "pending",
+          "base_branch": null,
+          "target_branch": "main",
+          "retargeted_prs": [],
+          "pending_prs": [],
+          "todo": "list open PRs based on <unknown branch> and retarget them to main"
+        }
+      }
+    },
+    "cycle": 15,
+    "round": 1,
+    "round_history": [
+      {
+        "round": 2,
+        "fixed": 61,
+        "ended_at": "2026-11-14T11:22:03Z"
+      },
+      {
+        "round": 1,
+        "fixed": 11,
+        "ended_at": "2026-11-14T14:58:05Z"
+      },
+      {
+        "round": 2,
+        "fixed": 78,
+        "ended_at": "2026-11-14T16:15:12Z"
+      },
+      {
+        "round": 1,
+        "fixed": 2,
+        "ended_at": "2026-11-15T10:31:39Z"
+      },
+      {
+        "round": 2,
+        "fixed": 19,
+        "ended_at": "2026-11-17T04:23:38Z"
+      },
+      {
+        "round": 1,
+        "fixed": 6,
+        "ended_at": "2026-11-17T07:50:53Z"
+      },
+      {
+        "round": 2,
+        "fixed": 38,
+        "ended_at": "2026-11-17T09:29:30Z"
+      },
+      {
+        "round": 1,
+        "fixed": 5,
+        "ended_at": "2026-11-17T10:01:33Z"
+      },
+      {
+        "round": 2,
+        "fixed": 11,
+        "ended_at": "2026-11-17T10:15:13Z"
+      },
+      {
+        "round": 3,
+        "fixed": 57,
+        "ended_at": "2026-11-17T10:25:18Z"
+      },
+      {
+        "round": 1,
+        "fixed": 5,
+        "ended_at": "2026-11-17T11:09:03Z"
+      },
+      {
+        "round": 2,
+        "fixed": 9,
+        "ended_at": "2026-11-17T11:41:12Z"
+      },
+      {
+        "round": 3,
+        "fixed": 10,
+        "ended_at": "2026-11-17T12:27:33Z"
+      },
+      {
+        "round": 4,
+        "fixed": 14,
+        "ended_at": "2026-11-17T13:03:40Z"
+      },
+      {
+        "round": 5,
+        "fixed": 15,
+        "ended_at": "2026-11-17T13:25:40Z"
+      },
+      {
+        "round": 6,
+        "fixed": 82,
+        "ended_at": "2026-11-17T14:06:58Z"
+      },
+      {
+        "round": 1,
+        "fixed": 1,
+        "ended_at": "2026-11-18T03:04:03Z"
+      },
+      {
+        "round": 2,
+        "fixed": 12,
+        "ended_at": "2026-11-18T06:10:55Z"
+      },
+      {
+        "round": 3,
+        "fixed": 12,
+        "ended_at": "2026-11-18T07:13:46Z"
+      },
+      {
+        "round": 4,
+        "fixed": 19,
+        "ended_at": "2026-11-18T08:30:44Z"
+      },
+      {
+        "round": 1,
+        "fixed": 7,
+        "ended_at": "2026-11-18T13:01:10Z"
+      },
+      {
+        "round": 2,
+        "fixed": 9,
+        "ended_at": "2026-11-18T16:44:06Z"
+      },
+      {
+        "round": 3,
+        "fixed": 14,
+        "ended_at": "2026-11-18T19:30:15Z"
+      },
+      {
+        "round": 4,
+        "fixed": 18,
+        "ended_at": "2026-11-18T19:37:23Z"
+      },
+      {
+        "round": 1,
+        "fixed": 6,
+        "ended_at": "2026-11-19T10:59:21Z"
+      },
+      {
+        "round": 2,
+        "fixed": 7,
+        "ended_at": "2026-11-19T11:48:40Z"
+      },
+      {
+        "round": 3,
+        "fixed": 28,
+        "ended_at": "2026-11-20T05:56:47Z"
+      },
+      {
+        "round": 6,
+        "fixed": 32,
+        "ended_at": "2026-11-20T09:10:17Z"
+      },
+      {
+        "round": 7,
+        "fixed": 32,
+        "ended_at": "2026-11-20T12:05:55Z"
+      },
+      {
+        "round": 1,
+        "fixed": 2,
+        "ended_at": "2026-11-20T15:22:28Z"
+      },
+      {
+        "round": 2,
+        "fixed": 6,
+        "ended_at": "2026-11-20T17:44:36Z"
+      },
+      {
+        "round": 3,
+        "fixed": 16,
+        "ended_at": "2026-11-21T08:49:24Z"
+      },
+      {
+        "round": 1,
+        "fixed": 4,
+        "ended_at": "2026-11-22T04:07:33Z"
+      },
+      {
+        "round": 2,
+        "fixed": 9,
+        "ended_at": "2026-11-22T09:04:52Z"
+      },
+      {
+        "round": 3,
+        "fixed": 18,
+        "ended_at": "2026-11-22T12:25:27Z"
+      },
+      {
+        "round": 1,
+        "fixed": 4,
+        "ended_at": "2026-11-22T13:42:25Z"
+      },
+      {
+        "round": 2,
+        "fixed": 5,
+        "ended_at": "2026-11-22T15:02:44Z"
+      },
+      {
+        "round": 3,
+        "fixed": 7,
+        "ended_at": "2026-11-22T16:38:10Z"
+      },
+      {
+        "round": 4,
+        "fixed": 9,
+        "ended_at": "2026-11-24T04:13:34Z"
+      },
+      {
+        "round": 5,
+        "fixed": 10,
+        "ended_at": "2026-11-24T06:19:20Z"
+      },
+      {
+        "round": 6,
+        "fixed": 14,
+        "ended_at": "2026-11-24T07:07:37Z"
+      },
+      {
+        "round": 7,
+        "fixed": 17,
+        "ended_at": "2026-11-24T09:02:09Z"
+      },
+      {
+        "round": 1,
+        "fixed": 3,
+        "ended_at": "2026-11-24T10:31:36Z"
+      },
+      {
+        "round": 2,
+        "fixed": 12,
+        "ended_at": "2026-11-24T14:29:22Z"
+      },
+      {
+        "round": 3,
+        "fixed": 17,
+        "ended_at": "2026-11-24T15:11:06Z"
+      },
+      {
+        "round": 1,
+        "fixed": 8,
+        "ended_at": "2026-11-24T16:58:53Z"
+      },
+      {
+        "round": 2,
+        "fixed": 11,
+        "ended_at": "2026-11-24T17:35:44Z"
+      },
+      {
+        "round": 3,
+        "fixed": 15,
+        "ended_at": "2026-11-24T18:03:04Z"
+      },
+      {
+        "round": 4,
+        "fixed": 16,
+        "ended_at": "2026-11-24T18:39:33Z"
+      },
+      {
+        "round": 5,
+        "fixed": 17,
+        "ended_at": "2026-11-24T18:51:29Z"
+      }
+    ],
+    "introspect_history": [],
+    "archive": {
+      "path": "/Users/gurusharan/.agents/state/batched-change-list/ingpoc--agent-plugins/archive.json",
+      "count": 375
+    },
+    "parked": {
+      "path": "/Users/gurusharan/.agents/state/batched-change-list/ingpoc--agent-plugins/parked.json",
+      "count": 7,
+      "needs": [
+        "real microphone and spoken playback",
+        "live Windows runtime",
+        "an interrupt and thinking-level redesign under one session lock"
+      ]
+    },
+    "round_corrections": [
+      {
+        "from": 4,
+        "to": 6,
+        "reason": "rounds 5 and 6 ran while the stored counter stayed at 4 because plan replaced lanes mid-round (BCL-84)",
+        "corrected_at": "2026-11-20T08:19:11Z"
+      }
+    ],
+    "last_written_at": "2026-11-24T19:08:04Z",
+    "fix_order": {
+      "ids": [
+        "PR121-r2-live-state-guard",
+        "BCL-110",
+        "BCL-113",
+        "PR120-r6-stale-job-finish",
+        "BCL-160",
+        "BCL-94",
+        "BCL-115",
+        "BCL-124",
+        "DO-9",
+        "DO-10",
+        "BCL-120",
+        "BCL-139"
+      ],
+      "by": "Grok Bot",
+      "at": "2026-11-24T13:04:06Z",
+      "reason": "P0: tests and coding jobs must not write the live registry; then status accuracy, tracker upkeep, observability data, and Introspect tests"
+    },
+    "fix_order_history": [
+      {
+        "ids": [
+          "PR120-r5-codex-reviewer-model-fallback",
+          "BCL-121",
+          "DO-2",
+          "DO-3"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T06:12:19Z",
+        "reason": "Round 5 waste goes first next round: automatic reviewer fallback, then the plan-review cap, then observability token and filter gaps so Introspect can use collect."
+      },
+      {
+        "ids": [
+          "ACU-20",
+          "ACU-10",
+          "ACU-21",
+          "PR120-r6-stale-job-finish",
+          "PR120-r6-collect-job-coverage"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T07:07:47Z",
+        "reason": "Guru 12:32 IST: product ACU first (island subagent view, then voice token re-check, then flaky tests), alongside round-6 waste (record a finish after a mid-job plan change, then store model and token source on official finishes)."
+      },
+      {
+        "ids": [
+          "DO-4",
+          "ACU-20",
+          "ACU-10",
+          "ACU-21",
+          "PR120-r6-stale-job-finish",
+          "PR120-r6-collect-job-coverage"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T07:10:47Z",
+        "reason": "Guru 12:37 IST: local observability viewer is the top lane (new DO-4; --into DO-3 refused because DO-3 is closed). Then product ACU (island, voice tokens, flaky tests). Round-6 waste follows after these four."
+      },
+      {
+        "ids": [
+          "DO-11",
+          "DO-5",
+          "PR120-r6-gate-denominator",
+          "DO-7"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T10:03:28Z",
+        "reason": "Viewer polish first, then event stamps, then the gate count and parked-reason gaps"
+      },
+      {
+        "ids": [
+          "BCL-110",
+          "BCL-113",
+          "PR120-r6-stale-job-finish",
+          "BCL-160",
+          "BCL-94",
+          "BCL-115",
+          "BCL-124",
+          "DO-9",
+          "DO-10",
+          "BCL-120",
+          "BCL-139"
+        ],
+        "by": "Grok Bot",
+        "at": "2026-11-24T10:31:37Z",
+        "reason": "Status accuracy first, then tracker upkeep, observability data, and Introspect tests"
+      }
+    ],
+    "carried_gates": [
+      {
+        "id": "R2-DO1",
+        "finding_ids": [
+          "DO-1"
+        ],
+        "status": "parked",
+        "failure_history": [
+          {
+            "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
+            "source": "review",
+            "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Empty commits produce no changed paths and are silently ignored, although other ahead commits must still count. A failed `diff-tree` call is also silently ignored, which can hide an unpushed commit. Count empty commits and handle inspection failures without reporting false success; add behavioral coverage.",
+            "cycle": 12,
+            "round": 2,
+            "at": "2026-11-22T13:47:58Z"
+          },
+          {
+            "attempt_id": "97d390f143b64b1f84744481175417da",
+            "source": "plan_review",
+            "reason": "Reviewer exited 1",
+            "cycle": 12,
+            "round": 2,
+            "at": "2026-11-22T13:48:55Z",
+            "tool_fault": true,
+            "fault_kind": "runner_exit",
+            "tool_fault_reason": "Reviewer exited 1"
+          },
+          {
+            "attempt_id": "da6ebb99274244d1b7c92e594ab3ed34",
+            "source": "review",
+            "reason": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test.",
+            "cycle": 12,
+            "round": 2,
+            "at": "2026-11-22T13:56:04Z"
+          }
+        ],
+        "plan_review_history": [
+          {
+            "job_id": "8ed5a5892da64c9383d7cdcd6fcc20b6",
+            "after_failure": "3c9e094c725a400b95a22641c1cf7369",
+            "status": "passed",
+            "cycle": 12,
+            "round": 2,
+            "at": "2026-11-22T13:50:18Z"
+          },
+          {
+            "job_id": "84ed2b23b4db442f802a39aeea6d79ab",
+            "after_failure": "da6ebb99274244d1b7c92e594ab3ed34",
+            "status": "passed",
+            "cycle": 12,
+            "round": 3,
+            "at": "2026-11-22T15:11:59Z"
+          }
+        ],
+        "unblock_history": [
+          {
+            "at": "2026-11-22T14:56:28Z",
+            "reason": "Guru approved 2026-11-22 20:26 IST: defer to round 3 so R2-176 can ship",
+            "tool_faults": [],
+            "covered_attempts": [
+              "3c9e094c725a400b95a22641c1cf7369",
+              "da6ebb99274244d1b7c92e594ab3ed34"
+            ],
+            "rows_seen": 3,
+            "by_cycle": 12,
+            "round": 2,
+            "owner_override": true
+          }
+        ]
+      }
+    ],
+    "round_started_at": "2026-11-24T18:39:33Z",
+    "gate": {
+      "merge_previous_pr_threshold": 16,
+      "report_threshold": 15
+    },
+    "post_merge_introspect": {
+      "result": "Introspect: no issues",
+      "at": "2026-11-24T19:05:30Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 12",
+        "Codex write: R1-GUARD",
+        "Codex review: R1-GUARD",
+        "Polling and rework review: R1-GUARD",
+        "Codex write: R1-TOKENS",
+        "Codex review: R1-TOKENS",
+        "Polling and rework review: R1-TOKENS",
+        "Codex write: R1-JOBUX",
+        "Codex review: R1-JOBUX",
+        "Polling and rework review: R1-JOBUX",
+        "Codex write: R1-COSMETIC",
+        "Codex review: R1-COSMETIC",
+        "Polling and rework review: R1-COSMETIC",
+        "Codex write: R4-106",
+        "Codex review: R4-106",
+        "Polling and rework review: R4-106",
+        "Codex write: R4-171",
+        "Codex review: R4-171",
+        "Polling and rework review: R4-171",
+        "Codex write: R2-DEADLOCK",
+        "Codex review: R2-DEADLOCK",
+        "Polling and rework review: R2-DEADLOCK",
+        "Codex write: R3-TRACKER",
+        "Codex review: R3-TRACKER",
+        "Polling and rework review: R3-TRACKER",
+        "Codex write: R3-INTRO",
+        "Codex review: R3-INTRO",
+        "Polling and rework review: R3-INTRO",
+        "Codex write: R3-VERDICT",
+        "Codex review: R3-VERDICT",
+        "Polling and rework review: R3-VERDICT",
+        "Codex write: R4-GATES",
+        "Codex review: R4-GATES",
+        "Polling and rework review: R4-GATES",
+        "Test command: R4-GATES: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+        "Codex write: R5-SHIP",
+        "Codex review: R5-SHIP",
+        "Polling and rework review: R5-SHIP",
+        "Test command: R5-SHIP: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-ship.sh",
+        "Job wall time: R4-GATES a45debf54d0e41c99a67024fb4f88676 186s",
+        "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Repeat: interrupted verification runs",
+        "Repeat: review failures on R4-106",
+        "Repeat: review failures on R4-171",
+        "Repeat: review failures on R3-INTRO",
+        "Repeat: review failures on R2-DO1",
+        "Repeat: plan reviews on R2-DO1",
+        "Repeat: review failures on R4-GATES"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 12",
+        "Codex write: R1-GUARD",
+        "Codex review: R1-GUARD",
+        "Polling and rework review: R1-GUARD",
+        "Codex write: R1-TOKENS",
+        "Codex review: R1-TOKENS",
+        "Polling and rework review: R1-TOKENS",
+        "Codex write: R1-JOBUX",
+        "Codex review: R1-JOBUX",
+        "Polling and rework review: R1-JOBUX",
+        "Codex write: R1-COSMETIC",
+        "Codex review: R1-COSMETIC",
+        "Polling and rework review: R1-COSMETIC",
+        "Codex write: R4-106",
+        "Codex review: R4-106",
+        "Polling and rework review: R4-106",
+        "Codex write: R4-171",
+        "Codex review: R4-171",
+        "Polling and rework review: R4-171",
+        "Codex write: R2-DEADLOCK",
+        "Codex review: R2-DEADLOCK",
+        "Polling and rework review: R2-DEADLOCK",
+        "Codex write: R3-TRACKER",
+        "Codex review: R3-TRACKER",
+        "Polling and rework review: R3-TRACKER",
+        "Codex write: R3-INTRO",
+        "Codex review: R3-INTRO",
+        "Polling and rework review: R3-INTRO",
+        "Codex write: R3-VERDICT",
+        "Codex review: R3-VERDICT",
+        "Polling and rework review: R3-VERDICT",
+        "Codex write: R4-GATES",
+        "Codex review: R4-GATES",
+        "Polling and rework review: R4-GATES",
+        "Test command: R4-GATES: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-gates.sh",
+        "Codex write: R5-SHIP",
+        "Codex review: R5-SHIP",
+        "Polling and rework review: R5-SHIP",
+        "Test command: R5-SHIP: /Users/gurusharan/.agents/artifacts/bcl-122/verify/r4-ship.sh",
+        "Job wall time: R4-GATES a45debf54d0e41c99a67024fb4f88676 186s",
+        "Job wall time: R3-TRACKER 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Job wall time: R3-INTRO 970165cfc5fb4e989708e3ee8492aa7e 185s",
+        "Repeat: interrupted verification runs",
+        "Repeat: review failures on R4-106",
+        "Repeat: review failures on R4-171",
+        "Repeat: review failures on R3-INTRO",
+        "Repeat: review failures on R2-DO1",
+        "Repeat: plan reviews on R2-DO1",
+        "Repeat: review failures on R4-GATES"
+      ],
+      "sections": {
+        "delete": {
+          "none": "Post-merge review of PR #122: BCL-125 already deleted the extra review and resort-failures commands (stored verify r4-gates.sh on installed 4031c6fa). No further command, stage, or API remained to subtract after the merge."
+        },
+        "simplify": {
+          "none": "Reviewed the cross-round repeats against failure_history. R3-INTRO and R4-GATES repeats were tool-fault runner_exit or incomplete_review, already classified as tool faults rather than code failures. R4-106 and R4-171 counted reviews were from cycle 12 and were verified on this PR. R2-DO1 stays parked for Guru; its cycle-12 reviews were not rerun after the intake freeze. 36 of 38 interrupted verification runs have no cycle stamp and remain in PR122-parked-backlog; the two cycle-14 interruptions (pr122-r1, pr122-r2) did not get a new workflow change this pass. No additional simplification after merge."
+        },
+        "optimize": {
+          "none": "Decision before the numbers: the 186s R4-GATES job and the 185s R3-TRACKER and R3-INTRO jobs are the same shared CI=1 check.py --jobs 6 cost, limited by test_bcl.py (about 182-189s in CI). That is one ship-suite duration, not three independent 185s lane costs, so no extra split or skip is proposed after merge."
+        },
+        "automate": {
+          "none": "Token and job-receipt capture already shipped on this PR (R1-TOKENS, BCL-147). No new observability findings under the intake freeze. Historical evidence gaps stay in PR122-parked-backlog."
+        }
+      },
+      "round": 5,
+      "cycle": 14,
+      "scope": "post_merge"
+    },
+    "stages_reached": [
+      "collect"
+    ]
+  },
+  "findings": [
+    {
+      "id": "DO-1",
+      "title": "Snapshot commits made by the change list show as unpushed-commit failures",
+      "summary": "The collector reports an unpushed-commits failure for the pull request checkout whenever the change list has just committed its own tracker snapshot, which is expected and pushed minutes later.",
+      "impact": "The only new finding between the before and after snapshots of a verify was this noise, so verify evidence is diluted.",
+      "recommendation": "Treat unpushed commits that only touch the change list's own tracker snapshot files as expected, or report unpushed commits as a state rather than a failure.",
+      "done_when": "A verify that commits a tracker snapshot adds no failure finding; a test covers it.",
+      "observed": "22 Nov 2026 19:08 IST, round 1 introspect of PR 120",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "details": {
+        "finding_key": "col-8394fc3bec1b1387",
+        "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json",
+        "review_notes": "Lane R2-DO1 blocked after two counted Terra reviews (19:24 IST). Fixed: empty and uninspectable ahead commits now count (f755797f). Open: git quotes non-ASCII or special-character paths by default, so docs/triage/café.json misses the rule; use NUL-delimited diff-tree output and add a test (review-do1-terra-2.md). Owner 19:28 IST: do not unblock (Guru only); move to round 3. Commits ec2ee7d6, f755797f in bcl120-r2-do1-r2."
+      },
+      "needs": "1. [sources.py:770](/Users/gurusharan/code/worktrees/agent-plugins/bcl120-r2-do1-r2/plugins/developer-observability/runtime/collector/sources.py:770): Git quotes paths containing non-ASCII characters or certain special characters by default. A snapshot such as `docs/triage/café.json` is returned as a quoted string that does not start with `docs/triage/`, so the collector still reports it as an unpushed commit. Use NUL-delimited output and parse the actual paths; add a behavioral test.",
+      "first_seen": {
+        "at": null,
+        "pr": null,
+        "round": 2,
+        "source": "legacy_gap"
+      },
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-24T18:48:49Z",
+        "source": "verification_check"
+      }
+    },
+    {
+      "id": "PR122-parked-backlog",
+      "title": "Parked backlog of review nits and process ideas",
+      "source": "User requested",
+      "status": "blocked",
+      "summary": "Intake is frozen, so review nits, Introspect process ideas, and similar polish go here instead of opening new lanes.",
+      "impact": "These notes stay visible without expanding the open fix list.",
+      "done_when": "The owner unparks a note into a later list when it should be fixed.",
+      "observed": "24 Nov 2026 22:14 IST Asia/Calcutta Guru froze intake on pull request 122: only regressions and real product bugs get new issues; nits go into one parked backlog.",
+      "recommendation": "Append nits here with into, and leave this issue blocked until the owner asks to take one up.",
+      "details": {
+        "purpose": "Single parked backlog for frozen-intake nits and process ideas.",
+        "also reported as DO-11": "The per-round viewer still needs row polish Lane rows still share one why, hide column labels, and use dashes for missing data. Guru later approved the v3 calm viewer, which supersedes this polish. 24 Nov 2026 mid-afternoon live review, then cancelled 16:19 IST because the v3 viewer replaces the current page.",
+        "merged_from": "DO-11"
+      },
+      "created_at": "2026-11-24T17:34:53Z",
+      "first_seen": {
+        "at": "2026-11-24T17:34:53Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": [
+        {
+          "at": "2026-11-24T17:34:53Z",
+          "from": "untested",
+          "to": "blocked",
+          "source": "tracker_update"
+        }
+      ],
+      "last_seen": {
+        "at": "2026-11-24T18:48:49Z",
+        "source": "verification_check"
+      }
+    }
+  ]
+}
