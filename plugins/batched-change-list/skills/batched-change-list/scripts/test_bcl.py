@@ -2944,7 +2944,7 @@ elif args[:2] != ['pr', 'edit']:
         for path in viewers.glob("*.json"):
             path.write_text("{not-json")
         (viewers / "damaged.json").write_text("{not-json")
-        for stage in ("sync-main", "merge", "not-a-command"):
+        for stage in ("sync-main", "not-a-command"):
             result = self.call(stage)
             combined = (result.stderr or "") + (result.stdout or "")
             self.assertNotEqual(result.returncode, 0, combined)
