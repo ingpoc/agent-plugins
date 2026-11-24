@@ -237,20 +237,32 @@ class RestartTests(unittest.TestCase):
         client = Mock()
         client.socket_path = '/tmp/cua-service-test.sock'
         client._probe.return_value = Mock()
-        client.call.side_effect = TimeoutError('runtime_contract timed out')
+        clock = {'now': 0.0, 'calls': 0}
+
+        def monotonic():
+            return clock['now']
+
+        def failing_call(*_args, **_kwargs):
+            clock['calls'] += 1
+            if clock['calls'] >= 2:
+                clock['now'] = 0.02
+            raise TimeoutError('runtime_contract timed out')
+
+        client.call.side_effect = failing_call
         cua_client = ModuleType('cua_client')
         cua_client.CUAClient = Mock(return_value=client)
 
         with patch.dict('sys.modules', {'cua_client': cua_client}), \
-                patch.object(release.sys, 'path', list(release.sys.path)):
+                patch.object(release.sys, 'path', list(release.sys.path)), \
+                patch.object(release.time, 'monotonic', monotonic), \
+                patch.object(release.time, 'sleep', lambda _seconds: None):
             socket_path, probe = release.service_probe(Path('/fake/repo'))
             with self.assertRaisesRegex(
                     RuntimeError,
                     r'CUAService did not answer probe at /tmp/cua-service-test\.sock.*runtime_contract timed out'):
                 release.wait_for_service_probe(probe, socket_path, timeout=0.01, poll_interval=0.001)
 
-        client.call.assert_called()
-        self.assertGreater(client.call.call_count, 1)
+        self.assertGreaterEqual(client.call.call_count, 2)
         client.call.assert_called_with('runtime_contract', retry=False)
         for call in client._probe.call_args_list:
             self.assertGreater(call.kwargs['timeout'], 0)
