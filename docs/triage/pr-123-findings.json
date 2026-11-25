@@ -506,8 +506,8 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-25T16:15:03Z"
+      "stage": "merged",
+      "updated_at": "2026-11-25T16:13:42Z"
     },
     "rollover": {
       "source_pr": 122,
@@ -1414,7 +1414,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T16:15:03Z",
+    "last_written_at": "2026-11-25T16:15:04Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1715,7 +1715,8 @@
       "install",
       "verify",
       "introspect",
-      "report_rollover"
+      "report_rollover",
+      "merged"
     ],
     "plan": {
       "round": 4,
@@ -4286,6 +4287,18 @@
       },
       "round": 4,
       "cycle": 15
+    },
+    "merged": {
+      "commit_sha": "6d7242fb418a1e9cd0d7b058695f9d619b26826d",
+      "merged_at": "2026-11-25T16:13:42Z",
+      "stacked_prs": {
+        "status": "pending",
+        "base_branch": null,
+        "target_branch": "main",
+        "retargeted_prs": [],
+        "pending_prs": [],
+        "todo": "list open PRs based on <unknown branch> and retarget them to main"
+      }
     }
   },
   "findings": [
