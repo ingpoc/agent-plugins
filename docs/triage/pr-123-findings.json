@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-25T15:32:58Z",
-      "now": "2026-11-25T15:32:58Z — Lane R3-CL1 updated"
+      "stage": "install",
+      "updated_at": "2026-11-25T15:33:11Z",
+      "now": "2026-11-25T15:33:11Z — Install in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -633,7 +633,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:32:58Z",
+    "last_written_at": "2026-11-25T15:33:11Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -930,7 +930,8 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 3,
@@ -2270,7 +2271,7 @@
             "BCL-182",
             "BCL-183"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "One job outcome model: credit a named implementer commit, keep a tool-fault review in review, and resume a dead runner through an official finish.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -2281,7 +2282,11 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_receipts.py"
           ],
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-jobout.sh"
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-jobout.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
           },
           "codex": {
             "implementer_session": "Grok Bot",
@@ -2382,12 +2387,21 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:30:24Z",
-          "stage_entered_at": "2026-11-25T15:23:06Z",
-          "phase": "review",
+          "stage_entered_at": "2026-11-25T15:33:11Z",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-25T15:23:54Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-25T15:33:11Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-25T15:33:11Z"
           }
         },
         {
@@ -2395,7 +2409,7 @@
           "finding_ids": [
             "CL-1"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "Find must not return a fleet record that is about another project.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -2404,7 +2418,11 @@
             "plugins/context-ledger/tests/test_scope.py"
           ],
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-cl1.sh"
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-cl1.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "codex": {
             "implementer_session": "Grok Bot",
@@ -2501,12 +2519,21 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:32:58Z",
-          "stage_entered_at": "2026-11-25T15:23:13Z",
-          "phase": "review",
+          "stage_entered_at": "2026-11-25T15:33:11Z",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-25T15:23:54Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-25T15:33:11Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-25T15:33:11Z"
           }
         },
         {
@@ -2514,7 +2541,7 @@
           "finding_ids": [
             "DO-24"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "Publish official token totals per job and per round, including cache read, with cost or not reported.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -2523,7 +2550,11 @@
             "plugins/developer-observability/tests/test_usage_totals.py"
           ],
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh"
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "codex": {
             "implementer_session": "Grok Bot",
@@ -2620,12 +2651,21 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:30:24Z",
-          "stage_entered_at": "2026-11-25T15:23:14Z",
-          "phase": "review",
+          "stage_entered_at": "2026-11-25T15:33:11Z",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-25T15:23:54Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-25T15:33:11Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-25T15:33:11Z"
           }
         }
       ],
