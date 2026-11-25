@@ -8,7 +8,7 @@ from pathlib import Path
 RUNTIME = Path(__file__).resolve().parents[1] / "runtime"
 sys.path.insert(0, str(RUNTIME))
 sys.path.insert(0, str(RUNTIME / "backend"))
-from backend.issue_state import build_issues, owner_wait
+from backend.issue_state import build_issues, check_outcome
 from backend.issue_trail import _plain, build_trail
 
 
@@ -130,49 +130,8 @@ class CarryAndCreditTests(unittest.TestCase):
         self.assertIn("jobs", detail["issues"][0])
 
 
-class OwnerWaitTests(unittest.TestCase):
-    PARKED = {"id": "R2-DO1", "status": "parked", "reason": "Needs Guru later round", "finding_ids": ["DO-1"],
-              "parked_at": "2026-11-24T19:18:36Z", "unblock_history": [{"at": "2026-11-22T14:56:28Z"}]}
-
-    def test_rule_needs_parked_lane_owner_reason_and_no_later_unblock(self):
-        self.assertEqual(owner_wait(self.PARKED)["lane"], "R2-DO1")
-        self.assertIsNone(owner_wait({**self.PARKED, "status": "verified"}))
-        self.assertIsNone(owner_wait({**self.PARKED, "unblock_history": [{"at": "2026-11-24T20:00:00Z"}]}))
-        self.assertIsNone(owner_wait({**self.PARKED, "reason": "Guru 16:56 IST root-cause merge; restructure"}))
-        self.assertIsNone(owner_wait({**self.PARKED, "reason": "Later rounds. One item still waits for Guru to pick"}))
-        self.assertIsNotNone(owner_wait({**self.PARKED, "reason": None, "blocked_reason": "Waiting on owner sign-off"}))
-        self.assertIsNone(owner_wait({**self.PARKED, "id": "Needs Guru later round", "reason": "deferred"}))
-        undated = {k: v for k, v in self.PARKED.items() if k != "parked_at"}
-        self.assertIsNone(owner_wait(undated))
-        self.assertIsNotNone(owner_wait({**undated, "unblock_history": []}))
-
-    def test_open_wait_is_needs_you_whatever_state_and_counts_do_not_move(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            folder = Path(tmp) / "agent-plugins"
-            folder.mkdir()
-            resolved_lane = {"id": "R4-171", "status": "verified", "finding_ids": ["BCL-171"],
-                             "parked_at": "2026-11-24T04:00:00Z",
-                             "unblock_history": [{"at": "2026-11-24T16:13:13Z", "reason": "Guru approved"}]}
-            stale_copy = {"id": "R4-171", "status": "parked", "blocked_reason": "Needs Guru later round",
-                          "finding_ids": ["BCL-171"]}
-            (folder / "122.json").write_text(json.dumps(_t(122, [
-                {"id": "BCL-171", "title": "Collect", "status": "verified_fixed"},
-                {"id": "DO-1", "title": "Waits", "status": "open"}],
-                groups=[resolved_lane, self.PARKED], carried=[stale_copy])))
-            payload = build_issues("agent-plugins", state_dir=tmp, pr="122", scope="now")
-            by_id = {i["id"]: i for i in payload["issues"]}
-            self.assertTrue(by_id["DO-1"]["needs_you"])
-            self.assertEqual(by_id["DO-1"]["wait"]["reason"], "Needs Guru later round")
-            self.assertNotIn(by_id["DO-1"]["state"], {"blocked", "regressed"})
-            self.assertFalse(by_id["BCL-171"]["needs_you"])
-            self.assertIsNone(by_id["BCL-171"]["wait"])
-            (folder / "122.json").write_text(json.dumps(_t(122, [
-                {"id": "BCL-171", "title": "Collect", "status": "verified_fixed"},
-                {"id": "DO-1", "title": "Waits", "status": "open"}],
-                groups=[resolved_lane, {**self.PARKED, "reason": "parked for later"}], carried=[stale_copy])))
-            plain = build_issues("agent-plugins", state_dir=tmp, pr="122", scope="now")
-            self.assertEqual(payload["counts"], plain["counts"])
-            self.assertFalse({i["id"]: i for i in plain["issues"]}["DO-1"]["needs_you"])
+class DetailPayloadTests(unittest.TestCase):
+    PARKED = {"id": "R2-DO1", "status": "parked", "reason": "Needs Guru later round", "finding_ids": ["DO-1"]}
 
     def test_detail_payload_is_only_the_issue(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -190,6 +149,66 @@ class OwnerWaitTests(unittest.TestCase):
             for key in ("raw", "jobs", "trail"):
                 self.assertIn(key, detail["issues"][0])
             self.assertLess(len(json.dumps(detail)), len(json.dumps(listed)))
+
+
+class NoVerdictRunTests(unittest.TestCase):
+    """Stopped, superseded and still-active verify runs leave the state alone; only a real fail regresses."""
+    RESOLVED = [{"at": "2026-11-24T16:00:00Z", "from": "untested", "to": "in_progress", "source": "tracker_update"},
+                {"at": "2026-11-24T17:00:00Z", "from": "in_progress", "to": "resolved", "source": "tracker_update"}]
+
+    def test_check_outcome(self):
+        self.assertIsNone(check_outcome({"state": "pending"}))
+        self.assertEqual(check_outcome({"state": "fixed"}), "pass")
+        self.assertEqual(check_outcome({"state": "not_fixed", "evidence": "Button still missing"}), "fail")
+        self.assertEqual(check_outcome({"state": "inconclusive", "stopped": True}), "inconclusive")
+        self.assertEqual(check_outcome({"state": "not_fixed", "stopped": "True"}), "inconclusive")
+        self.assertEqual(check_outcome({"state": "not_fixed", "evidence": "Run stopped: R4 run is superseded by the R5 install"}), "inconclusive")
+        self.assertEqual(check_outcome({"state": "fixed", "observation": "R3 verification run is still active"}), "inconclusive")
+        self.assertEqual(check_outcome({"state": "superseded"}), "inconclusive")
+
+    def _issue(self, check, run_status="complete", source="verification_check", extra_runs=()):
+        at = check.get("finished_at") or "2026-11-24T18:35:47Z"
+        finding = {"id": "BCL-9", "title": "Thing", "status": "verified_fixed",
+                   "state_changes": [*self.RESOLVED, {"at": at, "from": "resolved", "to": "regressed", "source": source}]}
+        runs = [*extra_runs, {"id": "pr122-r3-abc", "status": run_status, "pr": 122, "round": 3,
+                              "started_at": "2026-11-24T18:00:00Z", "checks": {"BCL-9": check}}]
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "agent-plugins"
+            folder.mkdir()
+            (folder / "122.json").write_text(json.dumps(_t(122, [finding], runs=runs)))
+            payload = build_issues("agent-plugins", state_dir=tmp, pr="122", scope="now", include="trail")
+            return payload["issues"][0], payload["counts"]["by_state"]
+
+    def test_stopped_run_leaves_resolved(self):
+        issue, counts = self._issue({"state": "inconclusive", "stopped": True, "finished_at": "2026-11-24T18:35:47Z",
+                                     "evidence": "Run stopped: R3 verification run on be5aabd6 is still active with pending checks"})
+        self.assertEqual((issue["state"], issue["needs_you"]), ("resolved", False))
+        self.assertNotIn("regressed", [step["step"] for step in issue["trail"]])
+        self.assertNotIn("regressed", [event["kind"] for event in issue["events"]])
+        self.assertEqual((counts["resolved"], counts["regressed"]), (1, 0))
+
+    def test_superseded_run_leaves_resolved_even_if_marked_not_fixed(self):
+        issue, _ = self._issue({"state": "not_fixed", "finished_at": "2026-11-24T18:48:49Z",
+                                "evidence": "Run stopped: R4 verification run is superseded by the R5-SHIP install"})
+        self.assertEqual(issue["state"], "resolved")
+        self.assertEqual([e["kind"] for e in issue["events"] if (e.get("ref") or "").startswith("check:")], ["inconclusive"])
+
+    def test_still_active_run_is_no_verdict(self):
+        issue, _ = self._issue({"state": "pending", "updated_at": "2026-11-24T18:35:47Z"}, run_status="active")
+        self.assertEqual(issue["state"], "resolved")
+        self.assertFalse([e for e in issue["events"] if (e.get("ref") or "").startswith("check:")])
+
+    def test_real_later_fail_regresses(self):
+        issue, counts = self._issue({"state": "not_fixed", "finished_at": "2026-11-24T18:35:47Z",
+                                     "evidence": "Collect still skips the snapshot"})
+        self.assertEqual((issue["state"], issue["needs_you"]), ("regressed", True))
+        self.assertIn("regressed", [event["kind"] for event in issue["events"]])
+        self.assertEqual(counts["regressed"], 1)
+
+    def test_owner_rejection_regresses_without_a_check(self):
+        issue, _ = self._issue({"state": "inconclusive", "stopped": True, "finished_at": "2026-11-24T18:35:47Z"},
+                               source="owner_rejected")
+        self.assertEqual(issue["state"], "regressed")
 
 
 if __name__ == "__main__":
