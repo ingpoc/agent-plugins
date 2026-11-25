@@ -266,9 +266,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-25T15:34:16Z",
-      "now": "2026-11-25T15:34:16Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-25T15:40:10Z",
+      "now": "2026-11-25T15:40:10Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 122,
@@ -830,6 +830,155 @@
         },
         "round": 2,
         "cycle": 15
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-25T15:40:10Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 10",
+          "Codex write: R2-PORT",
+          "Codex review: R2-PORT",
+          "Polling and rework review: R2-PORT",
+          "Test command: R2-PORT: /Users/gurusharan/.agents/artifacts/bcl-123/verify/bcl-185-port.sh",
+          "Codex write: R1-POSTMERGE",
+          "Codex review: R1-POSTMERGE",
+          "Polling and rework review: R1-POSTMERGE",
+          "Test command: R1-POSTMERGE: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh",
+          "Codex write: R2-CURSOR",
+          "Codex review: R2-CURSOR",
+          "Polling and rework review: R2-CURSOR",
+          "Test command: R2-CURSOR: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+          "Codex write: R2-LANDED",
+          "Codex review: R2-LANDED",
+          "Polling and rework review: R2-LANDED",
+          "Test command: R2-LANDED: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+          "Codex write: R2-DO18",
+          "Codex review: R2-DO18",
+          "Polling and rework review: R2-DO18",
+          "Test command: R2-DO18: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do18.sh",
+          "Codex write: R2-DO23",
+          "Codex review: R2-DO23",
+          "Polling and rework review: R2-DO23",
+          "Test command: R2-DO23: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh",
+          "Codex write: R2-DO21",
+          "Codex review: R2-DO21",
+          "Polling and rework review: R2-DO21",
+          "Test command: R2-DO21: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh",
+          "Codex write: R3-JOBOUT",
+          "Codex review: R3-JOBOUT",
+          "Polling and rework review: R3-JOBOUT",
+          "Test command: R3-JOBOUT: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-jobout.sh",
+          "Codex write: R3-CL1",
+          "Codex review: R3-CL1",
+          "Polling and rework review: R3-CL1",
+          "Test command: R3-CL1: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-cl1.sh",
+          "Codex write: R3-USAGE",
+          "Codex review: R3-USAGE",
+          "Polling and rework review: R3-USAGE",
+          "Test command: R3-USAGE: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh",
+          "Job wall time: R2-DO23 b2cf60894cd841959e3b1fbb8a05ec5a 736s",
+          "Job wall time: R2-PORT ac91ab3507354a6fae23d507a156479f 557s",
+          "Job wall time: R2-DO23 72cce36cdcc242d28122864584f0ad83 442s",
+          "Repeat: plan reviews on R2-PORT",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1",
+          "Repeat: review failures on R2-DO23",
+          "Leftover verification run still active after Verify",
+          "Recorded job tokens were missing a source for every job this round"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 10",
+          "Codex write: R2-PORT",
+          "Codex review: R2-PORT",
+          "Polling and rework review: R2-PORT",
+          "Test command: R2-PORT: /Users/gurusharan/.agents/artifacts/bcl-123/verify/bcl-185-port.sh",
+          "Codex write: R1-POSTMERGE",
+          "Codex review: R1-POSTMERGE",
+          "Polling and rework review: R1-POSTMERGE",
+          "Test command: R1-POSTMERGE: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh",
+          "Codex write: R2-CURSOR",
+          "Codex review: R2-CURSOR",
+          "Polling and rework review: R2-CURSOR",
+          "Test command: R2-CURSOR: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+          "Codex write: R2-LANDED",
+          "Codex review: R2-LANDED",
+          "Polling and rework review: R2-LANDED",
+          "Test command: R2-LANDED: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+          "Codex write: R2-DO18",
+          "Codex review: R2-DO18",
+          "Polling and rework review: R2-DO18",
+          "Test command: R2-DO18: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do18.sh",
+          "Codex write: R2-DO23",
+          "Codex review: R2-DO23",
+          "Polling and rework review: R2-DO23",
+          "Test command: R2-DO23: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh",
+          "Codex write: R2-DO21",
+          "Codex review: R2-DO21",
+          "Polling and rework review: R2-DO21",
+          "Test command: R2-DO21: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh",
+          "Codex write: R3-JOBOUT",
+          "Codex review: R3-JOBOUT",
+          "Polling and rework review: R3-JOBOUT",
+          "Test command: R3-JOBOUT: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-jobout.sh",
+          "Codex write: R3-CL1",
+          "Codex review: R3-CL1",
+          "Polling and rework review: R3-CL1",
+          "Test command: R3-CL1: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-cl1.sh",
+          "Codex write: R3-USAGE",
+          "Codex review: R3-USAGE",
+          "Polling and rework review: R3-USAGE",
+          "Test command: R3-USAGE: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh",
+          "Job wall time: R2-DO23 b2cf60894cd841959e3b1fbb8a05ec5a 736s",
+          "Job wall time: R2-PORT ac91ab3507354a6fae23d507a156479f 557s",
+          "Job wall time: R2-DO23 72cce36cdcc242d28122864584f0ad83 442s",
+          "Repeat: plan reviews on R2-PORT",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Reviewed the performed stages and each lane write, review, and verify command. Nothing in this verify round is unused loop work that should be removed."
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Leftover verification run still active after Verify",
+                "evidence": "The leftover Round 2 verification run stayed active and blocked the next official verify until it was stopped with the official stop command. After this round's verify, the new run is still active and five verified lanes still show install as running.",
+                "outcome": "issue",
+                "issue_id": "BCL-189"
+              },
+              {
+                "item": "Repeat: review failures on R2-DO23",
+                "evidence": "Earlier review failures on this lane sent work back to fix. The job-outcome change now keeps a tool-fault review in review, and the official verify command passed.",
+                "outcome": "fixed inline",
+                "proof": "python3 -m unittest test_job_lifecycle.JobLifecycleTests.test_review_tool_fault_leaves_lane_in_review_and_allows_rerun"
+              }
+            ]
+          },
+          "optimize": {
+            "none": "The longest recorded wall times are earlier reviewer jobs, not this round's verify commands. No cut is proven from this verify pass. Missing token totals are handled under automate."
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Recorded job tokens were missing a source for every job this round",
+                "evidence": "Every finished job on this list still stored no token source after official totals were published. Attaching those totals on job finish is filed as its own issue.",
+                "outcome": "issue",
+                "issue_id": "BCL-188"
+              }
+            ]
+          }
+        },
+        "round": 3,
+        "cycle": 15
       }
     ],
     "archive": {
@@ -853,7 +1002,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:39:15Z",
+    "last_written_at": "2026-11-25T15:40:10Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1152,7 +1301,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 3,
@@ -2878,7 +3028,8 @@
           }
         }
       ],
-      "cycle": 15
+      "cycle": 15,
+      "status": "closed"
     },
     "verification_run": {
       "id": "pr123-r3-671698d6",
@@ -2963,13 +3114,13 @@
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-25T15:04:25Z",
+      "at": "2026-11-25T15:40:10Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 7",
+        "Parallel group count: 10",
         "Codex write: R2-PORT",
         "Codex review: R2-PORT",
         "Polling and rework review: R2-PORT",
@@ -2998,6 +3149,18 @@
         "Codex review: R2-DO21",
         "Polling and rework review: R2-DO21",
         "Test command: R2-DO21: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh",
+        "Codex write: R3-JOBOUT",
+        "Codex review: R3-JOBOUT",
+        "Polling and rework review: R3-JOBOUT",
+        "Test command: R3-JOBOUT: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-jobout.sh",
+        "Codex write: R3-CL1",
+        "Codex review: R3-CL1",
+        "Polling and rework review: R3-CL1",
+        "Test command: R3-CL1: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-cl1.sh",
+        "Codex write: R3-USAGE",
+        "Codex review: R3-USAGE",
+        "Polling and rework review: R3-USAGE",
+        "Test command: R3-USAGE: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh",
         "Job wall time: R2-DO23 b2cf60894cd841959e3b1fbb8a05ec5a 736s",
         "Job wall time: R2-PORT ac91ab3507354a6fae23d507a156479f 557s",
         "Job wall time: R2-DO23 72cce36cdcc242d28122864584f0ad83 442s",
@@ -3005,6 +3168,7 @@
         "Repeat: review failures on R2-DO1",
         "Repeat: plan reviews on R2-DO1",
         "Repeat: review failures on R2-DO23",
+        "Leftover verification run still active after Verify",
         "Recorded job tokens were missing a source for every job this round"
       ],
       "none": [
@@ -3012,7 +3176,7 @@
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 7",
+        "Parallel group count: 10",
         "Codex write: R2-PORT",
         "Codex review: R2-PORT",
         "Polling and rework review: R2-PORT",
@@ -3041,6 +3205,18 @@
         "Codex review: R2-DO21",
         "Polling and rework review: R2-DO21",
         "Test command: R2-DO21: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh",
+        "Codex write: R3-JOBOUT",
+        "Codex review: R3-JOBOUT",
+        "Polling and rework review: R3-JOBOUT",
+        "Test command: R3-JOBOUT: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-jobout.sh",
+        "Codex write: R3-CL1",
+        "Codex review: R3-CL1",
+        "Polling and rework review: R3-CL1",
+        "Test command: R3-CL1: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-cl1.sh",
+        "Codex write: R3-USAGE",
+        "Codex review: R3-USAGE",
+        "Polling and rework review: R3-USAGE",
+        "Test command: R3-USAGE: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh",
         "Job wall time: R2-DO23 b2cf60894cd841959e3b1fbb8a05ec5a 736s",
         "Job wall time: R2-PORT ac91ab3507354a6fae23d507a156479f 557s",
         "Job wall time: R2-DO23 72cce36cdcc242d28122864584f0ad83 442s",
@@ -3050,33 +3226,39 @@
       ],
       "sections": {
         "delete": {
-          "none": "Reviewed the performed stages and each lane write, review, and verify command. Nothing in this round is unused loop work that should be removed."
+          "none": "Reviewed the performed stages and each lane write, review, and verify command. Nothing in this verify round is unused loop work that should be removed."
         },
         "simplify": {
           "items": [
             {
-              "item": "Repeat: review failures on R2-DO23",
-              "evidence": "Two review attempts on this lane failed or were incomplete, then a fix was run again. That matches the already filed fault where a reviewer crash sends the lane back to fixing.",
+              "item": "Leftover verification run still active after Verify",
+              "evidence": "The leftover Round 2 verification run stayed active and blocked the next official verify until it was stopped with the official stop command. After this round's verify, the new run is still active and five verified lanes still show install as running.",
               "outcome": "issue",
-              "issue_id": "BCL-182"
+              "issue_id": "BCL-189"
+            },
+            {
+              "item": "Repeat: review failures on R2-DO23",
+              "evidence": "Earlier review failures on this lane sent work back to fix. The job-outcome change now keeps a tool-fault review in review, and the official verify command passed.",
+              "outcome": "fixed inline",
+              "proof": "python3 -m unittest test_job_lifecycle.JobLifecycleTests.test_review_tool_fault_leaves_lane_in_review_and_allows_rerun"
             }
           ]
         },
         "optimize": {
-          "none": "The longest recorded jobs were reviewer wall time on free models. No cut is proven from the tracker alone. Missing token totals are handled under automate."
+          "none": "The longest recorded wall times are earlier reviewer jobs, not this round's verify commands. No cut is proven from this verify pass. Missing token totals are handled under automate."
         },
         "automate": {
           "items": [
             {
               "item": "Recorded job tokens were missing a source for every job this round",
-              "evidence": "Every job on this list stored no token source, so introspection could not compare cost across rounds. Official totals per job and per round are now filed as their own issue.",
+              "evidence": "Every finished job on this list still stored no token source after official totals were published. Attaching those totals on job finish is filed as its own issue.",
               "outcome": "issue",
-              "issue_id": "DO-24"
+              "issue_id": "BCL-188"
             }
           ]
         }
       },
-      "round": 2,
+      "round": 3,
       "cycle": 15
     }
   },
