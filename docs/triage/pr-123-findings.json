@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-25T10:45:15Z",
-      "now": "2026-11-25T10:45:15Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-25T10:46:21Z",
+      "now": "2026-11-25T10:46:21Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T10:45:15Z",
+    "last_written_at": "2026-11-25T10:46:21Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1466,8 +1466,8 @@
             "DO-18"
           ],
           "worktree": "samantha-next-r13",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector.py"
@@ -1483,26 +1483,58 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T10:44:28Z",
-          "stage_entered_at": "2026-11-25T10:45:15Z",
+          "updated_at": "2026-11-25T10:46:20Z",
+          "stage_entered_at": "2026-11-25T10:45:20Z",
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "6f57ba5284534408b59bfdbbed25e2df",
-              "phase": "fix",
-              "started_at": "2026-11-25T10:45:15Z",
-              "command": "commit-do18.sh",
-              "heartbeat_at": "2026-11-25T10:45:15Z",
-              "plan_sha256": "243651c4440e4379895096c23cdcb70a4a92d8e25304a27f3089abc0380e2258",
+              "id": "14a979dc0c464ba1bf183a641a98e0d1",
+              "phase": "review",
+              "started_at": "2026-11-25T10:46:21Z",
+              "command": "review-do18.sh",
+              "heartbeat_at": "2026-11-25T10:46:21Z",
+              "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
               "finding_ids": [
                 "DO-18"
               ],
               "worktree": "samantha-next-r13",
-              "model": "Grok Bot",
-              "lane_sha256": "8f602106a83e8cfae36df43a2a686932f31d75f57120cc80489e9389f8be89c2",
+              "model": "OpenCode deepseek-v4.1-flash-free",
+              "lane_sha256": "e6107d1efd7a4bca28a50c2d682b83ab77e158a82fa08d14923083a4620163fd",
               "cycle": 15,
               "round": 2
-            }
+            },
+            "tool_fault_streak": 0,
+            "implementer_session": "grok-do18-fix",
+            "reviewer_session": "opencode-do18-review",
+            "jobs": [
+              {
+                "id": "6f57ba5284534408b59bfdbbed25e2df",
+                "phase": "fix",
+                "started_at": "2026-11-25T10:45:15Z",
+                "command": "commit-do18.sh",
+                "heartbeat_at": "2026-11-25T10:45:20Z",
+                "plan_sha256": "243651c4440e4379895096c23cdcb70a4a92d8e25304a27f3089abc0380e2258",
+                "finding_ids": [
+                  "DO-18"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "8f602106a83e8cfae36df43a2a686932f31d75f57120cc80489e9389f8be89c2",
+                "cycle": 15,
+                "round": 2,
+                "pid": 79886,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T10:45:20Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/6f57ba5284534408b59bfdbbed25e2df.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 5,
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "OpenCode deepseek-v4.1-flash-free"
           }
         },
         {
@@ -1513,8 +1545,8 @@
             "DO-23"
           ],
           "worktree": "samantha-next-r13",
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/developer-observability/runtime/backend/round_view.py",
             "plugins/developer-observability/runtime/backend/issue_state.py",
@@ -1523,12 +1555,67 @@
           "reason": "_tracker_sort_key ranks by PR number first, so a merged or older numbered list hid a live non-numeric list. Rank latest by unmerged, then last written; keep history order.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh",
-            "method": "Named tests, then the r13 backend on the real state: agent-plugins opens 123, likeminded opens bcl-r1, live rows are 123 and bcl-r1."
+            "method": "Named tests, then the r13 backend on the real state: agent-plugins opens 123, likeminded opens bcl-r1, live rows are 123 and bcl-r1.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T10:44:28Z",
-          "stage_entered_at": "2026-11-25T10:44:28Z"
+          "updated_at": "2026-11-25T10:46:20Z",
+          "stage_entered_at": "2026-11-25T10:45:22Z",
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "1c8296e81e204aad94e801bbdbd9399f",
+              "phase": "review",
+              "started_at": "2026-11-25T10:46:21Z",
+              "command": "review-do23.sh",
+              "heartbeat_at": "2026-11-25T10:46:21Z",
+              "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
+              "finding_ids": [
+                "DO-23"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "OpenCode deepseek-v4.1-flash-free",
+              "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
+              "cycle": 15,
+              "round": 2
+            },
+            "tool_fault_streak": 0,
+            "implementer_session": "grok-do23-fix",
+            "reviewer_session": "opencode-do23-review",
+            "jobs": [
+              {
+                "id": "a87effbc714a4ad2836e4d96913d9860",
+                "phase": "fix",
+                "started_at": "2026-11-25T10:45:21Z",
+                "command": "commit-do23.sh",
+                "heartbeat_at": "2026-11-25T10:45:22Z",
+                "plan_sha256": "243651c4440e4379895096c23cdcb70a4a92d8e25304a27f3089abc0380e2258",
+                "finding_ids": [
+                  "DO-23"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "dd7bcd3cd02445a76ae1a0a5d11834f8f2068af9085a93671aa30f12eb1ef56c",
+                "cycle": 15,
+                "round": 2,
+                "pid": 80334,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T10:45:22Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a87effbc714a4ad2836e4d96913d9860.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "OpenCode deepseek-v4.1-flash-free"
+          }
         }
       ]
     },
