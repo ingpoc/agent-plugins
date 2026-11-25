@@ -34,6 +34,11 @@ TEST_PURPOSES = {'self_test', 'test', 'fixture'}
 SKIP_DIRS = {'.git', 'node_modules', '.build', '__pycache__', '.venv'}
 _ISO = re.compile(r'^\[?(\d{4}-\d\d-\d\dT[\d:.]+(?:Z|[+-]\d\d:?\d\d)?)')
 _LOG_ERROR = re.compile(r'(?i)\b(error|exception|traceback|fatal|failed|failure)\b')
+# Test-runner pass marks: the line reports a passing test, whatever its name or assertion text says.
+# node/mocha/vitest/swift-testing tick, TAP `ok N`, jest `PASS`, go `--- PASS:`, pytest `PASSED`,
+# unittest `... ok` and XCTest `Test Case ... passed`.
+_PASS_LINE = re.compile(r'^\s*(?:[\u2714\u2713\u221a]\s|ok\s+\d+\b|PASS\s|--- PASS:|Test Case \'.+\' passed\b'
+                        r'|\S+::\S+\s+PASSED\b|.+\s\.\.\.\s+ok\s*$)')
 _PYTEST_PROGRESS = re.compile(r'^(.+?::.+?)\s+(?:FAILED|ERROR)(?:\s+\[[^\]]+\])?$')
 _PYTEST_FAILURE = re.compile(r'^(?:FAILED|ERROR)\s+(.+?::.+?)(?:\s+-\s+(.*))?$')
 _PYTEST_SUMMARY = re.compile(r'^\d+\s+(?:failed|passed|errors?|skipped|xfailed|xpassed|deselected)\b.*$', re.I)
@@ -587,7 +592,8 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
             name = _pytest_test_name(node_id)
             pytest_cases.setdefault((name, _run_ref(run_id)), (number, ts, None, node_id))
             continue
-        error = bool(_LOG_ERROR.search(line)) and 'status=ok' not in line
+        body = line[match.end():].lstrip(' ]\t') if match else line
+        error = bool(_LOG_ERROR.search(line)) and 'status=ok' not in line and not _PASS_LINE.match(body)
         own = _SESSION.search(line)
         if own:
             session = own.group(1)

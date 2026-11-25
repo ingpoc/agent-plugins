@@ -401,6 +401,30 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(list(iter_textlog(log, 'p', 'p:pytest', stats)), [])
         self.assertEqual(stats['p:pytest']['errors'], 0)
 
+    def test_passing_test_lines_naming_error_are_not_failures(self):
+        log = self.tmp / 'runner.log'
+        passing = ['\u2714 unknown routes return a JSON not_found error (1.2ms)',
+                   '  \u2713 shows an error banner when the fetch fails',
+                   'ok 3 - rejects malformed input with a validation error',
+                   'PASS src/error-boundary.test.js',
+                   '--- PASS: TestErrorWrap (0.00s)',
+                   'tests/test_api.py::test_error_path PASSED [ 50%]',
+                   'test_error_handling (pkg.tests.TestApi) ... ok',
+                   "Test Case '-[AppTests testErrorBanner]' passed (0.002 seconds).",
+                   '2026-11-25T09:47:00Z \u2714 failed login shows an error']
+        failing = ['not ok 4 - error path returns 500',
+                   '\u2716 unknown routes return a JSON not_found error',
+                   'Error: connect ECONNREFUSED 127.0.0.1:5432',
+                   'FAIL src/error-boundary.test.js']
+        log.write_text('\n'.join(passing + failing) + '\n')
+        stats = {}
+        events = list(iter_textlog(log, 'p', 'p:runner', stats))
+        flagged = [e['ref'] for e in events if e['error']]
+        self.assertEqual(len(flagged), len(failing), flagged)
+        self.assertEqual(stats['p:runner']['errors'], len(failing))
+        lines = {int(ref.rsplit(':', 1)[1]) for ref in flagged}
+        self.assertEqual(lines, set(range(len(passing) + 1, len(passing) + len(failing) + 1)))
+
     def test_junit_owns_a_matching_pytest_log_failure(self):
         project, out = self.pytest_project(with_junit=True), self.tmp / 'pytest-junit-out'
         collect([{'type': 'project_dir', 'path': str(project)}], out, NOW)
