@@ -479,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T05:33:45Z",
+    "last_written_at": "2026-11-25T08:22:07Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1491,6 +1491,54 @@
       "created_at": "2026-11-25T05:33:45Z",
       "first_seen": {
         "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-185",
+      "title": "A repo tracker port can still change or be picked at random",
+      "summary": "A repo with no saved viewer port gets the shared default port if free, otherwise a random port, and the fixed-port rule is not written in the skill, so a bookmarked tracker address is not guaranteed to keep showing the newest list.",
+      "impact": "Guru cannot rely on one bookmark per repo to always show the latest PR list; a new repo can land on a random port or take another repo's usual port.",
+      "done_when": "A repo's viewer port is chosen once (deterministic, never colliding with another repo's saved port), stored, and kept through rollover, viewer restart, plugin upgrade and registry repair; a new list for the same repo takes over that port and serves the newest list; a collision fails loudly instead of moving ports; the rule is written in the skill; tests cover all of this.",
+      "observed": "25 Nov 2026 13:48 IST, Guru: the tracker must keep one assigned port per repo so it can be bookmarked. Today agent-plugins is 58771 (registry saves viewer_port 58771 for #121, #122, #123) and Likeminded is 53366. Code at r13 ead254f4: live_state._project_port picks 53366 if free, otherwise port 0 (random) when a repo has no saved port; serve.py defaults --port to 53366; SKILL.md has no rule; viewer.md still says choose another available port; no test proves a rollover or restart to a new list keeps the repo port and serves the newest list.",
+      "recommendation": "Derive a deterministic per-repo port (hash slot, skipping other repos' saved ports), persist it on first viewer start, fall back to the repo viewer state on registry repair, make serve.py --port required, and write the rule in SKILL.md and viewer.md with tests.",
+      "source": "User reported",
+      "status": "untested",
+      "priority": "high",
+      "area": "batched-change-list",
+      "details": {
+        "related": "BCL-94 (verified_fixed, archived): per-project fixed port; this covers the remaining gaps"
+      },
+      "created_at": "2026-11-25T08:22:07Z",
+      "first_seen": {
+        "at": "2026-11-25T08:22:07Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "DO-22",
+      "title": "The observability viewer can only show the agent-plugins project",
+      "summary": "The observability viewer builds its project list from only the requested project, so the project picker never lists others and Likeminded cannot be opened.",
+      "impact": "Guru cannot see Likeminded rounds or issues in the observability viewer even though its tracker exists.",
+      "done_when": "The picker lists every project that has a tracker and Likeminded opens with its rounds and issues, with the existing agent plugins project views unchanged.",
+      "observed": "25 Nov 2026, reported by Guru via Observability: GET /api/issues?project=likeminded (and ingpoc--like-minded-app) returns tracker_unavailable, although config.json lists likeminded and the BCL registry has ingpoc--like-minded-app/bcl-r1.json. issue_state.py builds lists.projects with just the requested project.",
+      "recommendation": "Build lists.projects from every configured project and BCL registry repo with a tracker, and resolve likeminded / ingpoc--like-minded-app to its registry tracker.",
+      "source": "User reported",
+      "status": "untested",
+      "priority": "medium",
+      "area": "developer-observability",
+      "details": {
+        "owner": "Observability implements (devobs-cursor-cli worktree); list owner ACU tracks it here."
+      },
+      "created_at": "2026-11-25T08:22:07Z",
+      "first_seen": {
+        "at": "2026-11-25T08:22:07Z",
         "pr": null,
         "round": 1,
         "source": "created_at"
