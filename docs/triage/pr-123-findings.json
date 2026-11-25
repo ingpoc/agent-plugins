@@ -479,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T04:02:42Z",
+    "last_written_at": "2026-11-25T04:19:06Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1101,7 +1101,8 @@
       "details": {
         "purpose": "Single parked backlog for frozen-intake nits and process ideas.",
         "also reported as DO-11": "The per-round viewer still needs row polish Lane rows still share one why, hide column labels, and use dashes for missing data. Guru later approved the v3 calm viewer, which supersedes this polish. 24 Nov 2026 mid-afternoon live review, then cancelled 16:19 IST because the v3 viewer replaces the current page.",
-        "merged_from": "DO-11"
+        "merged_from": "DO-11",
+        "also reported as new entry": "Needs-you row for issues waiting on the owner's decision A viewer row that lists issues parked or blocked waiting on the owner as 'Waiting on your decision' in Needs you. Guru parked this at 09:37 IST 25 Nov 2026. Shipped in 29c801f0 (owner_wait, issue wait field, Needs you row and rank); removed by a21dc8a3 (local, unpushed as of 09:50 IST), which keeps the one-issue payload fix."
       },
       "created_at": "2026-11-24T17:34:53Z",
       "first_seen": {
@@ -1213,6 +1214,57 @@
       "created_at": "2026-11-25T04:02:42Z",
       "first_seen": {
         "at": "2026-11-25T04:02:42Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "DO-16",
+      "title": "Stopped or superseded verify runs mark fixed issues as failed again",
+      "summary": "When a verification run is stopped or replaced before it finishes, the viewer treats its unfinished checks as failures and shows fixed issues as failing again.",
+      "impact": "The viewer reported 16 fixed issues on the last list as failing again when none had actually failed, which hides real failures among false alarms.",
+      "recommendation": "Treat stopped, replaced or still-running verification runs as no verdict, and only show an issue as failing again after a real failing check or the owner rejecting it.",
+      "done_when": "On the last list the viewer shows no false failing-again issues, a real later failure still shows as failing again, and tests cover both.",
+      "observed": "25 Nov 2026 ~09:50 IST, read-only rebuild of build_issues from git archives against live trackers: #122 by_state at 79ac3484 regressed 16 / resolved 2; at a21dc8a3 regressed 0 / resolved 18. All 16 are verified_fixed in 122.json; their 32 non-pass checks are all inconclusive with stopped=true (run pr122-r3-be5aabd6, 'Run stopped ... still active'), 0 real fails. #120 and #123 counts unchanged. Unit tests at a21dc8a3: 257 OK (4 skipped).",
+      "details": {
+        "fix": "plugins/developer-observability/runtime/backend/issue_state.py: check_outcome, credible_regression (300 s corroboration window); tests NoVerdictRunTests in tests/test_issue_trail_p2.py",
+        "commit": "688dbe85 on local branch grokbot/devobs-cursor-cli (worktree devobs-cursor-cli), unpushed as of 09:50 IST",
+        "bundled_ui": "headline shows regressed count; blocked with no failed runs reads 'Blocked on the list · no failed runs'; merge-gate figure explains its bar on hover"
+      },
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "developer-observability",
+      "created_at": "2026-11-25T04:19:06Z",
+      "first_seen": {
+        "at": "2026-11-25T04:19:06Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "DO-17",
+      "title": "Opening one issue's raw data downloads the whole list",
+      "summary": "Asking the viewer for a single issue returned the whole list with every run, not just that issue.",
+      "impact": "Opening raw data for one issue downloaded several times more data than needed, slowing the viewer and wasting tokens for agents reading one issue.",
+      "recommendation": "Return only the requested issue, with its raw finding, jobs and trail.",
+      "done_when": "Asking for one issue returns only that issue with its trail and jobs, at a small fraction of the old size, and tests cover it.",
+      "observed": "25 Nov 2026 ~09:50 IST, read-only build_issues(issue_id=...) from git archives against live trackers: #122 BCL-106 detail 71,920 bytes with runs and list envelope at 79ac3484 vs 13,317 bytes, keys include/issue_id/issues/pr/project/schema_version, no runs, at a21dc8a3. #120 ACU-10 67,275 vs 9,777 bytes. Full list payloads ~113-158 KB. 8780 server not queried.",
+      "details": {
+        "fix": "plugins/developer-observability/runtime/backend/issue_state.py detail early return for GET /api/issues/<id> and observability_issues issue_id; test test_detail_payload_is_only_the_issue",
+        "commit": "29c801f0 on grokbot/samantha-0160-next6 (owner-wait part reverted by a21dc8a3, local and unpushed as of 09:50 IST)"
+      },
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "developer-observability",
+      "created_at": "2026-11-25T04:19:06Z",
+      "first_seen": {
+        "at": "2026-11-25T04:19:06Z",
         "pr": null,
         "round": 1,
         "source": "created_at"
