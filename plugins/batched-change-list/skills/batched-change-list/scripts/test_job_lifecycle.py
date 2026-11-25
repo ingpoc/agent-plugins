@@ -530,6 +530,61 @@ class JobLifecycleTests(unittest.TestCase):
                                        "timestamp": STAMP})
         self.assertEqual(json.dumps(doc, sort_keys=True), before)
 
+    def test_start_job_resumes_when_pid_is_dead_without_exit_code(self):
+        from unittest.mock import patch
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        manager.job_transition(doc, {"action": "attach-job", "phase": "fix", "ids": ["ISSUE-01"],
+                                     "cycle": 1, "round": 1, "timestamp": STAMP, "job_id": "fix-1",
+                                     "pid": 424242})
+        group = doc["tracking"]["plan"]["groups"][0]
+        with patch.object(manager.live_state, "_pid_is_running", return_value=False):
+            transition(doc, "start-job", "fix", "fix-2")
+        history = group["codex"]["jobs"]
+        closed = next(job for job in history if job["id"] == "fix-1")
+        self.assertIn("exit_code", closed)
+        self.assertEqual(closed["finished_phase_status"], "interrupted")
+        self.assertEqual(group["codex"]["job"]["id"], "fix-2")
+        self.assertNotIn("exit_code", group["codex"]["job"])
+
+    def test_renderer_and_start_job_share_lane_job_running(self):
+        from unittest.mock import patch
+        import render as renderer
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        manager.job_transition(doc, {"action": "attach-job", "phase": "fix", "ids": ["ISSUE-01"],
+                                     "cycle": 1, "round": 1, "timestamp": STAMP, "job_id": "fix-1",
+                                     "pid": 424242})
+        group = doc["tracking"]["plan"]["groups"][0]
+        with patch.object(manager.live_state, "_pid_is_running", return_value=True), \
+             patch.object(renderer.live_state, "_pid_is_running", return_value=True):
+            self.assertTrue(renderer.lane_job_running(group))
+            with self.assertRaisesRegex(ValueError, "already has a running"):
+                transition(doc, "start-job", "fix", "fix-2")
+        with patch.object(manager.live_state, "_pid_is_running", return_value=False), \
+             patch.object(renderer.live_state, "_pid_is_running", return_value=False):
+            self.assertFalse(renderer.lane_job_running(group))
+            transition(doc, "start-job", "fix", "fix-3")
+        self.assertEqual(group["codex"]["job"]["id"], "fix-3")
+
+    def test_review_tool_fault_leaves_lane_in_review_and_allows_rerun(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "fix-1")
+        finish(doc, "fix", "fix-1")
+        transition(doc, "start-job", "review", "review-1")
+        finish(doc, "review", "review-1", code=1, reply="")
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertEqual(group["phase"], "review")
+        self.assertEqual(group["status"], "review")
+        self.assertTrue(group["failure_history"][0]["tool_fault"])
+        self.assertEqual(group["failure_history"][0]["fault_kind"], "runner_exit")
+        with self.assertRaisesRegex(ValueError, "stays in review after a tool-fault review"):
+            transition(doc, "start-job", "fix", "fix-2")
+        transition(doc, "start-job", "review", "review-2")
+        self.assertEqual(group["phase"], "review")
+        self.assertEqual(group["codex"]["job"]["id"], "review-2")
+
+
 
 if __name__ == "__main__":
     unittest.main()

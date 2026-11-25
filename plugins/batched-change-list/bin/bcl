@@ -155,6 +155,93 @@ def _dirty_fingerprint(cwd):
     return fingerprints
 
 
+
+def _git_toplevel(path):
+    path = Path(path)
+    if path.is_file():
+        path = path.parent
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _annotate_worktree_heads(plan, data_path):
+    groups = plan.get("groups") if isinstance(plan, dict) else None
+    if not isinstance(groups, list):
+        return
+    fallback = _git_toplevel(data_path) or _git_toplevel(Path.cwd())
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        codex = group.setdefault("codex", {})
+        if not isinstance(codex, dict) or codex.get("fix_base_head"):
+            continue
+        root = None
+        worktree = str(group.get("worktree") or codex.get("worktree") or "").strip()
+        if worktree:
+            path = Path(worktree).expanduser()
+            if path.is_dir():
+                root = _git_toplevel(path)
+        head = _repo_head(root or fallback) if (root or fallback) else None
+        if head:
+            codex["fix_base_head"] = head
+
+
+def _snapshot_commit_paths(rel):
+    rel = rel.replace("\\", "/")
+    return rel.startswith("docs/triage/") or rel.endswith("-findings.json") or rel.endswith("-findings.html")
+
+
+def _commit_is_snapshot(cwd, sha):
+    try:
+        message = subprocess.check_output(
+            ["git", "-C", str(cwd), "log", "-1", "--format=%s", sha],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+        files = subprocess.check_output(
+            ["git", "-C", str(cwd), "diff-tree", "--no-commit-id", "--name-only", "-r", sha],
+            text=True, stderr=subprocess.DEVNULL,
+        ).splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    if message.startswith("Change list:"):
+        return True
+    return bool(files) and all(_snapshot_commit_paths(path) for path in files)
+
+
+def _named_implementer_commit(cwd, groups, start_head, end_head):
+    if not end_head:
+        return None
+    if start_head and end_head != start_head:
+        return end_head
+    bases = []
+    for group in groups or []:
+        if not isinstance(group, dict):
+            continue
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        head = codex.get("fix_base_head")
+        if isinstance(head, str) and head:
+            bases.append(head)
+    for base in bases:
+        if not base or base == end_head:
+            continue
+        try:
+            shas = subprocess.check_output(
+                ["git", "-C", str(cwd), "rev-list", f"{base}..{end_head}"],
+                text=True, stderr=subprocess.DEVNULL,
+            ).split()
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        for sha in shas:
+            if not _commit_is_snapshot(cwd, sha):
+                return sha
+    return None
+
+
 def _named_worktree(groups):
     return any(isinstance(group, dict) and str(group.get("worktree") or "").strip() for group in groups or [])
 
@@ -295,6 +382,8 @@ def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exi
             operation["gap"] = job["gap"]
         if job.get("model"):
             operation["model"] = job["model"]
+        if job.get("commit"):
+            operation["commit"] = job["commit"]
     elif action == "report-step":
         operation["step"] = job.get("step")
         if job.get("result"):
@@ -442,13 +531,17 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             except OSError: pass
     for thread in copiers: thread.join(timeout=0.1)
     finished_at = _utc_now()
+    named_commit = None
     if phase == "fix" and _named_worktree(groups) and start_head is not None:
         end_head = _repo_head(Path.cwd())
         end_dirty = _dirty_fingerprint(Path.cwd())
-        if end_head == start_head:
+        named_commit = _named_implementer_commit(Path.cwd(), groups, start_head, end_head)
+        if end_head == start_head and not named_commit:
             if code == 0:
                 code = 3
             job["first_error_line"] = job.get("first_error_line") or "fix job made no commit"
+        elif end_head == start_head and named_commit:
+            job["commit"] = named_commit
         elif end_dirty is not None and start_dirty is not None:
             def _snapshot_path(rel):
                 rel = rel.replace("\\", "/")
@@ -458,6 +551,8 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             if leftover and code == 0:
                 code = 3
                 job["first_error_line"] = "fix job left uncommitted changes"
+        if named_commit and code == 0:
+            job["commit"] = named_commit
     reply = None
     if phase in workflow_definition.LANE["review_phases"] and result_path:
         try:
@@ -1218,6 +1313,7 @@ def main():
     elif stage == "plan":
         plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
         if not plan: parser.error("plan requires --plan or an existing tracking.plan")
+        _annotate_worktree_heads(plan, source)
         operations = [{"action":"set-plan","plan":plan}]
         current_plan = tracking.get("plan")
         current_round = tracking.get("round")

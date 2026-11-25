@@ -1086,6 +1086,17 @@ def reviewer_model_rejected(text):
     return "model_not_found" in lowered or "is not supported when using Codex with a ChatGPT account" in lowered
 
 
+def _close_interrupted_job(group, stamp, reason="Job runner is gone"):
+    """Officially finish a job whose runner is no longer alive, without changing lane phase."""
+    job = ((group.get("codex") or {}).get("job") if isinstance(group.get("codex"), dict) else None)
+    if not isinstance(job, dict) or "exit_code" in job:
+        return
+    job.update(exit_code=-1, finished_at=stamp, heartbeat_at=stamp,
+               finished_phase_status="interrupted")
+    if not job.get("first_error_line"):
+        job["first_error_line"] = reason
+
+
 def job_transition(document, operation):
     tracking, plan, groups = _lane_groups(document, operation.get("ids"))
     phase, action = operation.get("phase"), operation["action"]
@@ -1135,7 +1146,13 @@ def job_transition(document, operation):
             codex = group.setdefault("codex", {})
             active_job = codex.get("job")
             if isinstance(active_job, dict) and "exit_code" not in active_job:
-                raise ValueError(f"lane {group['id']} already has a running {active_job.get('phase', 'unknown')} job")
+                if RENDERER.lane_job_running(group):
+                    raise ValueError(f"lane {group['id']} already has a running {active_job.get('phase', 'unknown')} job")
+                pid = active_job.get("pid")
+                if type(pid) is int and pid > 0:
+                    _close_interrupted_job(group, stamp)
+                else:
+                    raise ValueError(f"lane {group['id']} already has a running {active_job.get('phase', 'unknown')} job")
             if isinstance(active_job, dict) and "exit_code" in active_job:
                 history = codex.setdefault("jobs", [])
                 if not isinstance(history, list):
@@ -1229,6 +1246,10 @@ def job_transition(document, operation):
                 job["output_retained"] = True
             elif job.get("first_error_line"):
                 job["output_retained"] = True
+            commit = operation.get("commit")
+            if isinstance(commit, str) and commit.strip():
+                job["commit"] = commit.strip()
+                group.setdefault("codex", {})["fix_base_head"] = commit.strip()
             if "tokens_source" in operation:
                 job["tokens_source"] = operation.get("tokens_source")
             if "tokens" in operation:
@@ -1281,9 +1302,10 @@ def job_transition(document, operation):
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
                         codex["must_fix_note"] = reason
-                        # A crash with no verdict returns to fix. A finished
-                        # PASS/incomplete review or a rejected model stays here.
-                        stay = rejected or (tool_fault and not (runner_failed and verdict is None))
+                        # A tool-fault review (crash, cut-off, quota, rejected model)
+                        # stays in review and can be rerun. Only a counted CHANGES
+                        # verdict returns the lane to fix.
+                        stay = bool(tool_fault)
                         if stay:
                             group.update(status="review", phase="review")
                             if rejected:

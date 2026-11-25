@@ -75,6 +75,19 @@ class JobReceiptTests(BclTests):
         job = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["job"]
         self.assertIn("uncommitted", job.get("first_error_line", ""))
 
+
+    def test_fix_credits_named_implementer_commit_outside_the_process(self):
+        self._plan_lane(worktree="home")
+        (self.home / "fix.txt").write_text("ok\n")
+        self.git(self.home, "add", "fix.txt")
+        self.git(self.home, "commit", "-qm", "implementer fix")
+        sha = self.git(self.home, "rev-parse", "HEAD").stdout.strip()
+        result = self._fix_job(sys.executable, "-c", "pass", cwd=self.home)
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        job = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["job"]
+        self.assertEqual(job.get("finished_phase_status"), "passed")
+        self.assertEqual(job.get("commit"), sha)
+
     def test_usage_includes_cached_tokens(self):
         from importlib.machinery import SourceFileLoader
         import importlib.util
@@ -102,6 +115,7 @@ def load_tests(loader, tests, pattern):
         "test_named_worktree_fix_without_commit_fails",
         "test_named_worktree_fix_commit_records_receipts",
         "test_named_worktree_dirty_after_commit_fails",
+        "test_fix_credits_named_implementer_commit_outside_the_process",
         "test_usage_includes_cached_tokens",
     ):
         suite.addTest(JobReceiptTests(name))
