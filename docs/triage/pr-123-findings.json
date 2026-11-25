@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T11:42:11Z",
+    "last_written_at": "2026-11-25T15:04:03Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -2946,6 +2946,29 @@
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh (exit 0)"
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh"
+    },
+    {
+      "id": "DO-24",
+      "title": "Official token totals per job and per round are missing",
+      "summary": "Observability records usage parts for some Cursor runs, but it does not publish a single official total per job and per round, and a missing cost is left empty instead of marked not reported.",
+      "impact": "Change list introspection cannot compare token cost across rounds, so waste cannot be measured.",
+      "observed": "On 25 Nov 2026 in the evening IST, every change list job on the current list had no token source, and the viewer had no usage series. One Cursor run had usage parts that summed to the command line total, but cost was empty.",
+      "done_when": "The official path publishes a total per job and per round that includes cache read, and cost is a number or is marked not reported, with tests and a live read.",
+      "source": "Agent reported",
+      "priority": "high",
+      "status": "untested",
+      "recommendation": "Add an official usage payload and keep unsupported cost marked not reported.",
+      "details": {
+        "related": "Follows Cursor run capture work. The gap is the missing official total and cost marker, not capture of the run itself."
+      },
+      "created_at": "2026-11-25T15:04:03Z",
+      "first_seen": {
+        "at": "2026-11-25T15:04:03Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
