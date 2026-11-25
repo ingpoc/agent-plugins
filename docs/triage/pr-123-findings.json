@@ -479,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-24T19:29:09Z",
+    "last_written_at": "2026-11-25T03:35:45Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1167,6 +1167,31 @@
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh (exit 0)"
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh"
+    },
+    {
+      "id": "DO-14",
+      "title": "Developer observability does not capture Cursor CLI runs",
+      "summary": "Codex jobs are recorded automatically, but Cursor CLI headless runs are not, so their model, tokens, time and plan refusals have to be written down by hand.",
+      "impact": "Change-list jobs and model bake-offs run on the Cursor CLI have no trustworthy usage numbers, and refusals such as running out of usage are easy to miss.",
+      "recommendation": "Capture Cursor CLI runs by default through a Cursor hook plus Cursor's own JSON result, and add a read-back command like the Codex one.",
+      "done_when": "A Cursor CLI run shows up in cursor-usage with model, official tokens when Cursor reports them, wall time, exit status and any refusal kind, with no row written by a person, and tests cover a successful run and a refusal.",
+      "observed": "25 Nov 2026 08:43 IST, Guru rule relayed by ACU: anything developer-observability does not capture by default is a missing feature. Installed 0.1.38 has codex_capture, codex_usage and codex_sessions only.",
+      "details": {
+        "fix": "plugins/developer-observability: hooks/cursor-hooks.json, runtime/collector/cursor_runs.py, cursor-capture, cursor-usage, observability_cursor_runs, tests/test_cursor_runs.py",
+        "branch": "grokbot/devobs-cursor-cli (worktree devobs-cursor-cli), pushed onto grokbot/samantha-0160-next6"
+      },
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "developer-observability",
+      "created_at": "2026-11-25T03:35:45Z",
+      "first_seen": {
+        "at": "2026-11-25T03:35:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
