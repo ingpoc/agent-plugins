@@ -246,6 +246,37 @@ class ManageFindingsTests(unittest.TestCase):
         allowed = self._replay_batch(document, start)
         self.assertEqual(allowed.returncode, 0, allowed.stderr)
 
+    def test_post_merge_introspect_records_without_verify_and_keeps_collect_open(self):
+        import check_introspect
+        source_tracking = {
+            "round": 1, "cycle": 1, "stages_reached": ["plan_fix", "install", "verify"],
+            "plan": {"round": 1, "cycle": 1, "groups": [
+                {"id": "A", "codex": {"implementer_session": "w", "reviewer_session": "r"},
+                 "verify": {"command": "python3 -m unittest test_a.py"}}]},
+        }
+        source = self.root / "122.json"
+        source.write_text(json.dumps({"findings": [], "tracking": source_tracking}))
+        # Point the live file's directory at the same temp root as 122.json by using self.data's parent.
+        # self.data already lives under the test root; write the sibling next to the saved document path.
+        sibling = self.data.with_name("122.json")
+        sibling.write_text(source.read_text())
+        document = copy.deepcopy(self.document)
+        document["findings"][0]["status"] = "in_progress"
+        document["tracking"] = {"cycle": 2, "round": 1, "stages_reached": [],
+            "rollover": {"source_pr": 122, "source_merge": {"sha": "abc", "merged_at": "2026-11-24T12:00:00Z"}},
+            "workflow": {"stage": "collect", "updated_at": "2026-11-24T12:00:00Z"}, "plan": {"cycle": 2, "round": 1, "groups": [{"id": "N", "finding_ids": [document["findings"][0]["id"]], "status": "planned"}]}}
+        steps = check_introspect.performed_round_steps(source_tracking)
+        sections = {name: {"none": "Reviewed after merge."} for name in ("delete", "simplify", "optimize", "automate")}
+        payload = {"action": "introspect", "scope": "post_merge", "sections": sections, "steps": steps, "none": steps}
+        result = self._replay_batch(document, payload)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        saved = json.loads(self.data.read_text())
+        self.assertEqual(saved["tracking"]["post_merge_introspect"]["scope"], "post_merge")
+        self.assertNotIn("introspect", saved["tracking"].get("stages_reached") or [])
+        self.assertNotEqual((saved["tracking"].get("introspect") or {}).get("scope"), "post_merge")
+        self.assertNotEqual(saved["tracking"]["plan"].get("status"), "closed")
+        self.assertEqual(saved["tracking"]["workflow"]["stage"], "collect")
+
     def test_cleanup_outcome_is_separate_from_verification_verdict(self):
         document = copy.deepcopy(self.document)
         document["tracking"] = {}

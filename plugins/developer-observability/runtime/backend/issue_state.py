@@ -114,6 +114,48 @@ def _event(kind, at, summary, ref=None):
     return {"kind": kind, "at": at, "summary": text, "ref": clean_ref(ref)}
 
 
+PASS_CHECK_STATES = {"fixed", "passed", "pass", "resolved"}
+NO_VERDICT_CHECK_STATES = {"inconclusive", "blocked", "stopped", "superseded", "cancelled", "canceled", "aborted",
+                           "interrupted", "skipped"}
+_NO_VERDICT_TEXT = re.compile(r"(?i)^\s*run stopped\b|\bsuperseded by\b|\bstill active\b")
+CORROBORATION_SECONDS = 300
+
+
+def check_outcome(check):
+    """One verdict per verification check: pass, fail, inconclusive, or None while it is still running.
+    A stopped, superseded or still-active run is no verdict at all: neither a fail nor a verify."""
+    if not isinstance(check, dict):
+        return None
+    status = str(check.get("state") or check.get("status") or "").strip().lower()
+    if status in {"pending", "checking", "running", "active", ""}:
+        return None
+    stopped = check.get("stopped")
+    if (stopped not in (None, False, "", "false", "False") or status in NO_VERDICT_CHECK_STATES
+            or any(_NO_VERDICT_TEXT.search(str(check.get(key) or "")) for key in ("evidence", "observation", "summary"))):
+        return "inconclusive"
+    return "pass" if status in PASS_CHECK_STATES else "fail"
+
+
+def _verification_sourced(source):
+    text = str(source or "").strip().lower()
+    return "verif" in text or text.startswith("check")
+
+
+def credible_regression(change, events):
+    """A recorded move to regressed counts when the owner rejected it, when it came from somewhere other than a
+    verification check, or when a real failing check for the issue sits next to it. A tracker that writes
+    regressed for a stopped or superseded run (inconclusive checks) does not move the state."""
+    if not isinstance(change, dict) or change.get("to") != "regressed":
+        return True
+    if change.get("source") == "owner_rejected" or not _verification_sourced(change.get("source")):
+        return True
+    at = instant(change.get("at"))
+    if at is None:
+        return False
+    return any(event.get("kind") == "fail" and str(event.get("ref") or "").startswith("check:") and instant(event.get("at"))
+               and abs((instant(event["at"]) - at).total_seconds()) <= CORROBORATION_SECONDS for event in events or ())
+
+
 def _as_ids(value):
     if isinstance(value, (list, tuple, set, frozenset)):
         return {str(item) for item in value if item}
@@ -154,6 +196,7 @@ def lifecycle_state(finding, events=(), lane=None, prior=None):
     """Compute current state from tracker status, recorded transitions and evidence."""
     status = str(finding.get("status_raw") or finding.get("status") or "").strip().lower()
     transitions = finding.get("state_changes") if isinstance(finding.get("state_changes"), list) else []
+    transitions = [row for row in transitions if credible_regression(row, events)]
     rejected = any(isinstance(row, dict) and (row.get("to") == "regressed" or row.get("source") == "owner_rejected")
                    for row in transitions)
     verification = str(finding.get("verification") or "").lower()
@@ -382,10 +425,10 @@ def _events_for(finding, group, jobs):
             if not isinstance(row, dict):
                 continue
             status = str(row.get("state") or row.get("status") or "").lower()
-            if status in {"pending", "checking", ""}:
+            kind = check_outcome(row)
+            if kind is None:
                 continue
             at = row.get("finished_at") or row.get("updated_at") or row.get("at")
-            kind = "pass" if status in {"fixed", "passed", "pass", "resolved"} else "inconclusive" if status in {"inconclusive", "blocked", "stopped"} else "fail"
             events.append(_event(kind, at, row.get("evidence") or row.get("summary") or status, row.get("ref") or f"check:{finding.get('id')}"))
     status_raw = str(finding.get("status_raw") or finding.get("status") or "").strip().lower()
     if isinstance(group, dict) and status_raw in {"failing", "failed", "blocked", "changes_requested", "incomplete"}:
@@ -584,7 +627,7 @@ def apply_cascade(lists, project, pr, round_id, change):
         candidates = [row for row in prs if row.get("project") == project] or [row for row in prs]
         if not candidates:
             raise ValueError("tracker_unavailable: no tracker for this project")
-        chosen = candidates[0]
+        chosen = next((row for row in candidates if row.get("live")), candidates[0])
         return {"project": project, "pr": str(chosen["pr"]).lstrip("#"), "round": chosen.get("latest_round")}
     if "pr" in change:
         wanted = str(change["pr"]).lstrip("#")
@@ -626,12 +669,12 @@ def _activity_counts(issues, start, end, now=None):
 
 
 def _check_window_reason(check, issue):
-    status = str(check.get("state") or check.get("status") or "").lower()
-    if status in {"pending", "checking", ""}:
+    outcome = check_outcome(check)
+    if outcome is None:
         return None
-    if status in {"fixed", "passed", "pass", "resolved"}:
+    if outcome == "pass":
         return "fixed"
-    if status in {"inconclusive", "blocked", "stopped"}:
+    if outcome == "inconclusive":
         return "inconclusive"
     events = issue.get("events") or []
     if _had_prior_pass(issue.get("raw") or issue, events):
@@ -749,7 +792,8 @@ def _bound_issue_to_round(issue, start, end, carried_to=None, *, seed_from_track
         bounded["carried_to"] = str(carried_to).lstrip("#")
         bounded["origin_label"] = f"carried → #{str(carried_to).lstrip('#')}"
     bounded.update(state=state, last_evidence=last_evidence, last_seen_at=last_seen_at,
-                   needs_you=state in {"blocked", "regressed"}, origin=origin_label or issue.get("origin"),
+                   needs_you=state in {"blocked", "regressed"},
+                   origin=origin_label or issue.get("origin"),
                    attempts=len(failures) or 0)
     return bounded
 
@@ -787,28 +831,21 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                  issue_id=None, include=None):
     """Read trackers and job events and return the shared UI/MCP issue contract."""
     try:
-        from .round_view import (_fold_jobs, _history_for_cycle, _iter_trackers, _plan_groups,
-                                 _round_from_group_id, _tracker_sort_key)
+        from .round_view import (_canonical_project, _configured_projects, _fold_jobs,
+                                 _history_for_cycle, _iter_all_trackers, _iter_trackers,
+                                 _list_projects, _plan_groups, _round_from_group_id,
+                                 _latest_tracker_key, _tracker_sort_key)
     except ImportError:
-        from round_view import (_fold_jobs, _history_for_cycle, _iter_trackers, _plan_groups,
-                                _round_from_group_id, _tracker_sort_key)
+        from round_view import (_canonical_project, _configured_projects, _fold_jobs,
+                                _history_for_cycle, _iter_all_trackers, _iter_trackers,
+                                _list_projects, _plan_groups, _round_from_group_id,
+                                _latest_tracker_key, _tracker_sort_key)
 
     timed = from_time is not None or to_time is not None
-    all_trackers = []
-    for item in _iter_trackers(project, state_dir):
-        tracker_path, document, tracker_pr = item
-        tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
-        repo = tracking.get("repo")
-        if not repo and isinstance(tracking.get("worktree"), dict):
-            repo = tracking["worktree"].get("repo") or tracking["worktree"].get("name")
-        exact = (tracker_path.parent.name == project or tracker_path.parent.name.endswith(f"--{project}")
-                 or tracking.get("project_id") == project
-                 or (isinstance(repo, str) and Path(repo.rstrip("/")).name == project))
-        if exact:
-            all_trackers.append(item)
+    all_trackers = list(_iter_trackers(project, state_dir))
     if not all_trackers:
         raise ValueError("tracker_unavailable: no tracker for this project")
-    latest_path, latest, latest_pr = max(all_trackers, key=_tracker_sort_key)
+    latest_path, latest, latest_pr = max(all_trackers, key=_latest_tracker_key)
     requested_pr = None if pr in (None, "", "current") else str(pr).lstrip("#")
     scope_round = None
     if isinstance(scope, str) and scope.startswith("round:") and scope != "round:current":
@@ -873,7 +910,7 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         owning = [item for item in all_trackers
                   if any(row.get("round") == scope_round for row in _history_rows(item[1], item[2]))]
         if owning:
-            focus_pr = str(max(owning, key=_tracker_sort_key)[2])
+            focus_pr = str(max(owning, key=_latest_tracker_key)[2])
 
     current = latest
     current_pr = latest_pr
@@ -881,11 +918,11 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         focused = [item for item in all_trackers if str(item[2]) == requested_pr]
         if not focused:
             raise ValueError("tracker_unavailable: no tracker for this pull request")
-        _, current, current_pr = max(focused, key=_tracker_sort_key)
+        _, current, current_pr = max(focused, key=_latest_tracker_key)
     elif scope_round is not None:
         focused = [item for item in all_trackers if str(item[2]) == str(focus_pr)]
         if focused:
-            _, current, current_pr = max(focused, key=_tracker_sort_key)
+            _, current, current_pr = max(focused, key=_latest_tracker_key)
 
     current_tracking, current_plan, current_round, current_cycle = _meta(current)
     if scope == "round:current":
@@ -969,14 +1006,16 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                 if not isinstance(check, dict):
                     continue
                 check_state = str(check.get("state") or "").lower()
-                if check_state in {"pending", "checking", ""}:
+                kind = check_outcome(check)
+                if kind is None:
                     continue
-                kind = "pass" if check_state in {"fixed", "passed", "pass", "resolved"} else "inconclusive" if check_state in {"inconclusive", "blocked", "stopped"} else "fail"
                 at = check.get("finished_at") or check.get("updated_at")
                 if at:
                     events.append(_event(kind, at, check.get("evidence") or check.get("summary") or check_state,
                                          f"check:{history_run.get('id', 'current')}:{identifier}"))
             events = _sort_events(event for event in events if event)
+            events = [event for event in events if not (event.get("kind") == "regressed" and _verification_sourced(event.get("summary"))
+                      and not credible_regression({"to": "regressed", "source": event.get("summary"), "at": event.get("at")}, events))]
             lane_round = _round_from_group_id(group.get("id")) if group else None
             if lane_round is None and group:
                 try:
@@ -1067,11 +1106,43 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         pr_issues = issues_by_pr.get(str(tracker_pr), [])
         open_count = sum(issue.get("state") != "resolved" for issue in pr_issues)
         pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
-        prs.append({"project": project, "pr": str(tracker_pr), "label": pull.get("label") or f"#{tracker_pr}",
+        ident = str(tracker_pr)
+        label = pull.get("label") or (f"#{ident}" if ident.isdigit() else ident)
+        prs.append({"project": project, "pr": ident, "label": label,
                     "cycle": cycle, "open": open_count, "status": "merged" if merged else "open",
                     "merged": bool(merged), "merged_at": (merged or {}).get("merged_at") if merged else None,
-                    "latest_round": round_number, "live": not merged and str(tracker_pr) == str(latest_pr)})
-    lists = {"projects": [{"id": project, "label": "Agent Plugins" if project == "agent-plugins" else project}],
+                    "latest_round": round_number, "live": not merged and ident == str(latest_pr)})
+    configured = _configured_projects()
+    current_ids = {row["project"] for row in prs}
+    # Tag the current project's rows with the canonical id when the request used an alias.
+    canonical_current = None
+    if all_trackers:
+        canonical_current = _canonical_project(all_trackers[0][0], all_trackers[0][1], configured)
+        if canonical_current and canonical_current != project:
+            for row in prs:
+                row["project"] = canonical_current
+            current_ids = {canonical_current}
+    others = sorted(_iter_all_trackers(state_dir), key=_tracker_sort_key, reverse=True)
+    other_latest = {}
+    for item in others:
+        other_id = _canonical_project(item[0], item[1], configured)
+        if other_id not in other_latest or _latest_tracker_key(item) > _latest_tracker_key(other_latest[other_id]):
+            other_latest[other_id] = item
+    for item in others:
+        path, document, tracker_pr = item
+        other_id = _canonical_project(path, document, configured)
+        if other_id in current_ids:
+            continue
+        tracking, plan, round_number, cycle = _meta(document)
+        merged = tracking.get("merged") if isinstance(tracking.get("merged"), dict) else None
+        pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
+        ident = str(tracker_pr)
+        label = pull.get("label") or (f"#{ident}" if ident.isdigit() else ident)
+        prs.append({"project": other_id, "pr": ident, "label": label,
+                    "cycle": cycle, "open": None, "status": "merged" if merged else "open",
+                    "merged": bool(merged), "merged_at": (merged or {}).get("merged_at") if merged else None,
+                    "latest_round": round_number, "live": not merged and other_latest.get(other_id) is item})
+    lists = {"projects": _list_projects(state_dir, current=canonical_current or project),
              "prs": prs}
     if timed or scope == "all":
         built = _dedupe_latest_pr(catalog)
@@ -1189,11 +1260,23 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             window["run"] = public_run(selected_run)
 
     last_fail = None
+    last_failed_verified = None
     for issue in selected:
         if issue.get("last_seen_at") and (issue.get("state") in {"blocked", "regressed"} or issue.get("attempts")):
             stamp = instant(issue["last_seen_at"])
-            if stamp and (last_fail is None or stamp > instant(last_fail["at"])):
-                last_fail = {"at": issue["last_seen_at"], "id": issue["id"]}
+            if stamp is None:
+                continue
+            resolved = issue.get("state") in {"resolved", "verified_fixed", "verified"}
+            payload = {"at": issue["last_seen_at"], "id": issue["id"]}
+            if resolved:
+                payload["label"] = "last failed job, later verified"
+                if last_failed_verified is None or stamp > instant(last_failed_verified["at"]):
+                    last_failed_verified = payload
+                continue
+            if last_fail is None or stamp > instant(last_fail["at"]):
+                last_fail = payload
+    if last_fail is None and last_failed_verified is not None:
+        last_fail = last_failed_verified
 
     pull = current_tracking.get("pull_request") if isinstance(current_tracking.get("pull_request"), dict) else None
     display_pr = str(current_pr if not timed else (requested_pr or latest_pr))
@@ -1308,6 +1391,10 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             issue.pop("jobs", None)
     # Per-check run detail stays in the trackers; the issue rows already carry each check's outcome.
     all_runs = [_light_run(row) for row in all_runs]
+    if detail:
+        # One issue only: the drawer's Raw data box and agents asking for one id need nothing else.
+        return {"schema_version": 1, "project": project, "pr": display_pr, "issue_id": str(issue_id),
+                "include": includes, "issues": selected}
     return {"schema_version": 1, "project": project, "pr": display_pr, "cycle": current_tracking.get("cycle"),
             "round": display_round, "round_started_at": current_tracking.get("round_started_at"),
             "pull_request": ({**pull, "opened_at": pull.get("opened_at")} if pull else None),

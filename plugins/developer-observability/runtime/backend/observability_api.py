@@ -133,7 +133,10 @@ class ObservabilityAPI:
             detail = json.loads(path.read_text())
         except (OSError, ValueError, TypeError):
             raise ValueError('snapshot_changed: detail sidecar is missing or invalid') from None
-        if not isinstance(detail, dict) or detail.get('snapshot_id') != snapshot_id:
+        # Sidecars written since DO-21 carry no snapshot_id: their path names the snapshot.
+        owner = detail.get('snapshot_id') if isinstance(detail, dict) else None
+        if not isinstance(detail, dict) or (owner != snapshot_id if owner is not None
+                                            else not pointer.startswith(f'snapshots/{snapshot_id}/')):
             raise ValueError('snapshot_changed: detail belongs to another snapshot')
         return detail
 

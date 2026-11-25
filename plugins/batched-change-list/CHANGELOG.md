@@ -1,3 +1,7 @@
+## 0.1.75
+
+- Each repo keeps one bookmarkable viewer port: chosen once from a deterministic slot that never takes another repo's saved port, saved at adoption or first viewer start, recovered from the repo's own viewer file after a registry repair (old per-list files never decide or veto it), and reused by every new list, rollover, restart and upgrade; an occupied port, two saved ports for one repo, or a port saved by another repo fail instead of moving, and serve.py needs an explicit `--port` (BCL-185).
+
 ## 0.1.74
 
 - A rejected Codex reviewer model is recorded as a named model_rejected tool fault; the lane stays in review with a passed fix so a later review can record a Grok Bot verdict, after one Astra 6.2 retry (PR120-r5-codex-reviewer-model-fallback). A second plan review, or a fourth post-fix review, is refused until remaining items are filed as standalone findings, and a finding cannot be added to a lane under review (BCL-121).

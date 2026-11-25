@@ -68,3 +68,6 @@ tool (`include: ["trail","jobs","rollup"]`, `issue_id`) return, per issue: `trai
 | regressed | `state_changes` to regressed / owner rejection, failure after a pass | — (ts missing) |
 
 A duration is `recorded` only when both ends are recorded. Official and estimated tokens are never summed.
+
+## Cursor CLI jobs
+For a Cursor CLI job, emitters don't need to count anything. Read `bin/developer-observability cursor-usage --run <uuid>` (or `--session`) and copy `model`, `tokens`, `tokens_source` and `tokens_method` as they are. `model_version` and cost stay null because Cursor does not report them. See `skills/developer-observability/references/cursor-cli-runs.md`.

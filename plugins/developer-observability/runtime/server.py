@@ -324,6 +324,21 @@ def observability_task_usage(task_id: str | None = None) -> CallToolResult:
     return CallToolResult(content=[TextContent(type='text', text=json.dumps(result))], structuredContent=result)
 
 
+@server.tool(annotations=READ)
+def observability_cursor_runs(run_id: str | None = None, session_id: str | None = None, since: str | None = None,
+                              until: str | None = None, limit: int = 20) -> CallToolResult:
+    """Captured Cursor CLI runs: model, official tokens (Cursor's own usage), wall time, exit status and refusal kind. Cost and model version are not reported by Cursor and stay null."""
+    from collector.cursor_runs import read_runs
+    home = Path(os.environ.get('OBSERVABILITY_HOME') or Path.home())
+    path = home / '.local/share/developer-observability/task-usage.sqlite3'
+    try:
+        result = read_runs(path, run_id=run_id, session_id=session_id, since=since, until=until, limit=limit)
+    except Exception:
+        result = {'error': 'cursor_runs_unavailable'}
+        return CallToolResult(isError=True, content=[TextContent(type='text', text=json.dumps(result))], structuredContent=result)
+    return CallToolResult(content=[TextContent(type='text', text=json.dumps(result))], structuredContent=result)
+
+
 @server.resource(UI_URI, name='Observability dashboard', mime_type='text/html;profile=mcp-app',
                  meta={'ui': {'csp': {'connectDomains': [], 'resourceDomains': []}, 'prefersBorder': True}})
 def dashboard_resource() -> str:

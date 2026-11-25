@@ -608,6 +608,34 @@ class PR96Tests(unittest.TestCase):
         self.assertTrue((out / '.trash' / previous).is_dir())
         self.assertTrue((out / 'snapshots' / current).is_dir())
 
+    def test_repeated_collects_share_unchanged_sidecars(self):
+        out = self.root / 'repeat-share'
+        source = self.root / 'repeat-share.jsonl'
+        self.write_rows(source, [{'run_id': f'share-run-{i}', 'step_ref': f'share-step-{i}', 'kind': 'task',
+                                  'session_id': f'share-session-{i}', 'ts': NOW + i} for i in range(20)])
+        spec = [{'type': 'jsonl', 'path': str(source), 'project': 'p', 'source': 'p:test'}]
+        collect(spec, out, now=NOW + 60)
+        first = json.loads((out / 'findings.json').read_text())['snapshot_id']
+        one = retention._size(out / 'snapshots' / first)
+        files = sorted(p.relative_to(out / 'snapshots' / first) for p in (out / 'snapshots' / first).rglob('*.json'))
+        self.assertTrue(files)
+        for _ in range(4):
+            collect(spec, out, now=NOW + 60)
+        current = json.loads((out / 'findings.json').read_text())['snapshot_id']
+        for rel in files:
+            new, old = out / 'snapshots' / current / rel, out / '.trash' / first / rel
+            self.assertEqual(os.stat(new).st_ino, os.stat(old).st_ino, rel)
+            self.assertNotIn('snapshot_id', json.loads(new.read_text()))
+        self.assertEqual(len([p for p in (out / '.trash').iterdir()]), 4)
+        # Five collects of unchanged sources cost about one snapshot, not five (shared files count once).
+        self.assertLess(retention._size(out), one * 1.5 + (out / 'findings.json').stat().st_blocks * 512)
+        api = self.api_for(out)
+        tasks = api.tasks('p')
+        self.assertGreater(tasks['total'], 0)
+        ref = tasks['tasks'][0]['run_ref']
+        detail = api.task('p', ref)
+        self.assertEqual((detail['run_ref'], detail['snapshot_id']), (ref, current))
+
     def test_live_tool_call_ids_join_steps_and_task_outcome(self):
         failed_run = 'samantha-run-failed'
         successful_run = 'samantha-run-success'

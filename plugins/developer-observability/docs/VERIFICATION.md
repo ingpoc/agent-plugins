@@ -1,6 +1,6 @@
 # Verification contract
 
-Source checks: `python3 -m unittest discover -s tests`; the collection runner
+Source checks: `python3 -m unittest discover -s tests` (not pytest: on the Mini the global anchorpy and pytest_xprocess plugins conflict and pytest fails to load); the collection runner
 selects the pinned local runtime installed by `runtime/install.py`. Tests cover
 modern discovery, legacy initialization, task and issue tools, typed errors, Apps resource,
 generated JS syntax, reproducible bundle and delayed project-response races.

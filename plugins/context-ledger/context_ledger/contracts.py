@@ -40,7 +40,7 @@ TOOL_SCOPE_IDS = frozenset(
 )
 # Callers bind these project ids. A registry or binding may add more.
 PROJECT_SCOPE_IDS = frozenset(
-    {"agent-plugins", "open-resource-network", "aadhaarchain", "brandgpt", "hisab-pune"}
+    {"agent-plugins", "open-resource-network", "aadhaarchain", "brandgpt", "hisab-pune", "like-minded-app"}
 )
 STATUS_WORDS = frozenset(
     "pending success failed merged blocked passing wip shipped inconclusive abandoned".split()
@@ -381,6 +381,40 @@ def allowed_scopes(binding: dict[str, Any]) -> set[str]:
     for tool in binding.get("tools") or []:
         allowed.add(f"tool:{tool}")
     return allowed
+
+
+
+
+def retrieval_scope(body: dict[str, Any], caller_scope: dict[str, Any] | None = None,
+                    projects: frozenset[str] | None = None) -> str:
+    """Scope used at find time. A stored fleet tag does not hide a project-specific record."""
+    stored = body.get("scope") or "fleet"
+    allowed_projects = projects if projects is not None else PROJECT_SCOPE_IDS
+    named: list[str] = []
+    for item in body.get("entities") or []:
+        folded = str(item).casefold()
+        if folded in allowed_projects and folded not in named:
+            named.append(folded)
+    surface = decision_surface(
+        body.get("summary"), body.get("situation"), body.get("action"),
+        body.get("rationale"), body.get("applicability"),
+    ).casefold()
+    for project in allowed_projects:
+        if project in named:
+            continue
+        spaced = project.replace("-", " ")
+        if re.search(rf"\b{re.escape(project)}\b", surface) or spaced in surface:
+            named.append(project)
+    if stored == "fleet" and named:
+        unique = list(dict.fromkeys(named))
+        if len(unique) == 1:
+            return f"project:{unique[0]}"
+        caller_project = None
+        if isinstance(caller_scope, dict) and isinstance(caller_scope.get("project"), str):
+            caller_project = caller_scope["project"].casefold()
+        if caller_project and caller_project not in unique:
+            return "project:__other__"
+    return stored
 
 
 def _validate_caller_scope(value: Any) -> dict[str, Any]:

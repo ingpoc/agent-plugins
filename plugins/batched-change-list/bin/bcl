@@ -16,6 +16,7 @@ import render as lane_render
 import tracker_lock
 import workflow_definition
 import check_introspect
+import job_usage
 import events as bcl_events
 import verify_driver
 
@@ -97,6 +98,65 @@ def _write_job_output(list_path, job_id, output_text):
     return path
 
 
+
+def _load_harness_usage_rows(job):
+    """Read official Cursor and other harness usage rows for one finished job."""
+    rows = []
+    started, finished = job.get("started_at"), job.get("finished_at")
+    db = Path.home() / ".local/share/developer-observability/task-usage.sqlite3"
+    # cursor-usage
+    try:
+        devobs = Path(__file__).resolve().parents[2] / "developer-observability" / "runtime"
+        if str(devobs) not in sys.path:
+            sys.path.append(str(devobs))
+        from collector import cursor_runs
+        payload = cursor_runs.read_runs(str(db), since=started, until=finished, limit=20)
+        for row in payload.get("runs") or []:
+            tokens = row.get("tokens") if isinstance(row.get("tokens"), dict) else None
+            rows.append({
+                "job_id": row.get("job_id") or row.get("run_id"),
+                "run_id": row.get("run_id"),
+                "session_id": row.get("session_id"),
+                "started_at": row.get("started_at"),
+                "source": "cursor-usage",
+                "tokens": tokens,
+                "cost": row.get("cost"),
+                "cost_source": row.get("cost_source") or "not_reported",
+            })
+    except Exception:
+        pass
+    # other official tables (Codex / task_usage) when a row names this job or session
+    try:
+        import sqlite3, json as _json
+        if db.is_file():
+            with sqlite3.connect(str(db)) as con:
+                for name, in con.execute("select name from sqlite_master where type='table'").fetchall():
+                    if name in {"cursor_runs", "cursor_hook_events"}:
+                        continue
+                    cols = [row[1] for row in con.execute(f'pragma table_info("{name}")')]
+                    if "summary" not in cols:
+                        continue
+                    for raw in con.execute(f'select summary from "{name}"'):
+                        try:
+                            summary = _json.loads(raw[0]) if isinstance(raw[0], str) else raw[0]
+                        except ValueError:
+                            continue
+                        if not isinstance(summary, dict):
+                            continue
+                        rows.append({
+                            "job_id": summary.get("job_id") or summary.get("task_id"),
+                            "session_id": summary.get("session_id") or summary.get("session"),
+                            "started_at": summary.get("started_at") or summary.get("recorded_at"),
+                            "source": name,
+                            "tokens": summary.get("tokens"),
+                            "cost": summary.get("cost"),
+                            "cost_source": summary.get("cost_source") or "not_reported",
+                        })
+    except Exception:
+        pass
+    return rows
+
+
 def _read_usage(path, job_id):
     """Accept only a verified sidecar or in-file job ID; sum Codex cumulative usage once."""
     try:
@@ -153,6 +213,124 @@ def _dirty_fingerprint(cwd):
             digest = "unreadable"
         fingerprints[rel] = (line[:2], digest)
     return fingerprints
+
+
+
+def _git_toplevel(path):
+    path = Path(path)
+    if path.is_file():
+        path = path.parent
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _annotate_worktree_heads(plan, data_path):
+    groups = plan.get("groups") if isinstance(plan, dict) else None
+    if not isinstance(groups, list):
+        return
+    fallback = _git_toplevel(data_path) or _git_toplevel(Path.cwd())
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        codex = group.setdefault("codex", {})
+        if not isinstance(codex, dict) or codex.get("fix_base_head"):
+            continue
+        root = None
+        worktree = str(group.get("worktree") or codex.get("worktree") or "").strip()
+        if worktree:
+            path = Path(worktree).expanduser()
+            if path.is_dir():
+                root = _git_toplevel(path)
+        head = _repo_head(root or fallback) if (root or fallback) else None
+        if head:
+            codex["fix_base_head"] = head
+
+
+def _snapshot_commit_paths(rel):
+    rel = rel.replace("\\", "/")
+    return rel.startswith("docs/triage/") or rel.endswith("-findings.json") or rel.endswith("-findings.html")
+
+
+def _commit_is_snapshot(cwd, sha):
+    try:
+        message = subprocess.check_output(
+            ["git", "-C", str(cwd), "log", "-1", "--format=%s", sha],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+        files = subprocess.check_output(
+            ["git", "-C", str(cwd), "diff-tree", "--no-commit-id", "--name-only", "-r", sha],
+            text=True, stderr=subprocess.DEVNULL,
+        ).splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    if message.startswith("Change list:"):
+        return True
+    return bool(files) and all(_snapshot_commit_paths(path) for path in files)
+
+
+def _recorded_worktree_root(cwd, groups):
+    cwd_top = _git_toplevel(cwd)
+    if not cwd_top:
+        return None
+    cwd_top = str(Path(cwd_top).resolve())
+    cwd = Path(cwd).resolve()
+    for group in groups or []:
+        if not isinstance(group, dict):
+            continue
+        name = str(group.get("worktree") or ((group.get("codex") or {}).get("worktree") if isinstance(group.get("codex"), dict) else "") or "").strip()
+        if not name:
+            continue
+        candidates = [Path(name).expanduser()]
+        if not Path(name).is_absolute():
+            candidates.extend([cwd / name, cwd.parent / name])
+            top = _git_toplevel(cwd)
+            if top:
+                candidates.extend([Path(top) / name, Path(top).parent / name])
+        for path in candidates:
+            if not path.is_dir():
+                continue
+            root = _git_toplevel(path)
+            if root:
+                return str(Path(root).resolve())
+    return None
+
+
+def _named_implementer_commit(cwd, groups, start_head, end_head):
+    if not end_head:
+        return None
+    if start_head and end_head != start_head:
+        return end_head
+    recorded = _recorded_worktree_root(cwd, groups)
+    cwd_top = _git_toplevel(cwd)
+    if recorded and cwd_top and str(Path(cwd_top).resolve()) != recorded:
+        return None
+    bases = []
+    for group in groups or []:
+        if not isinstance(group, dict):
+            continue
+        codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+        head = codex.get("fix_base_head")
+        if isinstance(head, str) and head:
+            bases.append(head)
+    for base in bases:
+        if not base or base == end_head:
+            continue
+        try:
+            shas = subprocess.check_output(
+                ["git", "-C", str(cwd), "rev-list", f"{base}..{end_head}"],
+                text=True, stderr=subprocess.DEVNULL,
+            ).split()
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        for sha in shas:
+            if not _commit_is_snapshot(cwd, sha):
+                return sha
+    return None
 
 
 def _named_worktree(groups):
@@ -295,6 +473,8 @@ def _job_operations(phase, ids, cycle, round_number, job, action, timestamp, exi
             operation["gap"] = job["gap"]
         if job.get("model"):
             operation["model"] = job["model"]
+        if job.get("commit"):
+            operation["commit"] = job["commit"]
     elif action == "report-step":
         operation["step"] = job.get("step")
         if job.get("result"):
@@ -442,13 +622,17 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             except OSError: pass
     for thread in copiers: thread.join(timeout=0.1)
     finished_at = _utc_now()
+    named_commit = None
     if phase == "fix" and _named_worktree(groups) and start_head is not None:
         end_head = _repo_head(Path.cwd())
         end_dirty = _dirty_fingerprint(Path.cwd())
-        if end_head == start_head:
+        named_commit = _named_implementer_commit(Path.cwd(), groups, start_head, end_head)
+        if end_head == start_head and not named_commit:
             if code == 0:
                 code = 3
             job["first_error_line"] = job.get("first_error_line") or "fix job made no commit"
+        elif end_head == start_head and named_commit:
+            job["commit"] = named_commit
         elif end_dirty is not None and start_dirty is not None:
             def _snapshot_path(rel):
                 rel = rel.replace("\\", "/")
@@ -458,6 +642,8 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
             if leftover and code == 0:
                 code = 3
                 job["first_error_line"] = "fix job left uncommitted changes"
+        if named_commit and code == 0:
+            job["commit"] = named_commit
     reply = None
     if phase in workflow_definition.LANE["review_phases"] and result_path:
         try:
@@ -557,8 +743,10 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         if len(candidates) == 1:
             usage_path, usage_source = candidates[0], "inline"
     usage = _read_usage(usage_path, job["id"]) if usage_path else None
-    if usage is None:
-        usage_source = "none"
+    attached = job_usage.attach_official_usage(
+        job, _load_harness_usage_rows(job),
+        session_usage=usage, session_source=usage_source if usage else None)
+    usage, usage_source = attached["tokens"], attached["tokens_source"]
     implementer = next(((group.get("codex") or {}).get("implementer_session")
                         for group in groups if isinstance(group, dict)
                         and (group.get("codex") or {}).get("implementer_session")), None)
@@ -888,6 +1076,7 @@ def main():
     parser.add_argument("--ids", action="append", default=[]); parser.add_argument("--plan", type=Path)
     parser.add_argument("--into", help="merge: the finding that absorbs the others")
     parser.add_argument("--result"); parser.add_argument("--issues", type=Path); parser.add_argument("--sections", type=Path); parser.add_argument("--draft", type=Path)
+    parser.add_argument("--scope", choices=("post_merge",), help="introspect: record a post-merge Introspect")
     parser.add_argument("--phase", choices=workflow_definition.LANE["job_phases"])
     parser.add_argument("--model", help="job, install or verify: who runs this step, shown in the lane model column")
     parser.add_argument("--round", type=int, help="correct-round: the real round number")
@@ -960,6 +1149,8 @@ def main():
         parser.error(f"in-repo tracker differs from live state; live file: {live}")
     data = json.loads(live.read_text())
     tracking = data.get("tracking", {}); stages = tracking.get("stages_reached", [])
+    if args.scope and args.stage != "introspect":
+        parser.error("--scope is only valid for introspect")
     if args.draft:
         if args.stage != "introspect" or args.sections:
             parser.error("--draft is only valid for introspect and cannot be combined with --sections")
@@ -967,7 +1158,11 @@ def main():
         if args.draft.resolve() in trackers or (args.draft.exists() and any(args.draft.samefile(path) for path in trackers)):
             parser.error("Introspect draft path must differ from the input and live trackers")
         try:
-            payload = check_introspect.draft_introspect(tracking)
+            if args.scope == "post_merge":
+                tracking = check_introspect.coverage_tracking(live, tracking, "post_merge")
+                payload = check_introspect.draft_post_merge_introspect(tracking)
+            else:
+                payload = check_introspect.draft_introspect(tracking)
             args.draft.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         except (OSError, ValueError) as error:
             parser.error(str(error))
@@ -1211,6 +1406,7 @@ def main():
     elif stage == "plan":
         plan = json.loads(args.plan.read_text()) if args.plan else tracking.get("plan")
         if not plan: parser.error("plan requires --plan or an existing tracking.plan")
+        _annotate_worktree_heads(plan, source)
         operations = [{"action":"set-plan","plan":plan}]
         current_plan = tracking.get("plan")
         current_round = tracking.get("round")
@@ -1335,14 +1531,19 @@ def main():
         if not isinstance(payload, dict) or set(payload) != {"steps", "none", "sections"}:
             parser.error("introspect file must contain exactly steps, none, and ordered sections")
         try:
+            coverage_tracking = check_introspect.coverage_tracking(live, data.get("tracking", {}), args.scope)
             workflow_definition.run_stage_check("introspect", payload["sections"], payload["steps"],
-                                                payload["none"], data.get("tracking", {}))
+                                                payload["none"], coverage_tracking)
         except ValueError as error:
             parser.error(str(error))
         op = {"action":"introspect", "sections":payload["sections"], "steps":payload["steps"], "none":payload["none"]}
+        if args.scope: op["scope"] = args.scope
         if args.result: op["result"] = args.result
         ids = args.ids or [x["id"] for x in data.get("findings", []) if x.get("status") == "in_progress"]
-        operations = [op,{"action":"set-activity","stage":"introspect","ids":ids,"now":"Introspection recorded"}]
+        if args.scope == "post_merge":
+            operations = [op]
+        else:
+            operations = [op,{"action":"set-activity","stage":"introspect","ids":ids,"now":"Introspection recorded"}]
     elif stage == "report":
         operation = {"action":"set-stage","stage":"report_rollover"}
         if args.force:

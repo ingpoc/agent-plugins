@@ -19,6 +19,7 @@ import tracker_lock
 
 import live_state
 import check_install_sessions
+import check_introspect
 import workflow_definition
 import check_gate_count
 
@@ -1085,6 +1086,17 @@ def reviewer_model_rejected(text):
     return "model_not_found" in lowered or "is not supported when using Codex with a ChatGPT account" in lowered
 
 
+def _close_interrupted_job(group, stamp, reason="Job runner is gone"):
+    """Officially finish a job whose runner is no longer alive, without changing lane phase."""
+    job = ((group.get("codex") or {}).get("job") if isinstance(group.get("codex"), dict) else None)
+    if not isinstance(job, dict) or "exit_code" in job:
+        return
+    job.update(exit_code=-1, finished_at=stamp, heartbeat_at=stamp,
+               finished_phase_status="interrupted")
+    if not job.get("first_error_line"):
+        job["first_error_line"] = reason
+
+
 def job_transition(document, operation):
     tracking, plan, groups = _lane_groups(document, operation.get("ids"))
     phase, action = operation.get("phase"), operation["action"]
@@ -1134,7 +1146,13 @@ def job_transition(document, operation):
             codex = group.setdefault("codex", {})
             active_job = codex.get("job")
             if isinstance(active_job, dict) and "exit_code" not in active_job:
-                raise ValueError(f"lane {group['id']} already has a running {active_job.get('phase', 'unknown')} job")
+                if RENDERER.lane_job_running(group):
+                    raise ValueError(f"lane {group['id']} already has a running {active_job.get('phase', 'unknown')} job")
+                pid = active_job.get("pid")
+                if type(pid) is int and pid > 0:
+                    _close_interrupted_job(group, stamp)
+                else:
+                    raise ValueError(f"lane {group['id']} already has a running {active_job.get('phase', 'unknown')} job")
             if isinstance(active_job, dict) and "exit_code" in active_job:
                 history = codex.setdefault("jobs", [])
                 if not isinstance(history, list):
@@ -1228,6 +1246,10 @@ def job_transition(document, operation):
                 job["output_retained"] = True
             elif job.get("first_error_line"):
                 job["output_retained"] = True
+            commit = operation.get("commit")
+            if isinstance(commit, str) and commit.strip():
+                job["commit"] = commit.strip()
+                group.setdefault("codex", {})["fix_base_head"] = commit.strip()
             if "tokens_source" in operation:
                 job["tokens_source"] = operation.get("tokens_source")
             if "tokens" in operation:
@@ -1280,9 +1302,10 @@ def job_transition(document, operation):
                     if phase == "review":
                         codex["review_status"] = "failed" if incomplete else state
                         codex["must_fix_note"] = reason
-                        # A crash with no verdict returns to fix. A finished
-                        # PASS/incomplete review or a rejected model stays here.
-                        stay = rejected or (tool_fault and not (runner_failed and verdict is None))
+                        # A tool-fault review (crash, cut-off, quota, rejected model)
+                        # stays in review and can be rerun. Only a counted CHANGES
+                        # verdict returns the lane to fix.
+                        stay = bool(tool_fault)
                         if stay:
                             group.update(status="review", phase="review")
                             if rejected:
@@ -2443,6 +2466,96 @@ def start_verification_lanes(document, ids, timestamp, model=None):
             stamp_plan_group(group, timestamp)
 
 
+
+TERMINAL_CHECK_STATES = {"fixed", "not_fixed", "blocked", "inconclusive"}
+
+
+def _current_round_lanes_are_settled(document):
+    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    groups = RENDERER.plan_groups_for_round(plan, plan.get("round", 1)) if isinstance(plan, dict) else []
+    if not groups:
+        return False
+    settled = {"verified", "parked", "failed", "deferred"}
+    for group in groups:
+        if group.get("status") in settled:
+            continue
+        ids = group.get("finding_ids") or []
+        if ids and all((findings.get(identifier) or {}).get("status") in {"verified_fixed", "closed"} for identifier in ids):
+            continue
+        return False
+    return True
+
+
+def _settle_verification_checks(document, run, stamp, *, merged=False):
+    """Give every leftover pending check a terminal outcome before completing the run."""
+    if not isinstance(run, dict) or not isinstance(run.get("checks"), dict):
+        return
+    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
+    close_leftovers = merged or _current_round_lanes_are_settled(document)
+    for identifier, check in list(run["checks"].items()):
+        if not isinstance(check, dict):
+            check = {}
+            run["checks"][identifier] = check
+        state = check.get("state")
+        if state in TERMINAL_CHECK_STATES:
+            continue
+        status = (findings.get(identifier) or {}).get("status")
+        if status == "verified_fixed":
+            check["state"] = "fixed"
+            check["evidence"] = "Official verify recorded this issue as verified."
+        elif close_leftovers:
+            check["state"] = "inconclusive"
+            check["evidence"] = "This issue was not in the current verify wave."
+        else:
+            continue
+        check["finished_at"] = stamp
+
+
+def _verification_run_is_finished(document, run):
+    """True when every remaining check is terminal."""
+    if not isinstance(run, dict):
+        return False
+    checks = run.get("checks") if isinstance(run.get("checks"), dict) else {}
+    if not checks:
+        return _current_round_lanes_are_settled(document)
+    return all(isinstance(check, dict) and check.get("state") in TERMINAL_CHECK_STATES for check in checks.values())
+
+
+def clear_finished_running_state(document, stamp, *, merged=False):
+    """Clear leftover install.running and an active verification run after verify or merge."""
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else None
+    if tracking is None:
+        return document
+    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    for group in plan.get("groups") or []:
+        if not isinstance(group, dict):
+            continue
+        ids = group.get("finding_ids") or []
+        verified = (group.get("status") == "verified"
+                    or (ids and all((findings.get(identifier) or {}).get("status") == "verified_fixed" for identifier in ids)))
+        if not (merged or verified):
+            continue
+        install = group.get("install") if isinstance(group.get("install"), dict) else None
+        if install and install.get("status") == "running":
+            install = dict(install)
+            install["status"] = "complete"
+            install["finished_at"] = stamp
+            group["install"] = install
+    run = tracking.get("verification_run")
+    if isinstance(run, dict) and run.get("status") == "active":
+        run = dict(run)
+        run["checks"] = dict(run.get("checks") or {})
+        _settle_verification_checks(document, run, stamp, merged=merged)
+        if merged or _verification_run_is_finished(document, run):
+            run["status"] = "complete"
+            run["ended_at"] = stamp
+        tracking["verification_run"] = run
+    return document
+
+
 def finish_verification(document, operation):
     """Record a successful lane verify command and its named findings atomically."""
     ids = operation.get("ids")
@@ -2492,6 +2605,7 @@ def finish_verification(document, operation):
         verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
         verify.update(status="verified", fixed=total, failed=0, total=total, finished_at=stamp)
         group["verify"] = verify
+    clear_finished_running_state(document, stamp, merged=False)
 
 
 def sync_plan_verify(document, finding_ids=None):
@@ -3390,9 +3504,14 @@ def run(args, parser):
                                            "verified_fixed": fixed, "threshold": threshold, "reason": reason.strip()})
                 if action == "introspect":
                     tracking = store["document"].setdefault("tracking", {})
-                    workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
+                    scope = operation.get("scope")
+                    if scope not in (None, "post_merge"):
+                        raise ValueError("introspect scope must be post_merge or omitted")
+                    if scope != "post_merge":
+                        workflow_definition.require_transition("introspect", tracking.get("stages_reached", []))
+                    coverage_tracking = check_introspect.coverage_tracking(path, tracking, scope)
                     coverage = workflow_definition.run_stage_check("introspect",
-                        operation.get("sections"), operation.get("steps"), operation.get("none"), tracking)
+                        operation.get("sections"), operation.get("steps"), operation.get("none"), coverage_tracking)
                     sections = validate_introspect_sections(operation.get("sections"))
                     issues = operation.get("issues") or []
                     if issues:
@@ -3418,12 +3537,14 @@ def run(args, parser):
                               "none": coverage["none"], "sections": sections,
                               "round": RENDERER.rollover_round(tracking),
                               "cycle": RENDERER.rollover_cycle(tracking)}
-                    if operation.get("scope") == "post_merge":
-                        record["scope"] = "post_merge"
-                        tracking["post_merge_introspect"] = record
                     history = tracking.setdefault("introspect_history", [])
                     if not isinstance(history, list) or any(not isinstance(item, dict) for item in history):
                         raise ValueError("tracking.introspect_history must be an array of records")
+                    if operation.get("scope") == "post_merge":
+                        record["scope"] = "post_merge"
+                        tracking["post_merge_introspect"] = record
+                        history.append(copy.deepcopy(record))
+                        continue
                     tracking["introspect"] = record
                     history.append(copy.deepcopy(record))
                     reached = tracking.setdefault("stages_reached", [])
@@ -3468,6 +3589,7 @@ def run(args, parser):
                         merged = validate_merged_record(operation.get("merged"))
                         tracking["merged"] = copy.deepcopy(merged)
                         updated_at = merged["merged_at"]
+                        clear_finished_running_state(store["document"], updated_at, merged=True)
                     else:
                         updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     tracking["workflow"] = {"stage": stage, "updated_at": updated_at}

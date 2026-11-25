@@ -145,20 +145,77 @@ def _guard_output(path, protected):
         if source and _same_path(path, source):
             raise ValueError(f"refusing to write {path}: it aliases the {label} {source}")
 
+PORT_RANGE = (50000, 60000)
+# Never hand out the Samantha MCP (8765), Samantha (8766) or devobs viewer (8780) ports.
+PROTECTED_PORTS = {8765, 8766, 8780}
+
+def _viewer_states():
+    states = {}
+    folder = STATE / "viewers"
+    for path in sorted(folder.glob("*.json")) if folder.is_dir() else ():
+        if path.name.endswith(".viewer.json"):
+            continue
+        try:
+            value = json.loads(path.read_text())
+            port = int(value.get("port") or 0)
+        except (OSError, ValueError, TypeError, AttributeError):
+            continue
+        if port:
+            states[path.stem] = (port, value.get("pid"))
+    return states
+
+def _state_is_live(pid):
+    try:
+        return bool(pid) and _pid_is_running(int(pid))
+    except (ValueError, TypeError, OSError, ViewerPIDProbeError):
+        return False
+
 def _project_port(repo, records=None):
+    """Return the repo's one viewer port: chosen once, then never moved or shared.
+
+    A saved registry port wins, then the repo's own per-repo viewer state (registry
+    repair). A repo with neither gets a deterministic slot from its id, skipping ports
+    another repo has saved and ports in use, so each repo keeps one bookmarkable address.
+    Old per-list viewer files never decide or veto the repo's port; they only steer a
+    fresh pick while their viewer is still running. A clash with another repo fails."""
     records = records if records is not None else registry()
-    existing = next((int(record["viewer_port"]) for record in records.values()
-                     if record.get("repo") == repo and record.get("viewer_port")), None)
-    if existing:
-        return existing
-    ports = {int(record["viewer_port"]) for record in records.values()
-             if record.get("repo") != repo and record.get("viewer_port")}
-    candidate = 53366 if 53366 not in ports and _port_is_free(53366) else 0
-    if not candidate:
-        with socket.socket() as sock:
-            sock.bind(("127.0.0.1", 0))
-            candidate = sock.getsockname()[1]
-    return candidate
+    saved = {int(record["viewer_port"]) for record in records.values()
+             if record.get("repo") == repo and record.get("viewer_port")}
+    if len(saved) > 1:
+        raise RuntimeError(f"{repo} has more than one saved viewer port {sorted(saved)}; keep one and retry")
+    if saved:
+        return saved.pop()
+    slug = safe_component(repo.replace("/", "--"))
+    repo_slugs = {safe_component(record["repo"].replace("/", "--")) for record in records.values() if record.get("repo")}
+    taken = set(PROTECTED_PORTS) | {int(record["viewer_port"]) for record in records.values()
+                                    if record.get("repo") != repo and record.get("viewer_port")}
+    states = _viewer_states()
+    own = states.get(slug)
+    if own:
+        if own[0] in taken:
+            raise RuntimeError(f"{repo} viewer port {own[0]} is saved by another repo; give one of them a new port and retry")
+        return own[0]
+    # Only a fresh pick avoids other repos' viewer files and old per-list viewers still running.
+    reserved = set(taken)
+    for stem, (port, pid) in states.items():
+        if stem != slug and (stem in repo_slugs or _state_is_live(pid)):
+            reserved.add(port)
+    low, high = PORT_RANGE
+    span = high - low
+    start = int(hashlib.sha256(repo.encode()).hexdigest()[:8], 16) % span
+    for offset in range(span):
+        candidate = low + (start + offset) % span
+        if candidate not in reserved and _port_is_free(candidate):
+            return candidate
+    raise RuntimeError(f"no free viewer port for {repo} in {low}-{high - 1}")
+
+def _save_project_port(key, port):
+    records = registry()
+    record = records.get(key)
+    if record is None or record.get("viewer_port"):
+        return
+    record["viewer_port"] = port
+    save_registry(records)
 
 def report_paths(record, live):
     home = Path(record["home"])
@@ -342,10 +399,11 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
     else:
         page, base = report_paths(record, live)
         scripts = scripts_identity()
-    port = int(record.get("viewer_port") or old_port or _project_port(project or key))
+    # Only the saved port or the repo's own per-repo state decides; an old per-list file never does.
+    port = int(record.get("viewer_port") or _project_port(project or key))
     if not _port_is_free(port):
         if not running or port != old_port:
-            raise RuntimeError(f"project viewer port {port} is occupied; inspect it before retrying")
+            raise RuntimeError(f"project viewer port {port} is occupied; a repo keeps its one saved port, so free it and retry")
     if not page.exists():
         raise RuntimeError(f"viewer report missing: {page}; render the report and retry")
     started = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%b %-d, %Y, %-I:%M %p IST")
@@ -366,6 +424,9 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
         cause = log.read_text().strip()
         detail = f": {cause}" if cause else ""
         raise RuntimeError(f"viewer failed to start on port {port}{detail}; check {log} and retry")
+    if not record.get("viewer_port"):
+        _save_project_port(key, port)
+        record["viewer_port"] = port
     value = {"port": port, "pid": proc.pid, "version": plugin_version, "instance": instance,
              "data": str(Path(live).resolve()), "report": str(page.resolve()), "base": str(base.resolve()),
              "scripts": str(SCRIPTS.resolve()), "scripts_identity": scripts, "started_at": started}

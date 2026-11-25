@@ -23,6 +23,17 @@ if [ "${1:-}" = codex-usage ]; then
   fi
   exec "$PY" "$ROOT/runtime/collector/codex_usage.py" "$@"
 fi
+case "${1:-}" in
+  cursor-capture|cursor-usage|cursor-hook)
+    # Cursor CLI run capture (stdlib only). cursor-hook is what hooks/cursor-hooks.json runs.
+    sub=${1#cursor-}
+    shift
+    if [ ! -x "$PY" ]; then
+      PY=$(command -v python3) || { echo "developer-observability: python3 not found" >&2; exit 127; }
+    fi
+    exec "$PY" "$ROOT/runtime/collector/cursor_runs.py" "$sub" "$@"
+    ;;
+esac
 if [ "${1:-}" = viewer ]; then
   shift
   if [ ! -x "$PY" ]; then

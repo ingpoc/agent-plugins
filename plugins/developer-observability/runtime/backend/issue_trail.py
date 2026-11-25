@@ -509,3 +509,75 @@ def rollup(issue_sets, rounds, ctx, now=None):
         scoped = [job for job in all_jobs if job["job_id"] in pr_jobs]
         out.append(summary(f"#{pr} all", int(pr) if str(pr).isdigit() else pr, None, cycles_by_pr[pr], scoped))
     return out
+
+
+TOKEN_PARTS = ("uncached_input", "cache_read", "cache_write", "output")
+
+
+def official_usage(job):
+    """Official token total for one job, including cache_read; cost or not_reported."""
+    tokens = job.get("tokens") if isinstance(job.get("tokens"), dict) else {}
+    raw = str(job.get("tokens_source") or "").strip().lower()
+    parts = {key: tokens.get(key) for key in TOKEN_PARTS}
+    complete = all(type(parts[key]) is int for key in TOKEN_PARTS)
+    estimated = raw in ESTIMATED_SOURCES
+    official = raw in OFFICIAL_SOURCES or raw == "official"
+    if complete and not estimated:
+        payload = {**parts, "total": sum(parts[key] for key in TOKEN_PARTS)}
+        tokens_source = "official"
+    elif official and not estimated:
+        total = tokens.get("total") if isinstance(tokens.get("total"), int) else job.get("tokens_total")
+        if isinstance(total, int):
+            payload = {"total": total}
+            for key in TOKEN_PARTS:
+                if type(parts[key]) is int:
+                    payload[key] = parts[key]
+            tokens_source = "official"
+        else:
+            payload, tokens_source = None, "not_reported"
+    else:
+        payload, tokens_source = None, "not_reported"
+    cost = job.get("cost")
+    cost_raw = str(job.get("cost_source") or "").strip().lower()
+    if (isinstance(cost, (int, float)) and not isinstance(cost, bool)
+            and cost_raw in OFFICIAL_SOURCES | {"official"}):
+        cost_source = "official"
+    else:
+        cost, cost_source = None, "not_reported"
+    return {"job_id": job.get("job_id") or job.get("id"), "round": job.get("round"),
+            "tokens": payload, "tokens_source": tokens_source,
+            "cost": cost, "cost_source": cost_source}
+
+
+def official_usage_series(jobs):
+    """Per-job and per-round official totals. Estimated usage is never summed in."""
+    per_job = [official_usage(job) for job in jobs or []]
+    rounds = {}
+    for row in per_job:
+        number = row.get("round")
+        slot = rounds.setdefault(number, {
+            "round": number, "jobs": 0, "has_official": False,
+            "tokens": {key: 0 for key in TOKEN_PARTS + ("total",)},
+            "cost": 0, "cost_known": False,
+        })
+        slot["jobs"] += 1
+        if row["tokens_source"] == "official" and isinstance(row.get("tokens"), dict):
+            slot["has_official"] = True
+            for key in slot["tokens"]:
+                value = row["tokens"].get(key)
+                if type(value) is int:
+                    slot["tokens"][key] += value
+        if row["cost_source"] == "official" and isinstance(row["cost"], (int, float)):
+            slot["cost_known"] = True
+            slot["cost"] += row["cost"]
+    per_round = []
+    for number, slot in sorted(rounds.items(), key=lambda item: (item[0] is None, item[0])):
+        per_round.append({
+            "round": slot["round"],
+            "jobs": slot["jobs"],
+            "tokens": slot["tokens"] if slot["has_official"] else None,
+            "tokens_source": "official" if slot["has_official"] else "not_reported",
+            "cost": slot["cost"] if slot["cost_known"] else None,
+            "cost_source": "official" if slot["cost_known"] else "not_reported",
+        })
+    return {"per_job": per_job, "per_round": per_round}

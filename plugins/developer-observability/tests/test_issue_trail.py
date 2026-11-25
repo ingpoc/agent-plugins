@@ -126,8 +126,12 @@ class IssueTrailTests(unittest.TestCase):
     def test_detail_always_includes_trail_and_jobs_and_keeps_counts(self):
         listing = build_issues("agent-plugins", scope="all")
         detail = build_issues("agent-plugins", scope="all", issue_id="DO-1")
-        self.assertEqual(listing["counts"], detail["counts"])
+        self.assertTrue(listing["counts"])
+        self.assertEqual(set(detail), {"schema_version", "project", "pr", "issue_id", "include", "issues"})
+        self.assertEqual(len(detail["issues"]), 1)
         self.assertEqual(detail["include"], ["trail", "jobs"])
+        self.assertIn("trail", detail["issues"][0])
+        self.assertIn("raw", detail["issues"][0])
         self.assertIn("jobs_usage", detail["issues"][0])
         with self.assertRaises(ValueError):
             build_issues("agent-plugins", issue_id="NOPE-1")

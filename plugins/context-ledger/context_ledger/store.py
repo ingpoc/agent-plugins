@@ -35,6 +35,7 @@ from context_ledger.contracts import (
     SCHEMA_VERSION,
     LedgerError,
     allowed_scopes,
+    retrieval_scope,
     canonical_json,
     fail_dict,
     fts_tokens,
@@ -1043,7 +1044,7 @@ class Store:
                 # A record written before scope v3 carries no scope. migrate_scope.py re-scopes those
                 # to "fleet", so an absent scope reads as fleet here too: a missing field must never
                 # hide an otherwise-retrievable record from every caller.
-                if allowed is not None and (rec["body"].get("scope") or "fleet") not in allowed:
+                if allowed is not None and retrieval_scope(rec["body"], parsed.get("caller_scope")) not in allowed:
                     continue
                 if parsed["scope"] and ((rec["body"].get("scope") or "fleet") != parsed["scope"] or rec["lifecycle"] != "active" or (parsed["rule"] is not None and (rec["body"].get("trace") or {}).get("rule") != parsed["rule"])):
                     continue

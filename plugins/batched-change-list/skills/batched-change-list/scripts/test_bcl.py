@@ -3010,6 +3010,98 @@ elif args[:2] != ['pr', 'edit']:
         missing = self.call_without_viewer("hotfix", "--ids", "ISSUE-01", "--reason", "tool bug")
         self.assertNotEqual(missing.returncode, 0)
 
+    def test_post_merge_introspect_command_records_on_a_fresh_list(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        source_tracking = {
+            "round": 1, "cycle": 1, "stages_reached": ["collect", "plan_fix", "review", "install", "verify"],
+            "plan": {"round": 1, "cycle": 1, "groups": [
+                {"id": "A", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"},
+                 "verify": {"command": "python3 -m unittest test_a.py"}}]},
+        }
+        (live.parent / "122.json").write_text(json.dumps({"findings": [], "tracking": source_tracking}))
+        document = json.loads(live.read_text())
+        document["tracking"] = {
+            "cycle": 2, "round": 1, "stages_reached": [],
+            "workflow": {"stage": "collect", "updated_at": "2026-11-24T12:00:00Z"},
+            "rollover": {"source_pr": 122, "source_merge": {"commit_sha": "a" * 40, "merged_at": "2026-11-24T12:00:00Z"}},
+            "pull_request": document.get("tracking", {}).get("pull_request") or {"label": "PR #123", "url": "https://github.com/example/project/pull/123"},
+        }
+        payload = json.dumps(document)
+        live.write_text(payload)
+        self.data.write_text(payload)
+        refused = self.call_without_viewer("start")
+        self.assertNotEqual(refused.returncode, 0, refused.stderr)
+        self.assertIn("post-merge Introspect", refused.stderr)
+        draft_path = self.root / "post-merge-draft.json"
+        drafted = self.call_without_viewer("introspect", "--scope", "post_merge", "--draft", str(draft_path))
+        self.assertEqual(drafted.returncode, 0, drafted.stderr)
+        draft = json.loads(draft_path.read_text())
+        self.assertEqual(draft["scope"], "post_merge")
+        self.assertTrue(draft["steps"])
+        draft["none"] = list(draft["steps"])
+        for name, section in list(draft["sections"].items()):
+            if "items" in section:
+                draft["sections"][name] = {"none": "Reviewed after merge; no further change."}
+        # drop keys the recorder does not accept
+        record = {"steps": draft["steps"], "none": draft["none"], "sections": draft["sections"]}
+        draft_path.write_text(json.dumps(record))
+        recorded = self.call_without_viewer("introspect", "--scope", "post_merge", "--sections", str(draft_path))
+        self.assertEqual(recorded.returncode, 0, recorded.stderr)
+        saved = json.loads(live.read_text())
+        self.assertEqual(saved["tracking"]["post_merge_introspect"]["scope"], "post_merge")
+        self.assertNotIn("introspect", saved["tracking"].get("stages_reached") or [])
+        self.assertIsNone(saved["tracking"].get("introspect"))
+        self.assertEqual(saved["tracking"]["workflow"]["stage"], "collect")
+        started = self.call_without_viewer("start")
+        self.assertEqual(started.returncode, 0, started.stderr)
+
+    def test_post_merge_introspect_command_uses_merged_list_after_successor_verify(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        source_tracking = {
+            "round": 1, "cycle": 1, "stages_reached": ["collect", "plan_fix", "review", "install", "verify"],
+            "plan": {"round": 1, "cycle": 1, "groups": [
+                {"id": "A", "codex": {"implementer_session": "writer", "reviewer_session": "reviewer"},
+                 "verify": {"command": "python3 -m unittest test_merged.py"}}]},
+        }
+        (live.parent / "122.json").write_text(json.dumps({"findings": [], "tracking": source_tracking}))
+        document = json.loads(live.read_text())
+        document["tracking"] = {
+            "cycle": 2, "round": 1,
+            "stages_reached": ["collect", "plan_fix", "review", "install", "verify"],
+            "workflow": {"stage": "verify", "updated_at": "2026-11-24T12:00:00Z"},
+            "plan": {"cycle": 2, "round": 1, "status": "active", "groups": [
+                {"id": "R1", "finding_ids": ["ISSUE-1"], "status": "verified",
+                 "codex": {"implementer_session": "new"},
+                 "verify": {"command": "python3 -m unittest test_successor.py"}}]},
+            "rollover": {"source_pr": 122, "source_merge": {"commit_sha": "a" * 40, "merged_at": "2026-11-24T12:00:00Z"}},
+            "pull_request": document.get("tracking", {}).get("pull_request") or {"label": "PR #123", "url": "https://github.com/example/project/pull/123"},
+        }
+        payload = json.dumps(document)
+        live.write_text(payload)
+        self.data.write_text(payload)
+        draft_path = self.root / "post-merge-after-verify.json"
+        drafted = self.call_without_viewer("introspect", "--scope", "post_merge", "--draft", str(draft_path))
+        self.assertEqual(drafted.returncode, 0, drafted.stderr)
+        draft = json.loads(draft_path.read_text())
+        self.assertTrue(any("test_merged.py" in step for step in draft["steps"]))
+        self.assertFalse(any("test_successor.py" in step for step in draft["steps"]))
+        draft["none"] = list(draft["steps"])
+        for name, section in list(draft["sections"].items()):
+            if "items" in section:
+                draft["sections"][name] = {"none": "Reviewed after merge; no further change."}
+        record = {"steps": draft["steps"], "none": draft["none"], "sections": draft["sections"]}
+        draft_path.write_text(json.dumps(record))
+        recorded = self.call_without_viewer("introspect", "--scope", "post_merge", "--sections", str(draft_path))
+        self.assertEqual(recorded.returncode, 0, recorded.stderr)
+        saved = json.loads(live.read_text())
+        self.assertEqual(saved["tracking"]["post_merge_introspect"]["scope"], "post_merge")
+        self.assertNotIn("introspect", saved["tracking"].get("stages_reached") or [])
+        self.assertIsNone(saved["tracking"].get("introspect"))
+        self.assertEqual(saved["tracking"]["workflow"]["stage"], "verify")
+        self.assertEqual(saved["tracking"]["plan"]["status"], "active")
+        self.assertEqual(saved["tracking"]["stages_reached"],
+                         ["collect", "plan_fix", "review", "install", "verify"])
+
 
 
 if __name__ == "__main__": unittest.main()

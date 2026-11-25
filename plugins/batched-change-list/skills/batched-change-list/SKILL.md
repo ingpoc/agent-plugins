@@ -4,13 +4,14 @@ description: Use when collecting findings one at a time, managing build-install-
 ---
 # Batched change list
 
-- The orchestrator does not write fix code, so the fix and its review stay separate.
+- The orchestrator writes no fix code, so the fix and its review stay separate.
 - Codex routing lives in the `codex-cli` skill, so model and effort stay in one place.
 - Only the orchestrator writes the tracker and commits, so the list and its history have one writer.
-- Editing this skill? Read [principles.md](principles.md) first so edits pass it.
-- Every “already present” item needs its own named test, so fixed or present claims are proved.
+- Editing this skill? Read [principles.md](principles.md) first.
+- Every “already present” item needs its own named test.
 - Show one fix total with no product/process split, so the gate count is the number the owner sees.
-- Run Introspect after every Verify, so each round is reviewed in delete, simplify, optimize, automate order before the gate.
+- A repo's viewer keeps its first port, so one bookmark shows the newest list; a taken port fails, never moves.
+- Run Introspect after every Verify: delete, simplify, optimize, automate, before the gate.
 
 | Step | When | Load | Run |
 |---|---|---|---|
@@ -31,4 +32,4 @@ description: Use when collecting findings one at a time, managing build-install-
 | Recovery | `references/tracker.md` |
 | Viewer use | `references/viewer.md` |
 
-Self-validate: regenerate the chart with `python3 scripts/statechart.py`; run `python3 -m unittest discover -s scripts -p 'test_*.py'`.
+Self-validate: `python3 scripts/statechart.py`, then `python3 -m unittest discover -s scripts -p 'test_*.py'`.
