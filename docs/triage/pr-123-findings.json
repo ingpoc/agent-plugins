@@ -32,6 +32,226 @@
         "round": 1,
         "started_at": "2026-11-24T19:24:58Z",
         "ended_at": "2026-11-25T09:49:23Z"
+      },
+      {
+        "id": "pr123-r2-736a6ccd",
+        "build": "batched-change-list 0.1.75 from samantha-next-r13",
+        "revision": "736a6ccdf50ce193dfa170a0be9c466c29338d91",
+        "installed_at": "2026-11-25T09:49:23Z",
+        "install_evidence": "bcl install-local revision 736a6ccdf50ce193dfa170a0be9c466c29338d91; sha256 162a024498e92f3491033570fdd45c84adb7d46e7bb9ca536a2ad265e6c7be19",
+        "cycle": 15,
+        "status": "complete",
+        "checks": {
+          "DO-1": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "PR122-parked-backlog": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-178": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "DO-14": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "DO-15": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "DO-16": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "DO-17": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-179": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-180": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-181": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-182": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-183": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-184": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "DO-18": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "CL-1": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "DO-21": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-185": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "DO-22": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-186": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          },
+          "BCL-187": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:30:09Z",
+            "stopped": true,
+            "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+            "observed_at": "2026-11-25T15:30:09Z",
+            "updated_at": "2026-11-25T15:30:09Z",
+            "finished_at": "2026-11-25T15:30:09Z"
+          }
+        },
+        "run_id": "pr123-r2-736a6ccd",
+        "pr": 123,
+        "round": 2,
+        "started_at": "2026-11-25T09:49:23Z",
+        "stopped": {
+          "reason": "Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "at": "2026-11-25T15:30:09Z"
+        },
+        "ended_at": "2026-11-25T15:30:09Z"
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -46,9 +266,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-25T15:33:11Z",
-      "now": "2026-11-25T15:33:11Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-25T15:34:02Z",
+      "now": "2026-11-25T15:34:02Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -633,7 +853,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:33:11Z",
+    "last_written_at": "2026-11-25T15:34:02Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -931,7 +1151,8 @@
       "collect",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 3,
@@ -2271,7 +2492,7 @@
             "BCL-182",
             "BCL-183"
           ],
-          "status": "installing",
+          "status": "verifying",
           "reason": "One job outcome model: credit a named implementer commit, keep a tool-fault review in review, and resume a dead runner through an official finish.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -2386,9 +2607,9 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:30:24Z",
-          "stage_entered_at": "2026-11-25T15:33:11Z",
-          "phase": "install",
+          "updated_at": "2026-11-25T15:34:02Z",
+          "stage_entered_at": "2026-11-25T15:34:02Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -2397,11 +2618,6 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-25T15:33:11Z"
-          },
-          "stage_model": {
-            "stage": "install",
-            "model": "Grok Bot",
-            "at": "2026-11-25T15:33:11Z"
           }
         },
         {
@@ -2672,224 +2888,85 @@
       "cycle": 15
     },
     "verification_run": {
-      "id": "pr123-r2-736a6ccd",
-      "build": "batched-change-list 0.1.75 from samantha-next-r13",
-      "revision": "736a6ccdf50ce193dfa170a0be9c466c29338d91",
-      "installed_at": "2026-11-25T09:49:23Z",
-      "install_evidence": "bcl install-local revision 736a6ccdf50ce193dfa170a0be9c466c29338d91; sha256 162a024498e92f3491033570fdd45c84adb7d46e7bb9ca536a2ad265e6c7be19",
+      "id": "pr123-r3-671698d6",
+      "build": "0.1.75",
+      "revision": "dcb6ebf6851717b3fcd76497b64dbcec16a596cb",
+      "installed_at": "2026-11-25T15:19:33Z",
+      "install_evidence": "install-local batched-change-list 0.1.75 at dcb6ebf6851717b3fcd76497b64dbcec16a596cb; independent readback: live bin/bcl sha256 ee5eba9591baee14a68de21277504b7106d1422746a4858d3efdee319b601964 matches worktree plugin; official bcl install stage at 2026-11-25T15:33:11Z with no then-command (context-ledger was not reinstalled; port 8780 was not restarted). DO-24 is verified from the r13 worktree on a temporary port.",
       "cycle": 15,
-      "status": "complete",
+      "status": "active",
       "checks": {
         "DO-1": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "PR122-parked-backlog": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-178": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "DO-14": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "DO-15": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "DO-16": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "DO-17": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-179": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-180": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-181": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-182": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-183": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-184": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "DO-18": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "CL-1": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "DO-21": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-185": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "DO-22": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-186": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
         },
         "BCL-187": {
-          "state": "inconclusive",
-          "started_at": "2026-11-25T15:30:09Z",
-          "stopped": true,
-          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-          "observed_at": "2026-11-25T15:30:09Z",
-          "updated_at": "2026-11-25T15:30:09Z",
-          "finished_at": "2026-11-25T15:30:09Z"
+          "state": "pending"
+        },
+        "DO-23": {
+          "state": "pending"
+        },
+        "DO-24": {
+          "state": "pending"
         }
       },
-      "run_id": "pr123-r2-736a6ccd",
+      "run_id": "pr123-r3-671698d6",
       "pr": 123,
-      "round": 2,
-      "started_at": "2026-11-25T09:49:23Z",
-      "stopped": {
-        "reason": "Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
-        "at": "2026-11-25T15:30:09Z"
-      },
-      "ended_at": "2026-11-25T15:30:09Z"
+      "round": 3,
+      "started_at": "2026-11-25T15:19:33Z"
     },
     "introspect": {
       "result": "Introspect recorded",
