@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-25T15:04:25Z",
-      "now": "2026-11-25T15:04:25Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-25T15:22:18Z",
+      "now": "2026-11-25T15:22:18Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 122,
@@ -98,7 +98,7 @@
       }
     },
     "cycle": 15,
-    "round": 2,
+    "round": 3,
     "round_history": [
       {
         "round": 2,
@@ -354,6 +354,11 @@
         "round": 1,
         "fixed": 1,
         "ended_at": "2026-11-25T08:36:29Z"
+      },
+      {
+        "round": 2,
+        "fixed": 10,
+        "ended_at": "2026-11-25T15:22:18Z"
       }
     ],
     "introspect_history": [
@@ -628,7 +633,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:04:25Z",
+    "last_written_at": "2026-11-25T15:22:18Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -786,7 +791,7 @@
         ]
       }
     ],
-    "round_started_at": "2026-11-25T08:36:29Z",
+    "round_started_at": "2026-11-25T15:22:18Z",
     "gate": {
       "merge_previous_pr_threshold": 16,
       "report_threshold": 15
@@ -925,14 +930,10 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "cycle": 15,
-      "round": 2,
+      "round": 3,
       "groups": [
         {
           "id": "R2-PORT",
@@ -1251,7 +1252,7 @@
             "must_fix_note": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port.",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-25T11:31:37Z",
+          "updated_at": "2026-11-25T15:22:18Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -1436,17 +1437,14 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-25T11:31:37Z"
+          "updated_at": "2026-11-25T15:22:18Z"
         },
         {
           "id": "R2-DO1",
           "finding_ids": [
             "DO-1"
           ],
-          "status": "parked",
-          "reason": "Needs Guru later round",
           "parked_to": 2,
-          "stage_entered_at": "2026-11-24T19:18:36Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -1509,8 +1507,10 @@
               "owner_override": true
             }
           ],
+          "status": "parked",
           "codex": {},
-          "updated_at": "2026-11-25T11:31:37Z"
+          "stage_entered_at": "2026-11-24T19:18:36Z",
+          "updated_at": "2026-11-25T15:22:18Z"
         },
         {
           "id": "R2-CURSOR",
@@ -1536,7 +1536,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T11:31:37Z",
+          "updated_at": "2026-11-25T15:22:18Z",
           "stage_entered_at": "2026-11-25T10:44:40Z",
           "stage_model": {
             "stage": "verify",
@@ -1570,7 +1570,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T11:31:37Z",
+          "updated_at": "2026-11-25T15:22:18Z",
           "stage_entered_at": "2026-11-25T10:44:40Z",
           "stage_model": {
             "stage": "verify",
@@ -1617,7 +1617,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T11:31:37Z",
+          "updated_at": "2026-11-25T15:22:18Z",
           "stage_entered_at": "2026-11-25T11:16:41Z",
           "codex": {
             "fix_status": "passed",
@@ -1851,7 +1851,7 @@
               "at": "2026-11-25T11:24:09Z"
             }
           ],
-          "updated_at": "2026-11-25T11:41:36Z",
+          "updated_at": "2026-11-25T15:22:18Z",
           "stage_entered_at": "2026-11-25T11:41:37Z",
           "codex": {
             "fix_status": "passed",
@@ -2161,7 +2161,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T11:41:37Z",
+          "updated_at": "2026-11-25T15:22:18Z",
           "stage_entered_at": "2026-11-25T11:42:11Z",
           "codex": {
             "implementer_session": "grok-do21-fix",
@@ -2262,9 +2262,100 @@
             "model": "Grok Bot",
             "at": "2026-11-25T11:41:37Z"
           }
+        },
+        {
+          "id": "R3-JOBOUT",
+          "finding_ids": [
+            "BCL-180",
+            "BCL-182",
+            "BCL-183"
+          ],
+          "status": "planned",
+          "reason": "One job outcome model: credit a named implementer commit, keep a tool-fault review in review, and resume a dead runner through an official finish.",
+          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/workflow_definition.json",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_lifecycle.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_receipts.py"
+          ],
+          "verify": {
+            "command": "cd /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13/plugins/batched-change-list/skills/batched-change-list/scripts && python3 -m unittest test_job_lifecycle.JobLifecycleTests.test_start_job_resumes_when_pid_is_dead_without_exit_code test_job_lifecycle.JobLifecycleTests.test_renderer_and_start_job_share_lane_job_running test_job_lifecycle.JobLifecycleTests.test_review_tool_fault_leaves_lane_in_review_and_allows_rerun test_job_receipts.JobReceiptTests.test_fix_credits_named_implementer_commit_outside_the_process test_job_receipts.JobReceiptTests.test_named_worktree_fix_without_commit_fails",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 3
+          },
+          "codex": {
+            "implementer_session": "Grok Bot",
+            "reviewer_session": "Grok Bot review"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T15:22:18Z",
+          "stage_entered_at": "2026-11-25T15:22:18Z"
+        },
+        {
+          "id": "R3-CL1",
+          "finding_ids": [
+            "CL-1"
+          ],
+          "status": "planned",
+          "reason": "Find must not return a fleet record that is about another project.",
+          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "files": [
+            "plugins/context-ledger/context_ledger/contracts.py",
+            "plugins/context-ledger/context_ledger/store.py",
+            "plugins/context-ledger/tests/test_scope.py"
+          ],
+          "verify": {
+            "command": "cd /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13/plugins/context-ledger/tests && python3 -m unittest test_scope.ScopeFilterTests.test_find_hides_a_fleet_record_about_another_project test_scope.ScopeFilterTests.test_find_keeps_a_project_record_for_its_own_caller",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "implementer_session": "Grok Bot",
+            "reviewer_session": "Grok Bot review"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T15:22:18Z",
+          "stage_entered_at": "2026-11-25T15:22:18Z"
+        },
+        {
+          "id": "R3-USAGE",
+          "finding_ids": [
+            "DO-24"
+          ],
+          "status": "planned",
+          "reason": "Publish official token totals per job and per round, including cache read, with cost or not reported.",
+          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "files": [
+            "plugins/developer-observability/runtime/backend/issue_trail.py",
+            "plugins/developer-observability/runtime/viewer.py",
+            "plugins/developer-observability/tests/test_usage_totals.py"
+          ],
+          "verify": {
+            "command": "cd /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13/plugins/developer-observability/tests && python3 -m unittest test_usage_totals",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "implementer_session": "Grok Bot",
+            "reviewer_session": "Grok Bot review"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T15:22:18Z",
+          "stage_entered_at": "2026-11-25T15:22:18Z"
         }
       ],
-      "status": "closed"
+      "cycle": 15
     },
     "verification_run": {
       "id": "pr123-r2-736a6ccd",
@@ -2777,7 +2868,7 @@
       "observed": "2026-11-25 09:22 IST: three bcl fix jobs (OBS-01, CI-01, ENV-01) whose commits already existed exited 3 'fix job made no commit'; bcl only compares HEAD before and after the job, so a concurrent lane's commit in the same worktree would satisfy it. Plan and finding edits are also refused for as long as any job runs (a 12 min build blocked all tracker writes).",
       "recommendation": "Owned by the batched-change-list plugin: compare lane-scoped files or accept a commit sha argument; allow finding adds while a job runs.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "area": "batched-change-list",
       "details": {
@@ -2791,7 +2882,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:22:18Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-181",
@@ -2827,7 +2925,7 @@
       "observed": "2026-11-25 09:36 and 09:45 IST: OBS-01 review exited 4 (guard false positive) and then deepseek free limit; both times the lane moved to running/fix and 'review jobs require each lane to finish fix'. Reviewer scripts now exit 0 with an incomplete reply so bcl keeps the lane in review.",
       "recommendation": "Owned by the batched-change-list plugin: keep the lane in review on any review tool fault.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "area": "batched-change-list",
       "details": {
@@ -2841,7 +2939,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:22:18Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-183",
@@ -2852,7 +2957,7 @@
       "observed": "2026-11-25 10:33 IST: Mac connection dropped during BUILD-01 review job fee90d1f; review.sh finished with VERDICT PASS but the job had no exit_code, so presuite was refused (lane build already has a running review job). Recorded the finish from the real reply via bcl's own _job_operations/_job_write_retry.",
       "recommendation": "Plugin owner: add a recover/finish stage that checks the job pid and records the retained output.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "area": "batched-change-list",
       "details": {
@@ -2866,7 +2971,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:22:18Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-184",
@@ -2947,7 +3059,7 @@
       "observed": "2026-11-25 09:13-09:31 IST: 6 find calls scoped project like-minded-app; 4 returned only decision 364b7d61 (ORN forge CI), 2 returned none; 1 get. Two project-scoped decisions saved this round (6cb7ea19 port, 8675d855 SPM). Empty Likeminded memory alone is not the bug; the bug is the unrelated ORN record matching 4 of 6 project-scoped generic queries.",
       "recommendation": "Owned by the Context Ledger: tighten the IDF floor so an ORN-entity record does not match generic CI queries.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "area": "context-ledger",
       "details": {
@@ -2960,7 +3072,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:22:18Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "DO-21",
@@ -3194,7 +3313,7 @@
       "done_when": "The official path publishes a total per job and per round that includes cache read, and cost is a number or is marked not reported, with tests and a live read.",
       "source": "Agent reported",
       "priority": "high",
-      "status": "untested",
+      "status": "in_progress",
       "recommendation": "Add an official usage payload and keep unsupported cost marked not reported.",
       "details": {
         "related": "Follows Cursor run capture work. The gap is the missing official total and cost marker, not capture of the run itself."
@@ -3206,7 +3325,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:22:18Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     }
   ]
 }
