@@ -7,7 +7,33 @@
       "opened_at": null
     },
     "worktree": "samantha-next-r13",
-    "verification_history": [],
+    "verification_history": [
+      {
+        "id": "pr123-r1-09ca4e40",
+        "build": "batched-change-list 0.1.74 from samantha-next-r13",
+        "revision": "09ca4e405def9ee8723a22617920ab102b458db9",
+        "installed_at": "2026-11-24T19:24:58Z",
+        "install_evidence": "bcl install-local revision 09ca4e405def9ee8723a22617920ab102b458db9; sha256 294e87c135cfd9c1694c4f5c0d674efc4e9c35bc67d085ca4f1b8ed6fef34e7e",
+        "cycle": 15,
+        "status": "interrupted",
+        "checks": {
+          "DO-1": {
+            "state": "pending"
+          },
+          "PR122-parked-backlog": {
+            "state": "pending"
+          },
+          "BCL-178": {
+            "state": "pending"
+          }
+        },
+        "run_id": "pr123-r1-09ca4e40",
+        "pr": 123,
+        "round": 1,
+        "started_at": "2026-11-24T19:24:58Z",
+        "ended_at": "2026-11-25T09:49:23Z"
+      }
+    ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
     "installed_plugins": {
       "observed_at": "2026-11-08T13:43:48.840859+00:00",
@@ -20,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-25T09:49:15Z",
-      "now": "2026-11-25T09:49:15Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-25T09:49:33Z",
+      "now": "2026-11-25T09:49:33Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -484,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T09:49:15Z",
+    "last_written_at": "2026-11-25T09:49:33Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -782,7 +808,8 @@
       "collect",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "cycle": 15,
@@ -796,8 +823,8 @@
             "BCL-185"
           ],
           "worktree": "samantha-next-r13",
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
@@ -818,7 +845,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-25T09:49:15Z",
+          "stage_entered_at": "2026-11-25T09:49:33Z",
           "failure_history": [
             {
               "attempt_id": "0078936338734b8cab2d2cd31049f5a2",
@@ -1104,7 +1131,7 @@
             "must_fix_note": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port.",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-25T08:38:17Z",
+          "updated_at": "2026-11-25T09:49:33Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -1113,6 +1140,11 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-25T09:49:15Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot",
+            "at": "2026-11-25T09:49:33Z"
           }
         },
         {
@@ -1363,11 +1395,11 @@
       ]
     },
     "verification_run": {
-      "id": "pr123-r1-09ca4e40",
-      "build": "batched-change-list 0.1.74 from samantha-next-r13",
-      "revision": "09ca4e405def9ee8723a22617920ab102b458db9",
-      "installed_at": "2026-11-24T19:24:58Z",
-      "install_evidence": "bcl install-local revision 09ca4e405def9ee8723a22617920ab102b458db9; sha256 294e87c135cfd9c1694c4f5c0d674efc4e9c35bc67d085ca4f1b8ed6fef34e7e",
+      "id": "pr123-r2-736a6ccd",
+      "build": "batched-change-list 0.1.75 from samantha-next-r13",
+      "revision": "736a6ccdf50ce193dfa170a0be9c466c29338d91",
+      "installed_at": "2026-11-25T09:49:23Z",
+      "install_evidence": "bcl install-local revision 736a6ccdf50ce193dfa170a0be9c466c29338d91; sha256 162a024498e92f3491033570fdd45c84adb7d46e7bb9ca536a2ad265e6c7be19",
       "cycle": 15,
       "status": "active",
       "checks": {
@@ -1379,12 +1411,63 @@
         },
         "BCL-178": {
           "state": "pending"
+        },
+        "DO-14": {
+          "state": "pending"
+        },
+        "DO-15": {
+          "state": "pending"
+        },
+        "DO-16": {
+          "state": "pending"
+        },
+        "DO-17": {
+          "state": "pending"
+        },
+        "BCL-179": {
+          "state": "pending"
+        },
+        "BCL-180": {
+          "state": "pending"
+        },
+        "BCL-181": {
+          "state": "pending"
+        },
+        "BCL-182": {
+          "state": "pending"
+        },
+        "BCL-183": {
+          "state": "pending"
+        },
+        "BCL-184": {
+          "state": "pending"
+        },
+        "DO-18": {
+          "state": "pending"
+        },
+        "CL-1": {
+          "state": "pending"
+        },
+        "DO-21": {
+          "state": "pending"
+        },
+        "BCL-185": {
+          "state": "pending"
+        },
+        "DO-22": {
+          "state": "pending"
+        },
+        "BCL-186": {
+          "state": "pending"
+        },
+        "BCL-187": {
+          "state": "pending"
         }
       },
-      "run_id": "pr123-r1-09ca4e40",
+      "run_id": "pr123-r2-736a6ccd",
       "pr": 123,
-      "round": 1,
-      "started_at": "2026-11-24T19:24:58Z"
+      "round": 2,
+      "started_at": "2026-11-25T09:49:23Z"
     }
   },
   "findings": [
