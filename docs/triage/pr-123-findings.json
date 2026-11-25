@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-25T09:49:33Z",
-      "now": "2026-11-25T09:49:33Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-25T10:45:15Z",
+      "now": "2026-11-25T10:45:15Z — Fix started"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T09:49:45Z",
+    "last_written_at": "2026-11-25T10:45:15Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1132,7 +1132,7 @@
             "must_fix_note": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port.",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-25T09:49:33Z",
+          "updated_at": "2026-11-25T10:44:28Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -1317,7 +1317,7 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-25T08:36:46Z"
+          "updated_at": "2026-11-25T10:44:28Z"
         },
         {
           "id": "R2-DO1",
@@ -1391,7 +1391,144 @@
             }
           ],
           "codex": {},
-          "updated_at": "2026-11-25T08:36:46Z"
+          "updated_at": "2026-11-25T10:44:28Z"
+        },
+        {
+          "id": "R2-CURSOR",
+          "name": "Live-prove Cursor CLI capture",
+          "label": "CURSOR",
+          "finding_ids": [
+            "DO-14",
+            "DO-15"
+          ],
+          "worktree": "samantha-next-r13",
+          "status": "verified",
+          "phase": "verify",
+          "files": [],
+          "reason": "Fixes already landed on the branch (cdcbcfab, 688dbe85, 29c801f0, cb2a5ef1, contained in 9e972ba1); this lane only proves them: named tests at r13 head plus live readback from the 8780 viewer and a real Cursor CLI run after agent login.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+            "method": "Named tests; live 8780: picker lists agent-plugins and likeminded, likeminded opens bcl-r1 with 25 issues, #122/#120 baselines with 0 regressed, one-issue payload; live Cursor run 1c28e024 read back with model, official tokens, cursor_version and wall time.",
+            "status": "verified",
+            "fixed": 2,
+            "failed": 0,
+            "total": 2,
+            "finished_at": "2026-11-25T10:44:40Z"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T10:44:36Z",
+          "stage_entered_at": "2026-11-25T10:44:40Z",
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot",
+            "at": "2026-11-25T10:44:36Z"
+          }
+        },
+        {
+          "id": "R2-LANDED",
+          "name": "Live-verify landed observability fixes",
+          "label": "LANDED",
+          "finding_ids": [
+            "DO-16",
+            "DO-17",
+            "DO-22"
+          ],
+          "worktree": "samantha-next-r13",
+          "status": "verified",
+          "phase": "verify",
+          "files": [],
+          "reason": "Fixes already landed on the branch (cdcbcfab, 688dbe85, 29c801f0, cb2a5ef1, contained in 9e972ba1); this lane only proves them: named tests at r13 head plus live readback from the 8780 viewer and a real Cursor CLI run after agent login.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+            "method": "Named tests; live 8780: picker lists agent-plugins and likeminded, likeminded opens bcl-r1 with 25 issues, #122/#120 baselines with 0 regressed, one-issue payload; live Cursor run 1c28e024 read back with model, official tokens, cursor_version and wall time.",
+            "status": "verified",
+            "fixed": 3,
+            "failed": 0,
+            "total": 3,
+            "finished_at": "2026-11-25T10:44:40Z"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T10:44:36Z",
+          "stage_entered_at": "2026-11-25T10:44:40Z",
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot",
+            "at": "2026-11-25T10:44:36Z"
+          }
+        },
+        {
+          "id": "R2-DO18",
+          "name": "Passing test lines are never failures",
+          "label": "DO18",
+          "finding_ids": [
+            "DO-18"
+          ],
+          "worktree": "samantha-next-r13",
+          "status": "running",
+          "phase": "fix",
+          "files": [
+            "plugins/developer-observability/runtime/collector/sources.py",
+            "plugins/developer-observability/tests/test_collector.py"
+          ],
+          "reason": "iter_textlog flagged any line matching the error keyword unless it had status=ok, so a passing test named after an error was a log_error. Skip known pass marks before the keyword check.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/do18.sh",
+            "method": "Named tests, then real node:test spec and TAP output parsed by the r13 collector: passing tests naming error are not flagged, the failing test is.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T10:44:28Z",
+          "stage_entered_at": "2026-11-25T10:45:15Z",
+          "codex": {
+            "fix_status": "running",
+            "job": {
+              "id": "6f57ba5284534408b59bfdbbed25e2df",
+              "phase": "fix",
+              "started_at": "2026-11-25T10:45:15Z",
+              "command": "commit-do18.sh",
+              "heartbeat_at": "2026-11-25T10:45:15Z",
+              "plan_sha256": "243651c4440e4379895096c23cdcb70a4a92d8e25304a27f3089abc0380e2258",
+              "finding_ids": [
+                "DO-18"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot",
+              "lane_sha256": "8f602106a83e8cfae36df43a2a686932f31d75f57120cc80489e9389f8be89c2",
+              "cycle": 15,
+              "round": 2
+            }
+          }
+        },
+        {
+          "id": "R2-DO23",
+          "name": "Live list wins the default view",
+          "label": "DO23",
+          "finding_ids": [
+            "DO-23"
+          ],
+          "worktree": "samantha-next-r13",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/developer-observability/runtime/backend/round_view.py",
+            "plugins/developer-observability/runtime/backend/issue_state.py",
+            "plugins/developer-observability/tests/test_issues_api.py"
+          ],
+          "reason": "_tracker_sort_key ranks by PR number first, so a merged or older numbered list hid a live non-numeric list. Rank latest by unmerged, then last written; keep history order.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh",
+            "method": "Named tests, then the r13 backend on the real state: agent-plugins opens 123, likeminded opens bcl-r1, live rows are 123 and bcl-r1."
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T10:44:28Z",
+          "stage_entered_at": "2026-11-25T10:44:28Z"
         }
       ]
     },
@@ -1599,7 +1736,7 @@
       },
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "area": "developer-observability",
       "created_at": "2026-11-25T03:35:45Z",
       "first_seen": {
@@ -1608,7 +1745,24 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T10:44:36Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T10:44:40Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
+        }
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
     },
     {
       "id": "DO-15",
@@ -1625,7 +1779,7 @@
       },
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "area": "developer-observability",
       "created_at": "2026-11-25T04:02:42Z",
       "first_seen": {
@@ -1634,7 +1788,24 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T10:44:36Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T10:44:40Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
+        }
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
     },
     {
       "id": "DO-16",
@@ -1651,7 +1822,7 @@
       },
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "area": "developer-observability",
       "created_at": "2026-11-25T04:19:06Z",
       "first_seen": {
@@ -1660,7 +1831,24 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T10:44:36Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T10:44:40Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
+        }
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
     },
     {
       "id": "DO-17",
@@ -1676,7 +1864,7 @@
       },
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "area": "developer-observability",
       "created_at": "2026-11-25T04:19:06Z",
       "first_seen": {
@@ -1685,7 +1873,24 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T10:44:36Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T10:44:40Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
+        }
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
     },
     {
       "id": "BCL-179",
@@ -1964,7 +2169,7 @@
       "observed": "25 Nov 2026, reported by Guru via Observability: GET /api/issues?project=likeminded (and ingpoc--like-minded-app) returns tracker_unavailable, although config.json lists likeminded and the BCL registry has ingpoc--like-minded-app/bcl-r1.json. issue_state.py builds lists.projects with just the requested project.",
       "recommendation": "Build lists.projects from every configured project and BCL registry repo with a tracker, and resolve likeminded / ingpoc--like-minded-app to its registry tracker.",
       "source": "User reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "priority": "medium",
       "area": "developer-observability",
       "details": {
@@ -1977,7 +2182,24 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T10:44:36Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T10:44:40Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
+        }
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
     },
     {
       "id": "BCL-186",
@@ -2021,6 +2243,31 @@
       "created_at": "2026-11-25T09:16:32Z",
       "first_seen": {
         "at": "2026-11-25T09:16:32Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "DO-23",
+      "title": "The observability viewer opens an older numbered list instead of the live one",
+      "summary": "When a project has both a numbered list and a live list with a non-numeric id, the viewer picks the higher number as the latest list, so the live list is hidden by default.",
+      "impact": "Guru opens a project and sees an old or merged list instead of the one being worked on.",
+      "done_when": "When a project has a numbered list that is merged or older and a live list with a non-numeric name, the viewer opens the live, most recently written list by default and marks it live in the picker; the agent-plugins project still opens PR #123; a test covers it.",
+      "observed": "25 Nov 2026 ~14:05 IST, DO-22 review of cb2a5ef1: _tracker_sort_key in runtime/backend/round_view.py orders by (pr number, last_written_at, mtime) with non-numeric ids as 0, so build_issues and find_tracker pick 19.json over a newer live bcl-r1.json.",
+      "recommendation": "Rank latest by unmerged first, then last_written_at, then pr number and mtime; keep the chronological order used for history unchanged.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "area": "developer-observability",
+      "details": {
+        "related": "DO-22 (cb2a5ef1) follow-up noted by Observability",
+        "example": "19.json (merged) vs bcl-r1.json (live) for Likeminded"
+      },
+      "created_at": "2026-11-25T10:38:35Z",
+      "first_seen": {
+        "at": "2026-11-25T10:38:35Z",
         "pr": null,
         "round": 2,
         "source": "created_at"
