@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-25T11:32:18Z",
-      "now": "2026-11-25T11:32:18Z — Review started"
+      "stage": "verify",
+      "updated_at": "2026-11-25T11:41:36Z",
+      "now": "2026-11-25T11:41:36Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T11:32:18Z",
+    "last_written_at": "2026-11-25T11:41:36Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1661,8 +1661,8 @@
             "DO-23"
           ],
           "worktree": "samantha-next-r13",
-          "status": "review",
-          "phase": "review",
+          "status": "verifying",
+          "phase": "verify",
           "files": [
             "plugins/developer-observability/runtime/backend/round_view.py",
             "plugins/developer-observability/runtime/backend/issue_state.py",
@@ -1731,30 +1731,35 @@
               "at": "2026-11-25T11:24:09Z"
             }
           ],
-          "updated_at": "2026-11-25T11:31:37Z",
-          "stage_entered_at": "2026-11-25T11:24:36Z",
+          "updated_at": "2026-11-25T11:41:36Z",
+          "stage_entered_at": "2026-11-25T11:41:36Z",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "40bec20fe16443ba8c30cac97280274b",
-              "phase": "review",
-              "started_at": "2026-11-25T11:24:48Z",
-              "command": "review-do23.sh",
-              "heartbeat_at": "2026-11-25T11:40:00Z",
-              "plan_sha256": "f1ee7ca1dac7d5bc807994c3f33f8e4a2998a1d09f884da9fad429a2a37e850f",
+              "id": "75a1ff9511a24e3c9eee22feb5a15f75",
+              "phase": "presuite",
+              "started_at": "2026-11-25T11:38:03Z",
+              "command": "run-presuite.sh",
+              "heartbeat_at": "2026-11-25T11:41:20Z",
+              "plan_sha256": "681a025f02cb9b2e9a3be0095a73cf801f002695078cb7398845e009fccbabfa",
               "finding_ids": [
+                "DO-21",
                 "DO-23"
               ],
               "worktree": "samantha-next-r13",
-              "model": "OpenCode beam-free",
+              "model": "Grok Bot",
               "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
               "cycle": 15,
               "round": 2,
-              "pid": 33238,
+              "pid": 48925,
               "exit_code": 0,
-              "finished_at": "2026-11-25T11:40:00Z",
-              "output_path": "/Users/gurusharan/.agents/artifacts/bcl-123/r2-do/review-do23-raw.txt",
+              "finished_at": "2026-11-25T11:41:20Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/75a1ff9511a24e3c9eee22feb5a15f75.log",
               "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 197,
+              "session": "grok-do23-fix",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -1969,11 +1974,43 @@
                 "wall_time_s": 13,
                 "session": "grok-do23-fix",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "40bec20fe16443ba8c30cac97280274b",
+                "phase": "review",
+                "started_at": "2026-11-25T11:24:48Z",
+                "command": "review-do23.sh",
+                "heartbeat_at": "2026-11-25T11:40:00Z",
+                "plan_sha256": "f1ee7ca1dac7d5bc807994c3f33f8e4a2998a1d09f884da9fad429a2a37e850f",
+                "finding_ids": [
+                  "DO-23"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode beam-free",
+                "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
+                "cycle": 15,
+                "round": 2,
+                "pid": 33238,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T11:40:00Z",
+                "output_path": "/Users/gurusharan/.agents/artifacts/bcl-123/r2-do/review-do23-raw.txt",
+                "output_retained": true,
+                "finished_phase_status": "passed"
               }
             ],
             "reviewer_model": "OpenCode beam-free",
             "must_fix_note": "1. `plugins/developer-observability/runtime/backend/issue_state.py:913` — round ownership still selects with `max(owning, key=_tracker_sort_key)`, so a merged/older numbered tracker (e.g. `19.json`) beats the live tracker (`bcl-r1.json`) for a shared round. Reproduced: `build_issues(\"likeminded\", scope=\"round:1\")` returns `19` instead of `bcl-r1`. Should use `_latest_tracker_key`.\n2. `plugins/developer-observability/runtime/backend/issue_state.py:921` and `:925` — focused/current tracker selection (requested PR and scope-round paths) still uses `_tracker_sort_key`, disagreeing with `_latest_tracker_key` when a PR has multiple tracker files or a non-numeric live list is involved. Should use `_latest_tracker_key`.",
             "review_status": "passed"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T11:41:20Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot",
+            "at": "2026-11-25T11:41:36Z"
           }
         },
         {
@@ -2010,20 +2047,31 @@
             "reviewer_session": "opencode-do21-review",
             "fix_status": "passed",
             "job": {
-              "id": "2ad4b1fdca174e36ae49b62112a41741",
-              "phase": "review",
-              "started_at": "2026-11-25T11:32:18Z",
-              "command": "review-do21.sh",
-              "heartbeat_at": "2026-11-25T11:32:18Z",
+              "id": "75a1ff9511a24e3c9eee22feb5a15f75",
+              "phase": "presuite",
+              "started_at": "2026-11-25T11:38:03Z",
+              "command": "run-presuite.sh",
+              "heartbeat_at": "2026-11-25T11:41:20Z",
               "plan_sha256": "681a025f02cb9b2e9a3be0095a73cf801f002695078cb7398845e009fccbabfa",
               "finding_ids": [
-                "DO-21"
+                "DO-21",
+                "DO-23"
               ],
               "worktree": "samantha-next-r13",
-              "model": "OpenCode beam-free",
+              "model": "Grok Bot",
               "lane_sha256": "f8b130f93d5b186b26f6f9631c2a89147cbdec726dea22686e3f859668c1218f",
               "cycle": 15,
-              "round": 2
+              "round": 2,
+              "pid": 48925,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T11:41:20Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/75a1ff9511a24e3c9eee22feb5a15f75.log",
+              "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 197,
+              "session": "grok-do23-fix",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -2052,10 +2100,41 @@
                 "wall_time_s": 13,
                 "session": "grok-do21-fix",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "2ad4b1fdca174e36ae49b62112a41741",
+                "phase": "review",
+                "started_at": "2026-11-25T11:32:18Z",
+                "command": "review-do21.sh",
+                "heartbeat_at": "2026-11-25T11:37:46Z",
+                "plan_sha256": "681a025f02cb9b2e9a3be0095a73cf801f002695078cb7398845e009fccbabfa",
+                "finding_ids": [
+                  "DO-21"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode beam-free",
+                "lane_sha256": "f8b130f93d5b186b26f6f9631c2a89147cbdec726dea22686e3f859668c1218f",
+                "cycle": 15,
+                "round": 2,
+                "pid": 43397,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T11:37:46Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/2ad4b1fdca174e36ae49b62112a41741.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 328,
+                "session": "grok-do21-fix",
+                "finished_phase_status": "passed"
               }
             ],
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "OpenCode beam-free"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T11:41:20Z"
           }
         }
       ]
@@ -2807,7 +2886,7 @@
       "observed": "25 Nov 2026 ~14:05 IST, DO-22 review of cb2a5ef1: _tracker_sort_key in runtime/backend/round_view.py orders by (pr number, last_written_at, mtime) with non-numeric ids as 0, so build_issues and find_tracker pick 19.json over a newer live bcl-r1.json.",
       "recommendation": "Rank latest by unmerged first, then last_written_at, then pr number and mtime; keep the chronological order used for history unchanged.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "area": "developer-observability",
       "details": {
@@ -2821,7 +2900,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-25T11:41:36Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-25T11:16:31Z",
         "source": "review"
