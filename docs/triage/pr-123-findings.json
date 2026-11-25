@@ -252,6 +252,246 @@
           "at": "2026-11-25T15:30:09Z"
         },
         "ended_at": "2026-11-25T15:30:09Z"
+      },
+      {
+        "id": "pr123-r3-671698d6",
+        "build": "0.1.75",
+        "revision": "dcb6ebf6851717b3fcd76497b64dbcec16a596cb",
+        "installed_at": "2026-11-25T15:19:33Z",
+        "install_evidence": "install-local batched-change-list 0.1.75 at dcb6ebf6851717b3fcd76497b64dbcec16a596cb; independent readback: live bin/bcl sha256 ee5eba9591baee14a68de21277504b7106d1422746a4858d3efdee319b601964 matches worktree plugin; official bcl install stage at 2026-11-25T15:33:11Z with no then-command (context-ledger was not reinstalled; port 8780 was not restarted). DO-24 is verified from the r13 worktree on a temporary port.",
+        "cycle": 15,
+        "status": "complete",
+        "checks": {
+          "DO-1": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "PR122-parked-backlog": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-178": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-14": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-15": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-16": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-17": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-179": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-180": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-181": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-182": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-183": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-184": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-18": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "CL-1": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-21": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-185": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-22": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-186": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "BCL-187": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-23": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          },
+          "DO-24": {
+            "state": "inconclusive",
+            "started_at": "2026-11-25T15:51:15Z",
+            "stopped": true,
+            "evidence": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observation": "Run stopped: Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+            "observed_at": "2026-11-25T15:51:15Z",
+            "updated_at": "2026-11-25T15:51:15Z",
+            "finished_at": "2026-11-25T15:51:15Z"
+          }
+        },
+        "run_id": "pr123-r3-671698d6",
+        "pr": 123,
+        "round": 3,
+        "started_at": "2026-11-25T15:19:33Z",
+        "stopped": {
+          "reason": "Leftover Round 3 verification run stayed active after that verify and would block a new Round 4 verify",
+          "at": "2026-11-25T15:51:15Z"
+        },
+        "ended_at": "2026-11-25T15:51:15Z"
       }
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
@@ -266,9 +506,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-25T15:51:06Z",
-      "now": "2026-11-25T15:51:06Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-25T15:51:28Z",
+      "now": "2026-11-25T15:51:28Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -1007,7 +1247,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:51:06Z",
+    "last_written_at": "2026-11-25T15:51:28Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1305,7 +1545,8 @@
       "collect",
       "review",
       "plan_fix",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 4,
@@ -3037,7 +3278,7 @@
           "finding_ids": [
             "BCL-188"
           ],
-          "status": "installing",
+          "status": "verifying",
           "reason": "When a job finishes, attach official observability token totals, or mark them not reported, not none.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3148,9 +3389,9 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:51:06Z",
-          "phase": "install",
+          "updated_at": "2026-11-25T15:51:28Z",
+          "stage_entered_at": "2026-11-25T15:51:28Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -3159,11 +3400,6 @@
           "install": {
             "status": "running",
             "started_at": "2026-11-25T15:51:06Z"
-          },
-          "stage_model": {
-            "stage": "install",
-            "model": "Grok Bot",
-            "at": "2026-11-25T15:51:06Z"
           }
         },
         {
@@ -3570,11 +3806,11 @@
       "cycle": 15
     },
     "verification_run": {
-      "id": "pr123-r3-671698d6",
+      "id": "pr123-r4-d2bcdc44",
       "build": "0.1.75",
-      "revision": "dcb6ebf6851717b3fcd76497b64dbcec16a596cb",
-      "installed_at": "2026-11-25T15:19:33Z",
-      "install_evidence": "install-local batched-change-list 0.1.75 at dcb6ebf6851717b3fcd76497b64dbcec16a596cb; independent readback: live bin/bcl sha256 ee5eba9591baee14a68de21277504b7106d1422746a4858d3efdee319b601964 matches worktree plugin; official bcl install stage at 2026-11-25T15:33:11Z with no then-command (context-ledger was not reinstalled; port 8780 was not restarted). DO-24 is verified from the r13 worktree on a temporary port.",
+      "revision": "d2bcdc449ceca64a9a6a9f8450fd3a70bb69a92d",
+      "installed_at": "2026-11-25T15:51:06Z",
+      "install_evidence": "install-local batched-change-list 0.1.75 at d2bcdc449ceca64a9a6a9f8450fd3a70bb69a92d; live plugin sha256 e1db4b82add929dbfdc4191b3da4d5bfecf1f4a53253fb3910002be15be16824; official install stage at 2026-11-25T15:51:06Z with no then-command (context-ledger was not reinstalled; port 8780 was not restarted).",
       "cycle": 15,
       "status": "active",
       "checks": {
@@ -3643,12 +3879,24 @@
         },
         "DO-24": {
           "state": "pending"
+        },
+        "BCL-188": {
+          "state": "pending"
+        },
+        "BCL-189": {
+          "state": "pending"
+        },
+        "DO-25": {
+          "state": "pending"
+        },
+        "DO-26": {
+          "state": "pending"
         }
       },
-      "run_id": "pr123-r3-671698d6",
+      "run_id": "pr123-r4-d2bcdc44",
       "pr": 123,
-      "round": 3,
-      "started_at": "2026-11-25T15:19:33Z"
+      "round": 4,
+      "started_at": "2026-11-25T15:51:06Z"
     },
     "introspect": {
       "result": "Introspect recorded",
@@ -3826,7 +4074,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -3865,7 +4113,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -3909,10 +4157,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -3961,6 +4215,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -3968,7 +4228,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4014,6 +4274,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -4021,7 +4287,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4067,6 +4333,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -4074,7 +4346,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4119,6 +4391,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -4126,7 +4404,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4154,7 +4432,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4193,10 +4471,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -4229,7 +4513,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4268,10 +4552,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -4314,10 +4604,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -4349,7 +4645,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4394,10 +4690,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -4439,10 +4741,16 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -4492,6 +4800,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -4499,7 +4813,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh",
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4543,10 +4857,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -4594,6 +4914,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -4601,7 +4927,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4629,7 +4955,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4657,7 +4983,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:30:09Z",
+        "at": "2026-11-25T15:51:15Z",
         "source": "verification_check"
       }
     },
@@ -4696,11 +5022,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T11:16:31Z",
-        "source": "review"
+        "at": "2026-11-25T15:51:15Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh (exit 0)"
@@ -4740,12 +5072,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:15Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh",
+      "last_seen": {
+        "at": "2026-11-25T15:51:15Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-188",
