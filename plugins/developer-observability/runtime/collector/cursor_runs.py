@@ -3,7 +3,7 @@
 Sources, all written by Cursor itself (nothing here is hand-entered by a caller):
   hook     Cursor runs `developer-observability cursor-hook` for sessionStart, stop and sessionEnd
            (hooks/cursor-hooks.json). Rows carry model, model_id, status, duration and errors.
-  capture  `developer-observability cursor-capture --format json -- -p --model <model> "prompt"` finds
+  capture  `developer-observability cursor-capture --format json -- --trust -p --model <model> "prompt"` finds
            `agent` on PATH, runs it with `--output-format`, and keeps the terminal result envelope
            (usage, duration_ms, request_id) plus `agent --version` as cursor_version.
   ingest   `developer-observability cursor-usage --ingest FILE` stores a saved json/stream-json output.
@@ -138,6 +138,14 @@ def summarize(lines, stderr_lines=(), exit_code=None):
         if line:
             error_lines.append(line)
     failed = exit_code not in (None, 0) or out['is_error'] or (out['envelope'] and out['result_subtype'] != 'success')
+    available = []
+    for line in error_lines:
+        match = re.search(r'(?i)available models?:\s*(.+)$', line)
+        if match:
+            available = [part.strip() for part in re.split(r'[,;]', match.group(1)) if part.strip()]
+            break
+    if available:
+        out['available_models'] = available
     if failed or (not out['envelope'] and error_lines):
         picked = next((line for line in error_lines if line.startswith('ActionRequiredError')), None) \
             or next((line for line in error_lines if re.search(r'(?i)error', line)), None) \
@@ -166,7 +174,7 @@ def record_run(path, run_id, source, summary, started_at=None, finished_at=None)
         raise ValueError('unknown source')
     allowed = {'session_id', 'request_id', 'model_display', 'envelope', 'result_subtype', 'is_error', 'duration_ms',
                'duration_api_ms', 'usage', 'error_kind', 'error_message', 'invalid_lines', 'tool_calls',
-               'process_exit_code', 'requested_model', 'elapsed_seconds', 'output_format', 'agent_version'}
+               'process_exit_code', 'requested_model', 'elapsed_seconds', 'output_format', 'agent_version', 'available_models'}
     if set(summary) - allowed:
         raise ValueError('invalid cursor run fields')
     with _connect(path) as db:

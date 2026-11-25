@@ -215,5 +215,40 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(json.loads((ROOT / '.cursor-plugin/plugin.json').read_text())['hooks'], './hooks/cursor-hooks.json')
 
 
+
+
+class DocumentedCaptureTests(unittest.TestCase):
+    def test_documented_command_includes_required_flags(self):
+        docs = [
+            ROOT / "skills/developer-observability/references/cursor-cli-runs.md",
+            ROOT / "docs/VERIFICATION.md",
+            ROOT / "README.md",
+        ]
+        blocks = []
+        for path in docs:
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8")
+            for line in text.splitlines():
+                if "cursor-capture" in line and "--format" in line:
+                    blocks.append((path.name, line))
+        self.assertTrue(blocks, "expected a documented cursor-capture command")
+        for name, line in blocks:
+            self.assertIn("--trust", line, f"{name}: {line}")
+
+    def test_unknown_model_is_recorded_not_a_wrapper_crash(self):
+        stderr = [
+            "Error: Cannot use this model: grok-4\n",
+            "Available models: grok-4.7-low, auto\n",
+        ]
+        summary = cursor_runs.summarize([], stderr, 1)
+        self.assertEqual(summary["error_kind"], "unknown_model")
+        self.assertTrue(summary.get("error_message"))
+        available = summary.get("available_models") or []
+        self.assertIn("grok-4.7-low", available)
+        self.assertIn("auto", available)
+        self.assertEqual(summary["process_exit_code"], 1)
+
+
 if __name__ == '__main__':
     unittest.main()

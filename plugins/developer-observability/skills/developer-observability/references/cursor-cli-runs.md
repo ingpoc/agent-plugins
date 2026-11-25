@@ -7,10 +7,11 @@ Cursor CLI headless runs (`agent` / `cursor-agent`) are captured by default once
 - **Tokens (Cursor's own result):** hooks carry no tokens. Cursor reports per-turn `usage` only in the terminal `result` of `-p --output-format json|stream-json`, so run headless jobs through the wrapper:
 
   ```
-  bin/developer-observability cursor-capture --format json -- -p --model <model> "prompt"
-  bin/developer-observability cursor-capture --format stream-json --quiet-events -- -p --model <model> "prompt"
+  bin/developer-observability cursor-capture --format json -- --trust -p --model <model> "prompt"
+  bin/developer-observability cursor-capture --format stream-json --quiet-events -- --trust -p --model <model> "prompt"
   ```
 
+Pass `--trust` only for a tree you trust; the wrapper does not add it on its own.
   Everything after `--` goes to Cursor. Do not put `agent` there: the wrapper finds `agent` (or `cursor-agent`, or `CURSOR_AGENT_BIN`) itself, and drops a leading `agent` or `cursor-agent` word if one is given. Use `--model`; Cursor CLI 2026.11.19 rejects `-m`. The wrapper also runs `agent --version` once per run (5 s limit) and stores it as `cursor_version`; if that lookup fails the version stays null and the run is unaffected. It adds `-p --output-format …`, forwards Cursor's output, and keeps `usage`, `duration_ms`, `request_id`, the init event's model name and the exit code. The result text is dropped. `cursor-usage --ingest FILE --exit-code N [--stderr-file F]` records an output that was already saved.
 - **Refusals:** a run that fails before a result envelope (`ActionRequiredError: …`, exit 1) gets `error_kind`: `usage_limit` (out of usage, spend limit), `plan_refusal` (named models unavailable on the plan), `model_blocked`, `unknown_model`, `action_required`, `auth` or `error`. Plain text is trusted as a CLI error only when no result envelope came first.
 - Storage: `~/.local/share/developer-observability/task-usage.sqlite3`, tables `cursor_runs` and `cursor_hook_events` (mode 0600). Hook rows and a capture join on `session_id`.
