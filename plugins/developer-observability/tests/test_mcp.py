@@ -146,7 +146,7 @@ class MCPTests(unittest.TestCase):
             self.assertIn(marker, bundle)
 
     def test_hidden_elements_and_minimum_text_scale(self):
-        """The viewer keeps hidden elements hidden and text at 15px or larger."""
+        """The viewer keeps hidden elements hidden and text at 16px or larger."""
         import re
         source = (ROOT/'ui/template.html').read_text()
         bundle = (ROOT/'ui/dashboard.html').read_text()
@@ -154,5 +154,5 @@ class MCPTests(unittest.TestCase):
             compact = re.sub(r'\s+', '', html)
             self.assertIn('[hidden]{display:none!important}', compact)
             self.assertIn('--scale:1', compact)
-        self.assertIn('font-size:.9375rem', source)
-        self.assertIn('Math.max(.9375', bundle)
+        self.assertIn('font-size:1rem', source)
+        self.assertIn('Math.max(1', bundle)

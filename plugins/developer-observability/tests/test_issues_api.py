@@ -114,6 +114,27 @@ class IssuesAPITests(unittest.TestCase):
         self.assertEqual(relative["window"]["requested_from"], "now-6h")
 
 
+    def test_last_fail_cleared_or_labelled_after_verify(self):
+        self.tracker.write_text(json.dumps(_tracker(121, 2, 1, [
+            {"id": "DO-23", "title": "Later verified", "status": "verified_fixed",
+             "fixed_at": "2026-11-25T12:00:00Z",
+             "failure_history": [{"at": "2026-11-25T10:51:00Z", "source": "review",
+                                  "reason": "Earlier fail"}],
+             "created_at": "2026-11-25T09:00:00Z"},
+            {"id": "OPEN-1", "title": "Still open", "status": "untested",
+             "created_at": "2026-11-25T09:30:00Z"},
+        ], history=[{"round": 1, "ended_at": "2026-11-25T11:00:00Z"}])))
+        result = build_issues("agent-plugins")
+        last = result.get("last_fail")
+        issues = {row["id"]: row for row in result["issues"]}
+        self.assertEqual(issues["DO-23"]["state"], "resolved")
+        if last is None:
+            return
+        if last.get("id") == "DO-23":
+            self.assertIn("later verified", str(last.get("label") or "").lower())
+        else:
+            self.assertNotEqual(last.get("id"), "DO-23")
+
 class CascadeAndAccuracyTests(unittest.TestCase):
     """P1-1/2/3 and cascade resets: counts are checked against the fixture trackers."""
 
@@ -717,6 +738,9 @@ class MultiProjectTrackerTests(unittest.TestCase):
     def test_newer_unmerged_numbered_list_still_wins(self):
         self._numbered_likeminded(False, "2026-11-25T09:00:00Z")
         self.assertEqual(build_issues("likeminded")["pr"], "19")
+
+
+
 
 
 

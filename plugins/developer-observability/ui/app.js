@@ -818,7 +818,7 @@ function render() {
 
 function scale(delta) {
   const current = Number(getComputedStyle(document.documentElement).getPropertyValue('--scale').trim()) || 1;
-  const next = Math.max(0.9375, Math.min(1.375, current + delta));
+  const next = Math.max(1, Math.min(1.375, current + delta));
   document.documentElement.style.setProperty('--scale', next);
   try { localStorage.setItem('devobs-scale', String(next)); } catch {}
 }

@@ -1260,11 +1260,23 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             window["run"] = public_run(selected_run)
 
     last_fail = None
+    last_failed_verified = None
     for issue in selected:
         if issue.get("last_seen_at") and (issue.get("state") in {"blocked", "regressed"} or issue.get("attempts")):
             stamp = instant(issue["last_seen_at"])
-            if stamp and (last_fail is None or stamp > instant(last_fail["at"])):
-                last_fail = {"at": issue["last_seen_at"], "id": issue["id"]}
+            if stamp is None:
+                continue
+            resolved = issue.get("state") in {"resolved", "verified_fixed", "verified"}
+            payload = {"at": issue["last_seen_at"], "id": issue["id"]}
+            if resolved:
+                payload["label"] = "last failed job, later verified"
+                if last_failed_verified is None or stamp > instant(last_failed_verified["at"]):
+                    last_failed_verified = payload
+                continue
+            if last_fail is None or stamp > instant(last_fail["at"]):
+                last_fail = payload
+    if last_fail is None and last_failed_verified is not None:
+        last_fail = last_failed_verified
 
     pull = current_tracking.get("pull_request") if isinstance(current_tracking.get("pull_request"), dict) else None
     display_pr = str(current_pr if not timed else (requested_pr or latest_pr))
