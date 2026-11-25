@@ -669,6 +669,38 @@ class MultiProjectTrackerTests(unittest.TestCase):
         self.assertIn("like-minded-app", ids)
         self.assertNotIn("likeminded", ids)
 
+    def _numbered_likeminded(self, merged, written):
+        other = self.state / "ingpoc--like-minded-app"
+        tracking = {"cycle": 1, "round": 1, "plan": {"round": 1, "cycle": 1, "groups": []},
+                    "pull_request": {"label": "PR #19"}, "last_written_at": written}
+        if merged:
+            tracking["merged"] = {"merged_at": "2026-11-25T03:00:00Z", "commit": "73ced46"}
+        (other / "19.json").write_text(json.dumps({"tracking": tracking, "findings": [
+            {"id": "OLD-1", "title": "Old", "status": "verified_fixed"}]}))
+        live = json.loads((other / "bcl-r1.json").read_text())
+        live["tracking"]["last_written_at"] = "2026-11-25T05:23:05Z"
+        (other / "bcl-r1.json").write_text(json.dumps(live))
+
+    def test_live_list_beats_an_older_or_merged_numbered_list(self):
+        for merged, written in ((True, "2026-11-25T06:00:00Z"), (False, "2026-11-24T10:00:00Z")):
+            with self.subTest(merged=merged, written=written):
+                self._numbered_likeminded(merged, written)
+                result = build_issues("likeminded")
+                self.assertEqual(result["pr"], "bcl-r1")
+                self.assertEqual({row["id"] for row in result["issues"]}, {"LM-1", "LM-2"})
+                live = {row["pr"]: row["live"] for row in result["lists"]["prs"] if row["project"] == "likeminded"}
+                self.assertEqual(live, {"19": False, "bcl-r1": True})
+                lists = build_issues("agent-plugins")["lists"]
+                other = {row["pr"]: row["live"] for row in lists["prs"] if row["project"] == "likeminded"}
+                self.assertEqual(other, {"19": False, "bcl-r1": True})
+                changed = apply_cascade(lists, "agent-plugins", "121", 2, {"project": "likeminded"})
+                self.assertEqual(changed["pr"], "bcl-r1")
+                self.assertEqual(build_issues("agent-plugins")["pr"], "121")
+
+    def test_newer_unmerged_numbered_list_still_wins(self):
+        self._numbered_likeminded(False, "2026-11-25T09:00:00Z")
+        self.assertEqual(build_issues("likeminded")["pr"], "19")
+
 
 
 if __name__ == "__main__":

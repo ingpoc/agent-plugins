@@ -444,6 +444,15 @@ def _tracker_sort_key(item):
     return (pr_num, written, path.stat().st_mtime)
 
 
+def _latest_tracker_key(item):
+    """Rank lists for the default (latest) view: unmerged beats merged, then the most recently
+    written list wins, then the PR number. A live non-numeric list (bcl-r1) is not hidden by an
+    older or merged numbered list (19). History and picker order keep _tracker_sort_key."""
+    pr_num, written, mtime = _tracker_sort_key(item)
+    tracking = item[1].get("tracking") if isinstance(item[1].get("tracking"), dict) else {}
+    return (not isinstance(tracking.get("merged"), dict), written, pr_num, mtime)
+
+
 def _iter_trackers(project, state_dir=None):
     """Yield (path, data, pr) for every tracker that belongs to this project. Read only."""
     if not project or not isinstance(project, str):
@@ -502,7 +511,7 @@ def find_tracker(project, pr=None, state_dir=None, prefer_lanes=None):
         with_lanes = [item for item in matches if _plan_groups(item[1])]
         if with_lanes:
             matches = with_lanes
-    return max(matches, key=_tracker_sort_key)
+    return max(matches, key=_latest_tracker_key)
 
 
 # Issue trail events share events.jsonl but are not job lifecycle rows (see issue_trail.py).
