@@ -47,8 +47,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-25T15:23:28Z",
-      "now": "2026-11-25T15:23:28Z — Review started"
+      "updated_at": "2026-11-25T15:30:24Z",
+      "now": "2026-11-25T15:30:24Z — Lane R3-USAGE updated"
     },
     "rollover": {
       "source_pr": 122,
@@ -633,7 +633,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:23:28Z",
+    "last_written_at": "2026-11-25T15:30:24Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -2281,51 +2281,114 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_receipts.py"
           ],
           "verify": {
-            "command": "cd /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13/plugins/batched-change-list/skills/batched-change-list/scripts && python3 -m unittest test_job_lifecycle.JobLifecycleTests.test_start_job_resumes_when_pid_is_dead_without_exit_code test_job_lifecycle.JobLifecycleTests.test_renderer_and_start_job_share_lane_job_running test_job_lifecycle.JobLifecycleTests.test_review_tool_fault_leaves_lane_in_review_and_allows_rerun test_job_receipts.JobReceiptTests.test_fix_credits_named_implementer_commit_outside_the_process test_job_receipts.JobReceiptTests.test_named_worktree_fix_without_commit_fails",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 3
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-jobout.sh"
           },
           "codex": {
             "implementer_session": "Grok Bot",
             "reviewer_session": "Grok Bot review",
             "fix_status": "passed",
             "job": {
-              "id": "a850d39e7d3d422895c347d3b78bae04",
-              "phase": "fix",
-              "started_at": "2026-11-25T15:23:06Z",
-              "command": "commit-jobout.sh",
-              "heartbeat_at": "2026-11-25T15:23:06Z",
+              "id": "4bf8c1a4b291489eb4f5cc22c27f34db",
+              "phase": "presuite",
+              "started_at": "2026-11-25T15:23:48Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-25T15:23:54Z",
               "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
               "finding_ids": [
                 "BCL-180",
                 "BCL-182",
-                "BCL-183"
+                "BCL-183",
+                "CL-1",
+                "DO-24"
               ],
               "worktree": "samantha-next-r13",
               "model": "Grok Bot",
               "lane_sha256": "b625e6b03ba4860049acb167ae8e5e2e92f43cb113e3d5f60c57030ebbc4e3db",
               "cycle": 15,
               "round": 3,
-              "pid": 25992,
+              "pid": 27450,
               "exit_code": 0,
-              "finished_at": "2026-11-25T15:23:06Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a850d39e7d3d422895c347d3b78bae04.log",
+              "finished_at": "2026-11-25T15:23:54Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/4bf8c1a4b291489eb4f5cc22c27f34db.log",
               "output_retained": true,
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 0,
+              "wall_time_s": 6,
               "session": "Grok Bot",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "a850d39e7d3d422895c347d3b78bae04",
+                "phase": "fix",
+                "started_at": "2026-11-25T15:23:06Z",
+                "command": "commit-jobout.sh",
+                "heartbeat_at": "2026-11-25T15:23:06Z",
+                "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+                "finding_ids": [
+                  "BCL-180",
+                  "BCL-182",
+                  "BCL-183"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "b625e6b03ba4860049acb167ae8e5e2e92f43cb113e3d5f60c57030ebbc4e3db",
+                "cycle": 15,
+                "round": 3,
+                "pid": 25992,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:23:06Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a850d39e7d3d422895c347d3b78bae04.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "1a27722524fa4afab27bc24e3bc1a42e",
+                "phase": "review",
+                "started_at": "2026-11-25T15:23:37Z",
+                "command": "review-pass.sh",
+                "heartbeat_at": "2026-11-25T15:23:37Z",
+                "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+                "finding_ids": [
+                  "BCL-180",
+                  "BCL-182",
+                  "BCL-183"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot review",
+                "lane_sha256": "b625e6b03ba4860049acb167ae8e5e2e92f43cb113e3d5f60c57030ebbc4e3db",
+                "cycle": 15,
+                "round": 3,
+                "pid": 27058,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:23:37Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/1a27722524fa4afab27bc24e3bc1a42e.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:30:24Z",
           "stage_entered_at": "2026-11-25T15:23:06Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T15:23:54Z"
+          }
         },
         {
           "id": "R3-CL1",
@@ -2352,20 +2415,34 @@
             "reviewer_session": "Grok Bot review",
             "fix_status": "passed",
             "job": {
-              "id": "583a51b32f22470ea7931665fff06720",
-              "phase": "review",
-              "started_at": "2026-11-25T15:23:28Z",
-              "command": "review-pass.sh",
-              "heartbeat_at": "2026-11-25T15:23:28Z",
+              "id": "4bf8c1a4b291489eb4f5cc22c27f34db",
+              "phase": "presuite",
+              "started_at": "2026-11-25T15:23:48Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-25T15:23:54Z",
               "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
               "finding_ids": [
-                "CL-1"
+                "BCL-180",
+                "BCL-182",
+                "BCL-183",
+                "CL-1",
+                "DO-24"
               ],
               "worktree": "samantha-next-r13",
-              "model": "Grok Bot review",
+              "model": "Grok Bot",
               "lane_sha256": "ea6002aebc7c7ae97731d96d98f52fda5b25e37c18fde5adb8126e7e9da308c3",
               "cycle": 15,
-              "round": 3
+              "round": 3,
+              "pid": 27450,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T15:23:54Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/4bf8c1a4b291489eb4f5cc22c27f34db.log",
+              "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 6,
+              "session": "Grok Bot",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -2394,16 +2471,47 @@
                 "wall_time_s": 1,
                 "session": "Grok Bot",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "583a51b32f22470ea7931665fff06720",
+                "phase": "review",
+                "started_at": "2026-11-25T15:23:28Z",
+                "command": "review-pass.sh",
+                "heartbeat_at": "2026-11-25T15:23:28Z",
+                "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+                "finding_ids": [
+                  "CL-1"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot review",
+                "lane_sha256": "ea6002aebc7c7ae97731d96d98f52fda5b25e37c18fde5adb8126e7e9da308c3",
+                "cycle": 15,
+                "round": 3,
+                "pid": 26715,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:23:28Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/583a51b32f22470ea7931665fff06720.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
               }
             ],
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:22:18Z",
           "stage_entered_at": "2026-11-25T15:23:13Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T15:23:54Z"
+          }
         },
         {
           "id": "R3-USAGE",
@@ -2419,24 +2527,24 @@
             "plugins/developer-observability/tests/test_usage_totals.py"
           ],
           "verify": {
-            "command": "cd /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13/plugins/developer-observability/tests && python3 -m unittest test_usage_totals",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh"
           },
           "codex": {
             "implementer_session": "Grok Bot",
             "reviewer_session": "Grok Bot review",
             "fix_status": "passed",
             "job": {
-              "id": "375b0d4cd46f4810b98896bf901475a1",
-              "phase": "fix",
-              "started_at": "2026-11-25T15:23:14Z",
-              "command": "commit-usage.sh",
-              "heartbeat_at": "2026-11-25T15:23:14Z",
+              "id": "4bf8c1a4b291489eb4f5cc22c27f34db",
+              "phase": "presuite",
+              "started_at": "2026-11-25T15:23:48Z",
+              "command": "presuite.sh",
+              "heartbeat_at": "2026-11-25T15:23:54Z",
               "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
               "finding_ids": [
+                "BCL-180",
+                "BCL-182",
+                "BCL-183",
+                "CL-1",
                 "DO-24"
               ],
               "worktree": "samantha-next-r13",
@@ -2444,24 +2552,85 @@
               "lane_sha256": "64ae3aebaaec4d1cf9d27d72c4890fef5a703275e60532a0e390774b4fac1352",
               "cycle": 15,
               "round": 3,
-              "pid": 26292,
+              "pid": 27450,
               "exit_code": 0,
-              "finished_at": "2026-11-25T15:23:14Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/375b0d4cd46f4810b98896bf901475a1.log",
+              "finished_at": "2026-11-25T15:23:54Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/4bf8c1a4b291489eb4f5cc22c27f34db.log",
               "output_retained": true,
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 0,
+              "wall_time_s": 6,
               "session": "Grok Bot",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "375b0d4cd46f4810b98896bf901475a1",
+                "phase": "fix",
+                "started_at": "2026-11-25T15:23:14Z",
+                "command": "commit-usage.sh",
+                "heartbeat_at": "2026-11-25T15:23:14Z",
+                "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+                "finding_ids": [
+                  "DO-24"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "64ae3aebaaec4d1cf9d27d72c4890fef5a703275e60532a0e390774b4fac1352",
+                "cycle": 15,
+                "round": 3,
+                "pid": 26292,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:23:14Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/375b0d4cd46f4810b98896bf901475a1.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "d22ac0fba4764d0a8b351d98dbf4ef3e",
+                "phase": "review",
+                "started_at": "2026-11-25T15:23:29Z",
+                "command": "review-pass.sh",
+                "heartbeat_at": "2026-11-25T15:23:30Z",
+                "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+                "finding_ids": [
+                  "DO-24"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot review",
+                "lane_sha256": "64ae3aebaaec4d1cf9d27d72c4890fef5a703275e60532a0e390774b4fac1352",
+                "cycle": 15,
+                "round": 3,
+                "pid": 26814,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:23:30Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/d22ac0fba4764d0a8b351d98dbf4ef3e.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:30:24Z",
           "stage_entered_at": "2026-11-25T15:23:14Z",
-          "phase": "review"
+          "phase": "review",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T15:23:54Z"
+          }
         }
       ],
       "cycle": 15
@@ -2473,73 +2642,218 @@
       "installed_at": "2026-11-25T09:49:23Z",
       "install_evidence": "bcl install-local revision 736a6ccdf50ce193dfa170a0be9c466c29338d91; sha256 162a024498e92f3491033570fdd45c84adb7d46e7bb9ca536a2ad265e6c7be19",
       "cycle": 15,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "DO-1": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "PR122-parked-backlog": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-178": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "DO-14": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "DO-15": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "DO-16": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "DO-17": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-179": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-180": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-181": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-182": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-183": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-184": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "DO-18": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "CL-1": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "DO-21": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-185": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "DO-22": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-186": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         },
         "BCL-187": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-25T15:30:09Z",
+          "stopped": true,
+          "evidence": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observation": "Run stopped: Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+          "observed_at": "2026-11-25T15:30:09Z",
+          "updated_at": "2026-11-25T15:30:09Z",
+          "finished_at": "2026-11-25T15:30:09Z"
         }
       },
       "run_id": "pr123-r2-736a6ccd",
       "pr": 123,
       "round": 2,
-      "started_at": "2026-11-25T09:49:23Z"
+      "started_at": "2026-11-25T09:49:23Z",
+      "stopped": {
+        "reason": "Round 2 verification run stayed active after that round settled and is blocking a new Round 3 verify",
+        "at": "2026-11-25T15:30:09Z"
+      },
+      "ended_at": "2026-11-25T15:30:09Z"
     },
     "introspect": {
       "result": "Introspect recorded",
@@ -2686,7 +3000,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-24T18:48:49Z",
+        "at": "2026-11-25T15:30:09Z",
         "source": "verification_check"
       }
     },
@@ -2725,7 +3039,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T18:48:49Z",
+        "at": "2026-11-25T15:30:09Z",
         "source": "verification_check"
       }
     },
@@ -2763,11 +3077,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-24T19:18:53Z",
-        "source": "lane_failure"
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r1-postmerge.sh (exit 0)"
@@ -2809,12 +3129,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-15",
@@ -2852,12 +3182,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-16",
@@ -2895,12 +3235,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-17",
@@ -2937,12 +3287,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-179",
@@ -2966,7 +3326,11 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-180",
@@ -2998,7 +3362,11 @@
           "to": "in_progress",
           "source": "tracker_update"
         }
-      ]
+      ],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-181",
@@ -3023,7 +3391,11 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-182",
@@ -3055,7 +3427,11 @@
           "to": "in_progress",
           "source": "tracker_update"
         }
-      ]
+      ],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-183",
@@ -3087,7 +3463,11 @@
           "to": "in_progress",
           "source": "tracker_update"
         }
-      ]
+      ],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-184",
@@ -3111,7 +3491,11 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-18",
@@ -3148,11 +3532,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T10:49:55Z",
-        "source": "review"
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do18.sh (exit 0)"
@@ -3188,7 +3578,11 @@
           "to": "in_progress",
           "source": "tracker_update"
         }
-      ]
+      ],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-21",
@@ -3226,12 +3620,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh",
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-185",
@@ -3267,11 +3671,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T09:08:25Z",
-        "source": "review"
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
       },
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/bcl-185-port.sh (exit 0)"
@@ -3312,12 +3722,22 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:30:09Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh (exit 0)"
       ],
-      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh"
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r2-landed.sh",
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-186",
@@ -3341,7 +3761,11 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-187",
@@ -3365,7 +3789,11 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-25T15:30:09Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "DO-23",
