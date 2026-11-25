@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-24T19:25:31Z",
-      "now": "2026-11-24T19:25:31Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-25T08:36:29Z",
+      "now": "2026-11-25T08:36:29Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 122,
@@ -72,7 +72,7 @@
       }
     },
     "cycle": 15,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -323,6 +323,11 @@
         "round": 5,
         "fixed": 17,
         "ended_at": "2026-11-24T18:51:29Z"
+      },
+      {
+        "round": 1,
+        "fixed": 1,
+        "ended_at": "2026-11-25T08:36:29Z"
       }
     ],
     "introspect_history": [
@@ -479,7 +484,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T08:22:07Z",
+    "last_written_at": "2026-11-25T08:36:29Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -637,7 +642,7 @@
         ]
       }
     ],
-    "round_started_at": "2026-11-24T18:39:33Z",
+    "round_started_at": "2026-11-25T08:36:29Z",
     "gate": {
       "merge_previous_pr_threshold": 16,
       "report_threshold": 15
@@ -775,15 +780,44 @@
     },
     "stages_reached": [
       "collect",
-      "plan_fix",
       "review",
-      "install",
-      "verify"
+      "plan_fix"
     ],
     "plan": {
       "cycle": 15,
-      "round": 1,
+      "round": 2,
       "groups": [
+        {
+          "id": "R2-PORT",
+          "name": "One bookmarkable viewer port per repo",
+          "label": "PORT",
+          "finding_ids": [
+            "BCL-185"
+          ],
+          "worktree": "samantha-next-r13",
+          "status": "planned",
+          "phase": "fix",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_skill.py",
+            "plugins/batched-change-list/skills/batched-change-list/SKILL.md",
+            "plugins/batched-change-list/skills/batched-change-list/references/viewer.md",
+            "plugins/batched-change-list/skills/batched-change-list/statechart.html",
+            "plugins/batched-change-list/plugin.json",
+            "plugins/batched-change-list/CHANGELOG.md"
+          ],
+          "reason": "A repo with no saved viewer port got 53366 or a random port and the computed port was never saved, so the bookmarkable address could drift. Pick a deterministic per-repo slot once, save it on first viewer start, recover it from viewer state, fail loudly when occupied, and write the rule in the skill.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/bcl-185-port.sh",
+            "method": "Temp-state real viewer: rollover, restart, upgrade and registry repair keep the repo port and serve the newest list; deterministic slot skips other repos; occupied port fails; live 127.0.0.1:58771 still serves #123."
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T08:36:29Z",
+          "stage_entered_at": "2026-11-25T08:36:29Z"
+        },
         {
           "id": "R1-POSTMERGE",
           "name": "Record post-merge Introspect on a fresh list",
@@ -827,7 +861,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-24T19:25:31Z",
+          "updated_at": "2026-11-25T08:36:29Z",
           "stage_entered_at": "2026-11-24T19:25:38Z",
           "codex": {
             "fix_status": "passed",
@@ -963,6 +997,7 @@
             "DO-1"
           ],
           "reason": "Needs Guru later round",
+          "parked_to": 2,
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -1027,9 +1062,8 @@
           ],
           "status": "parked",
           "codex": {},
-          "parked_to": 2,
-          "updated_at": "2026-11-24T19:18:36Z",
-          "stage_entered_at": "2026-11-24T19:18:36Z"
+          "stage_entered_at": "2026-11-24T19:18:36Z",
+          "updated_at": "2026-11-25T08:36:29Z"
         }
       ]
     },
