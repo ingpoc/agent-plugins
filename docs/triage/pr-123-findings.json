@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-25T08:38:23Z",
-      "now": "2026-11-25T08:38:23Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-25T09:26:04Z",
+      "now": "2026-11-25T09:26:04Z — Fix started"
     },
     "rollover": {
       "source_pr": 122,
@@ -484,7 +484,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T08:38:23Z",
+    "last_written_at": "2026-11-25T09:26:04Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -795,8 +795,8 @@
             "BCL-185"
           ],
           "worktree": "samantha-next-r13",
-          "status": "review",
-          "phase": "review",
+          "status": "running",
+          "phase": "fix",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
@@ -817,23 +817,66 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-25T08:37:17Z",
-          "failure_history": [],
-          "plan_review_history": [],
+          "stage_entered_at": "2026-11-25T09:26:04Z",
+          "failure_history": [
+            {
+              "attempt_id": "0078936338734b8cab2d2cd31049f5a2",
+              "source": "review",
+              "reason": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port.",
+              "cycle": 15,
+              "round": 2,
+              "at": "2026-11-25T08:45:44Z"
+            },
+            {
+              "attempt_id": "3429e71790ea48679ef40e9f46a9c29a",
+              "source": "plan_review",
+              "reason": "Reviewer exited 1",
+              "cycle": 15,
+              "round": 2,
+              "at": "2026-11-25T09:08:25Z",
+              "tool_fault": true,
+              "fault_kind": "runner_exit",
+              "tool_fault_reason": "Reviewer exited 1"
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "b0e4e8f1f1c148d6ab998574988e30e9",
+              "status": "changes_requested",
+              "cycle": 15,
+              "round": 2,
+              "at": "2026-11-25T08:55:59Z"
+            },
+            {
+              "job_id": "f69b447188bc4ea59ffef641b839e913",
+              "status": "changes_requested",
+              "cycle": 15,
+              "round": 2,
+              "at": "2026-11-25T09:15:16Z"
+            },
+            {
+              "job_id": "ac91ab3507354a6fae23d507a156479f",
+              "after_failure": "0078936338734b8cab2d2cd31049f5a2",
+              "status": "passed",
+              "cycle": 15,
+              "round": 2,
+              "at": "2026-11-25T09:25:51Z"
+            }
+          ],
           "codex": {
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "0078936338734b8cab2d2cd31049f5a2",
-              "phase": "review",
-              "started_at": "2026-11-25T08:38:23Z",
-              "command": "review.sh",
-              "heartbeat_at": "2026-11-25T08:38:23Z",
+              "id": "bf33903ddefe4237ac68f9cc67a1c55d",
+              "phase": "fix",
+              "started_at": "2026-11-25T09:26:04Z",
+              "command": "commit-fix2.sh",
+              "heartbeat_at": "2026-11-25T09:26:04Z",
               "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
               "finding_ids": [
                 "BCL-185"
               ],
               "worktree": "samantha-next-r13",
-              "model": "OpenCode deepseek-v4.1-flash-free",
+              "model": "Grok Bot",
               "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
               "cycle": 15,
               "round": 2
@@ -866,10 +909,140 @@
                 "tokens": null,
                 "wall_time_s": 20,
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "0078936338734b8cab2d2cd31049f5a2",
+                "phase": "review",
+                "started_at": "2026-11-25T08:38:23Z",
+                "command": "review.sh",
+                "heartbeat_at": "2026-11-25T08:45:44Z",
+                "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
+                "finding_ids": [
+                  "BCL-185"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode deepseek-v4.1-flash-free",
+                "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
+                "cycle": 15,
+                "round": 2,
+                "pid": 33340,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T08:45:44Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/0078936338734b8cab2d2cd31049f5a2.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 441,
+                "session": "grok-bcl-185-fix",
+                "finished_phase_status": "changes_requested",
+                "must_fix": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port."
+              },
+              {
+                "id": "b0e4e8f1f1c148d6ab998574988e30e9",
+                "phase": "plan_review",
+                "started_at": "2026-11-25T08:48:50Z",
+                "command": "plan-review.sh",
+                "heartbeat_at": "2026-11-25T08:55:59Z",
+                "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
+                "finding_ids": [
+                  "BCL-185"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode deepseek-v4.1-flash-free",
+                "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
+                "cycle": 15,
+                "round": 2,
+                "pid": 43666,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T08:55:59Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/b0e4e8f1f1c148d6ab998574988e30e9.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 429,
+                "session": "grok-bcl-185-fix",
+                "finished_phase_status": "changes_requested",
+                "must_fix": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:397` (with `:353-364` and `:398-400`) — the fix moves the legacy-file rule into `_project_port` but leaves the *other* port decision path untouched: `ensure_viewer` adopts any per-list state file whose `data` matches a live path of the repo (`:356-364`) and then uses its `old_port` ahead of `_project_port` (`:397`), persisting it at `:398-400` **before** the occupancy check at `:401-403`. So a dead legacy per-list file still decides the repo's port and can still be another repo's saved port, which is exactly what the new `viewer.md`/CHANGELOG sentence (\"old per-list files never decide it\") and the done-when (\"deterministic, never colliding with another repo's saved port\", \"a collision fails loudly instead of moving\") forbid.\n\n   Reproduced on this machine's real layout with a temp `STATE` (no real writes, `Popen`/`_viewer_ready` patched): registry repaired (`viewer_port` stripped), `ingpoc--agent-plugins.json` absent (the pre-0.1.75 / restored-from-Nov-14 state), legacy `ingpoc--agent-plugins--111.json` present (real file has `instance` + `data` = `.../ingpoc--agent-plugins/111.json`, and registry record `ingpoc/agent-plugins/111` still exists) → `_project_port('ingpoc/agent-plugins')` correctly says `52234`, but `ensure_viewer` starts the viewer on **53366** (like-minded-app's repo port) and calls `_save_project_port('ingpoc/agent-plugins/123', 53366)`. Even when that port is occupied, the wrong port is persisted before the `RuntimeError`, so the collision survives the failure."
+              },
+              {
+                "id": "3429e71790ea48679ef40e9f46a9c29a",
+                "phase": "plan_review",
+                "started_at": "2026-11-25T08:57:53Z",
+                "command": "plan-review.sh",
+                "heartbeat_at": "2026-11-25T09:08:17Z",
+                "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
+                "finding_ids": [
+                  "BCL-185"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode deepseek-v4.1-flash-free",
+                "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
+                "cycle": 15,
+                "round": 2,
+                "pid": 52381,
+                "exit_code": 1,
+                "finished_at": "2026-11-25T09:08:17Z",
+                "output_path": "/Users/gurusharan/.agents/artifacts/bcl-123/r2-port/plan-review-2-result-unrecorded.txt",
+                "output_retained": true,
+                "finished_phase_status": "incomplete",
+                "must_fix": "Reviewer exited 1"
+              },
+              {
+                "id": "f69b447188bc4ea59ffef641b839e913",
+                "phase": "plan_review",
+                "started_at": "2026-11-25T09:08:26Z",
+                "command": "plan-review.sh",
+                "heartbeat_at": "2026-11-25T09:15:16Z",
+                "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
+                "finding_ids": [
+                  "BCL-185"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode deepseek-v4.1-flash-free",
+                "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
+                "cycle": 15,
+                "round": 2,
+                "pid": 64175,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T09:15:16Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/f69b447188bc4ea59ffef641b839e913.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 410,
+                "session": "grok-bcl-185-fix",
+                "finished_phase_status": "changes_requested",
+                "must_fix": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:191-197` — the `reserved` set is built from *all* state files and then used to gate the repo's own port (`if own and own[0] not in reserved`), so a legacy per-list file **of the same repo** can veto the repo's own port and the port silently moves. Simulated against the real layout (temp `STATE`, `_pid_is_running`→True, registry `viewer_port` stripped): per-repo `ingpoc--agent-plugins.json`=58771 live **plus** legacy `ingpoc--agent-plugins--121.json`=58771 live → `_project_port` returns **52234**, not 58771. Same shape for like-minded-app (`--111`=53366). This is exactly the transitional state the new `references/viewer.md:3` describes (\"a viewer still running from an old per-list file is stopped on upgrade and the repo moves once to its own port\") and it contradicts the same doc's \"old per-list files never decide it\". It is also persistent, not transient: `locate(adopt=True)` at `live_state.py:338` stores the value in the registry, so a `bcl … adopt` while an old per-list viewer is up (multi-worktree/old-copy transition) permanently moves the bookmark. Minimal fix: legacy/live reservations belong only in the deterministic fallback scan; the own-port guard should exclude only *other repos'* saved ports. `_port_is_free` already rejects genuinely occupied ports in the fallback, so the live-pid reservation is redundant there anyway. Add a test: per-repo file + live same-repo legacy file on the same port, registry stripped → own port, and adopt does not persist a different one."
+              },
+              {
+                "id": "ac91ab3507354a6fae23d507a156479f",
+                "phase": "plan_review",
+                "started_at": "2026-11-25T09:16:34Z",
+                "command": "plan-review.sh",
+                "heartbeat_at": "2026-11-25T09:25:51Z",
+                "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
+                "finding_ids": [
+                  "BCL-185"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode deepseek-v4.1-flash-free",
+                "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
+                "cycle": 15,
+                "round": 2,
+                "pid": 72770,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T09:25:51Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/ac91ab3507354a6fae23d507a156479f.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 557,
+                "session": "grok-bcl-185-fix",
+                "finished_phase_status": "passed"
               }
             ],
-            "review_status": "running",
-            "reviewer_model": "OpenCode deepseek-v4.1-flash-free"
+            "reviewer_model": "OpenCode deepseek-v4.1-flash-free",
+            "must_fix_note": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port."
           },
           "updated_at": "2026-11-25T08:38:17Z"
         },
@@ -1606,7 +1779,11 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-25T09:08:25Z",
+        "source": "review"
+      }
     },
     {
       "id": "DO-22",
@@ -1628,6 +1805,54 @@
         "at": "2026-11-25T08:22:07Z",
         "pr": null,
         "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-186",
+      "title": "Registry updates can overwrite each other when two change-list commands run at once",
+      "summary": "Every registry update reads the whole registry, changes one record and writes it back with no lock, so two commands that update it at the same moment can drop each other's change.",
+      "impact": "A rollover, adoption or saved viewer port written by one command can be silently lost when another command saves the registry at the same time.",
+      "done_when": "Concurrent registry updates never lose a change; a test runs two updates at once and both survive.",
+      "observed": "25 Nov 2026 (IST), BCL-185 review (OpenCode deepseek-v4.1-flash-free, R2-PORT): live_state.save_registry and its callers (locate adopt, register_rollover, the rollover_pending clear in bin/bcl, and the new first-start port save) do read-modify-write of registry.json without tracker_lock; only the per-tracker file is locked.",
+      "recommendation": "Hold an exclusive lock on the registry across read, change and write (tracker_lock), and re-read inside the lock.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "low",
+      "area": "batched-change-list",
+      "details": {
+        "source finding": "Left over from the BCL-185 post-fix review notes; filed as its own finding per the plan-review follow-up rule."
+      },
+      "created_at": "2026-11-25T08:57:48Z",
+      "first_seen": {
+        "at": "2026-11-25T08:57:48Z",
+        "pr": null,
+        "round": 2,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-187",
+      "title": "Old per-list viewer files are never cleaned up, and a reused process id makes one look running",
+      "summary": "Viewer files from lists that used one viewer per list stay in the state folder forever, and the liveness check only asks whether their recorded process id exists, so a reused id makes a long-dead viewer look alive.",
+      "impact": "Stale viewer files clutter the state folder and can steer a new repo's first port pick away from a free port.",
+      "done_when": "Old per-list viewer files whose viewer is gone are removed or ignored, and a viewer counts as running only when its own health check answers with its recorded identity; a test covers a reused process id.",
+      "observed": "25 Nov 2026 (IST), BCL-185 plan review (OpenCode deepseek-v4.1-flash-free, R2-PORT): ~/.agents/state/batched-change-list/viewers still holds ingpoc--agent-plugins--107/110/111/112/113/114/115/121.json with dead pids beside the per-repo files; live_state._state_is_live uses _pid_is_running (os.kill(pid, 0)), so a recycled pid makes such a file reserve its port during a fresh pick.",
+      "recommendation": "Check liveness through the recorded port's /__bcl_health instance, and prune dead per-list viewer files when the per-repo file exists.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "low",
+      "area": "batched-change-list",
+      "details": {
+        "source finding": "Left over from the BCL-185 plan review notes; filed as its own finding per the plan-review follow-up rule."
+      },
+      "created_at": "2026-11-25T09:16:32Z",
+      "first_seen": {
+        "at": "2026-11-25T09:16:32Z",
+        "pr": null,
+        "round": 2,
         "source": "created_at"
       },
       "state_changes": []
