@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Repeated collects no longer copy every detail sidecar: sidecars carry no snapshot_id (the path names the snapshot) and an unchanged one is hardlinked from the previous snapshot, so a superseded snapshot staged in `collected/.trash` costs only the files that changed, and storage size counts a shared file once (DO-21).
 - A passing test line (node/mocha tick, TAP `ok N`, jest `PASS`, go `--- PASS:`, pytest `PASSED`, unittest `... ok`, XCTest `passed`) is never a `log_error`, even when the test name says error (DO-18).
 - The default view opens a project's live list: an unmerged, most recently written list beats a merged or older numbered one, so `bcl-r1` is no longer hidden by `19` (DO-23).
 - A stopped, superseded or still-active verify run is no verdict: its checks count as neither a fail nor a verify, and a tracker move to regressed sourced from such a run (no real failing check beside it) no longer changes the state. Regressed follows only a real later failing check or the owner's rejection. The headline shows the regressed count, a blocked issue with no failed runs reads "Blocked on the list · no failed runs", and the merge-gate figure explains its bar on hover.

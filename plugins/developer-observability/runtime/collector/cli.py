@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import filecmp
 import json
 import os
 from pathlib import Path
@@ -95,15 +96,31 @@ def _omit_none(value):
     return value
 
 
-def _write_sidecar(out, snapshot_id, kind, ref, document):
+def _write_sidecar(out, snapshot_id, kind, ref, document, previous=None):
+    """Write one detail sidecar. The path names the snapshot, so the body carries no snapshot_id; an
+    unchanged body is hardlinked from the previous snapshot, so a superseded snapshot staged in .trash
+    costs only the files that changed (DO-21)."""
     path = out / 'snapshots' / snapshot_id / kind / f'{ref}.json'
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    body = {key: value for key, value in document.items() if key != 'snapshot_id'} if isinstance(document, dict) else document
     fd, tmp = tempfile.mkstemp(prefix=f'.{ref}-', suffix='.json', dir=path.parent)
     with os.fdopen(fd, 'w') as handle:
-        json.dump(_omit_none(document), handle, separators=(',', ':'), ensure_ascii=False)
+        json.dump(_omit_none(body), handle, separators=(',', ':'), ensure_ascii=False)
     os.chmod(tmp, 0o600)
+    old = out / 'snapshots' / previous / kind / f'{ref}.json' if _is_snapshot_id(previous) else None
+    try:
+        if old is not None and old.is_file() and not old.is_symlink() \
+                and old.stat().st_size == os.stat(tmp).st_size and filecmp.cmp(old, tmp, shallow=False):
+            os.unlink(tmp)
+            os.link(old, tmp)
+    except OSError:
+        pass  # keep the freshly written copy
     os.replace(tmp, path)
     return path.relative_to(out).as_posix()
+
+
+def _is_snapshot_id(value):
+    return isinstance(value, str) and re.fullmatch(r'[0-9a-f]{32}', value) is not None
 
 
 def analysis_settings(config, include_tests=None):
@@ -137,7 +154,7 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
     except (OSError, ValueError, AttributeError):
         previous_snapshot = None
     snapshot_id = uuid.uuid4().hex
-    writer = lambda kind, ref, detail: _write_sidecar(out, snapshot_id, kind, ref, detail)
+    writer = lambda kind, ref, detail: _write_sidecar(out, snapshot_id, kind, ref, detail, previous=previous_snapshot)
     document = build(collected, stats, now, include_tests, window_h, threshold_ms, test_threshold_ms,
                      snapshot_id=snapshot_id, sidecar_writer=writer)
     event_count = len(collected)

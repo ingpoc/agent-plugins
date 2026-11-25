@@ -91,7 +91,9 @@ def is_protected(path, home=None, roots=None):
 
 
 def _size(path):
+    """Disk use under path; a hardlinked file (an unchanged sidecar shared by snapshots) counts once."""
     total = 0
+    seen = set()
     try:
         if path.is_symlink():
             return 0
@@ -100,9 +102,14 @@ def _size(path):
         for base, dirs, files in os.walk(path):
             for name in files:
                 try:
-                    total += os.lstat(os.path.join(base, name)).st_blocks * 512
+                    info = os.lstat(os.path.join(base, name))
                 except OSError:
-                    pass
+                    continue
+                if info.st_nlink > 1:
+                    if (info.st_dev, info.st_ino) in seen:
+                        continue
+                    seen.add((info.st_dev, info.st_ino))
+                total += info.st_blocks * 512
     except OSError:
         pass
     return total
