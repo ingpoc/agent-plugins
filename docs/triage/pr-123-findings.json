@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-25T11:24:23Z",
-      "now": "2026-11-25T11:24:23Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-25T11:24:48Z",
+      "now": "2026-11-25T11:24:48Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T11:24:23Z",
+    "last_written_at": "2026-11-25T11:24:48Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1659,8 +1659,8 @@
             "DO-23"
           ],
           "worktree": "samantha-next-r13",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/developer-observability/runtime/backend/round_view.py",
             "plugins/developer-observability/runtime/backend/issue_state.py",
@@ -1730,21 +1730,21 @@
             }
           ],
           "updated_at": "2026-11-25T10:46:20Z",
-          "stage_entered_at": "2026-11-25T11:24:23Z",
+          "stage_entered_at": "2026-11-25T11:24:36Z",
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "e05bb19677a04d368474772dab8cf813",
-              "phase": "fix",
-              "started_at": "2026-11-25T11:24:23Z",
-              "command": "fix2-do23.sh",
-              "heartbeat_at": "2026-11-25T11:24:23Z",
+              "id": "40bec20fe16443ba8c30cac97280274b",
+              "phase": "review",
+              "started_at": "2026-11-25T11:24:48Z",
+              "command": "review-do23.sh",
+              "heartbeat_at": "2026-11-25T11:24:48Z",
               "plan_sha256": "f1ee7ca1dac7d5bc807994c3f33f8e4a2998a1d09f884da9fad429a2a37e850f",
               "finding_ids": [
                 "DO-23"
               ],
               "worktree": "samantha-next-r13",
-              "model": "Grok Bot",
+              "model": "OpenCode beam-free",
               "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
               "cycle": 15,
               "round": 2
@@ -1935,10 +1935,37 @@
                 "wall_time_s": 442,
                 "session": "grok-do23-fix",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "e05bb19677a04d368474772dab8cf813",
+                "phase": "fix",
+                "started_at": "2026-11-25T11:24:23Z",
+                "command": "fix2-do23.sh",
+                "heartbeat_at": "2026-11-25T11:24:36Z",
+                "plan_sha256": "f1ee7ca1dac7d5bc807994c3f33f8e4a2998a1d09f884da9fad429a2a37e850f",
+                "finding_ids": [
+                  "DO-23"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
+                "cycle": 15,
+                "round": 2,
+                "pid": 32456,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T11:24:36Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/e05bb19677a04d368474772dab8cf813.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 13,
+                "session": "grok-do23-fix",
+                "finished_phase_status": "passed"
               }
             ],
             "reviewer_model": "OpenCode beam-free",
-            "must_fix_note": "1. `plugins/developer-observability/runtime/backend/issue_state.py:913` — round ownership still selects with `max(owning, key=_tracker_sort_key)`, so a merged/older numbered tracker (e.g. `19.json`) beats the live tracker (`bcl-r1.json`) for a shared round. Reproduced: `build_issues(\"likeminded\", scope=\"round:1\")` returns `19` instead of `bcl-r1`. Should use `_latest_tracker_key`.\n2. `plugins/developer-observability/runtime/backend/issue_state.py:921` and `:925` — focused/current tracker selection (requested PR and scope-round paths) still uses `_tracker_sort_key`, disagreeing with `_latest_tracker_key` when a PR has multiple tracker files or a non-numeric live list is involved. Should use `_latest_tracker_key`."
+            "must_fix_note": "1. `plugins/developer-observability/runtime/backend/issue_state.py:913` — round ownership still selects with `max(owning, key=_tracker_sort_key)`, so a merged/older numbered tracker (e.g. `19.json`) beats the live tracker (`bcl-r1.json`) for a shared round. Reproduced: `build_issues(\"likeminded\", scope=\"round:1\")` returns `19` instead of `bcl-r1`. Should use `_latest_tracker_key`.\n2. `plugins/developer-observability/runtime/backend/issue_state.py:921` and `:925` — focused/current tracker selection (requested PR and scope-round paths) still uses `_tracker_sort_key`, disagreeing with `_latest_tracker_key` when a PR has multiple tracker files or a non-numeric live list is involved. Should use `_latest_tracker_key`.",
+            "review_status": "running"
           }
         }
       ]
