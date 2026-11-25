@@ -266,9 +266,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-25T15:50:13Z",
-      "now": "2026-11-25T15:50:13Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-25T15:51:06Z",
+      "now": "2026-11-25T15:51:06Z — Install in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -1007,7 +1007,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:50:13Z",
+    "last_written_at": "2026-11-25T15:51:06Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1304,7 +1304,8 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 4,
@@ -3036,7 +3037,7 @@
           "finding_ids": [
             "BCL-188"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "When a job finishes, attach official observability token totals, or mark them not reported, not none.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3058,20 +3059,33 @@
             "fix_base_head": "d137b34c44f45744e79a92753d50e8238b7d2a23",
             "fix_status": "passed",
             "job": {
-              "id": "022f54a67e8c4cd095ae918ce009d6ef",
-              "phase": "review",
-              "started_at": "2026-11-25T15:50:13Z",
-              "command": "review-pass.sh",
-              "heartbeat_at": "2026-11-25T15:50:13Z",
+              "id": "a5ee4f609a5c4431912ca9d0803d1d57",
+              "phase": "presuite",
+              "started_at": "2026-11-25T15:50:37Z",
+              "command": "presuite-r4.sh",
+              "heartbeat_at": "2026-11-25T15:50:53Z",
               "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
               "finding_ids": [
-                "BCL-188"
+                "BCL-188",
+                "BCL-189",
+                "DO-25",
+                "DO-26"
               ],
               "worktree": "samantha-next-r13",
-              "model": "Grok Bot review",
+              "model": "Grok Bot",
               "lane_sha256": "7881f82c093a8a39dedc5cd11e2c12ba60dec1a3f3d1fd0e6a6394783e90470a",
               "cycle": 15,
-              "round": 4
+              "round": 4,
+              "pid": 64480,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T15:50:53Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a5ee4f609a5c4431912ca9d0803d1d57.log",
+              "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 16,
+              "session": "Grok Bot",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -3101,23 +3115,63 @@
                 "wall_time_s": 0,
                 "session": "Grok Bot",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "022f54a67e8c4cd095ae918ce009d6ef",
+                "phase": "review",
+                "started_at": "2026-11-25T15:50:13Z",
+                "command": "review-pass.sh",
+                "heartbeat_at": "2026-11-25T15:50:13Z",
+                "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
+                "finding_ids": [
+                  "BCL-188"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot review",
+                "lane_sha256": "7881f82c093a8a39dedc5cd11e2c12ba60dec1a3f3d1fd0e6a6394783e90470a",
+                "cycle": 15,
+                "round": 4,
+                "pid": 63877,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:50:13Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/022f54a67e8c4cd095ae918ce009d6ef.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
               }
             ],
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:49:35Z",
-          "phase": "review"
+          "stage_entered_at": "2026-11-25T15:51:06Z",
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T15:50:53Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-25T15:51:06Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-25T15:51:06Z"
+          }
         },
         {
           "id": "R4-STALE",
           "finding_ids": [
             "BCL-189"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "Clear leftover install running status and an active verification run when verify or merge finishes.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3137,46 +3191,119 @@
             "fix_base_head": "cf810975f687ff0b99fff459f7bdbcf63836b9a5",
             "fix_status": "passed",
             "job": {
-              "id": "a4975db8223b43ada83a712abfcbf08a",
-              "phase": "fix",
-              "started_at": "2026-11-25T15:49:36Z",
-              "command": "commit-r4-stale.sh",
-              "heartbeat_at": "2026-11-25T15:49:37Z",
-              "plan_sha256": "c1dcf7dc37b40077fe6d86aaec6552b4e628651f53a3583192e0f8e5add4624f",
+              "id": "a5ee4f609a5c4431912ca9d0803d1d57",
+              "phase": "presuite",
+              "started_at": "2026-11-25T15:50:37Z",
+              "command": "presuite-r4.sh",
+              "heartbeat_at": "2026-11-25T15:50:53Z",
+              "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
               "finding_ids": [
-                "BCL-189"
+                "BCL-188",
+                "BCL-189",
+                "DO-25",
+                "DO-26"
               ],
               "worktree": "samantha-next-r13",
               "model": "Grok Bot",
-              "lane_sha256": "5705d422756f9ea57165c49a14bb91e9b85e16f9ad7feb724c544962be407e7e",
+              "lane_sha256": "1049271df4cbd64d560d031df04b769c793e7b7d98b6704a183d634427363533",
               "cycle": 15,
               "round": 4,
-              "pid": 62753,
+              "pid": 64480,
               "exit_code": 0,
-              "finished_at": "2026-11-25T15:49:37Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a4975db8223b43ada83a712abfcbf08a.log",
+              "finished_at": "2026-11-25T15:50:53Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a5ee4f609a5c4431912ca9d0803d1d57.log",
               "output_retained": true,
-              "commit": "cf810975f687ff0b99fff459f7bdbcf63836b9a5",
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 1,
+              "wall_time_s": 16,
               "session": "Grok Bot",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "a4975db8223b43ada83a712abfcbf08a",
+                "phase": "fix",
+                "started_at": "2026-11-25T15:49:36Z",
+                "command": "commit-r4-stale.sh",
+                "heartbeat_at": "2026-11-25T15:49:37Z",
+                "plan_sha256": "c1dcf7dc37b40077fe6d86aaec6552b4e628651f53a3583192e0f8e5add4624f",
+                "finding_ids": [
+                  "BCL-189"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "5705d422756f9ea57165c49a14bb91e9b85e16f9ad7feb724c544962be407e7e",
+                "cycle": 15,
+                "round": 4,
+                "pid": 62753,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:49:37Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a4975db8223b43ada83a712abfcbf08a.log",
+                "output_retained": true,
+                "commit": "cf810975f687ff0b99fff459f7bdbcf63836b9a5",
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "e97dad2645e9483f9373973635f5798f",
+                "phase": "review",
+                "started_at": "2026-11-25T15:50:14Z",
+                "command": "review-pass.sh",
+                "heartbeat_at": "2026-11-25T15:50:14Z",
+                "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
+                "finding_ids": [
+                  "BCL-189"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot review",
+                "lane_sha256": "1049271df4cbd64d560d031df04b769c793e7b7d98b6704a183d634427363533",
+                "cycle": 15,
+                "round": 4,
+                "pid": 63976,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:50:14Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/e97dad2645e9483f9373973635f5798f.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:49:37Z",
-          "phase": "review"
+          "stage_entered_at": "2026-11-25T15:51:06Z",
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T15:50:53Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-25T15:51:06Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-25T15:51:06Z"
+          }
         },
         {
           "id": "R4-CAPTURE",
           "finding_ids": [
             "DO-25"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "Document the required trust flag and record a refused unknown model instead of a wrapper crash.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3198,46 +3325,119 @@
             "fix_base_head": "69a5fc5d00ac76246e502265009b525160566584",
             "fix_status": "passed",
             "job": {
-              "id": "31416aa418134e56a97eed716dbbe9b1",
-              "phase": "fix",
-              "started_at": "2026-11-25T15:49:37Z",
-              "command": "commit-r4-capture.sh",
-              "heartbeat_at": "2026-11-25T15:49:38Z",
-              "plan_sha256": "285cdcbc7bf1ebca3d789b318931891f2c5a862b60649a60cfef56490433aed2",
+              "id": "a5ee4f609a5c4431912ca9d0803d1d57",
+              "phase": "presuite",
+              "started_at": "2026-11-25T15:50:37Z",
+              "command": "presuite-r4.sh",
+              "heartbeat_at": "2026-11-25T15:50:53Z",
+              "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
               "finding_ids": [
-                "DO-25"
+                "BCL-188",
+                "BCL-189",
+                "DO-25",
+                "DO-26"
               ],
               "worktree": "samantha-next-r13",
               "model": "Grok Bot",
-              "lane_sha256": "76ac5262b8aca2b682317cc4a49d2822c52bd404eec0c95822719f870a37e285",
+              "lane_sha256": "68c927c1423571e2d989a48112f2be2558a271e00c7887e47b5330d55f0850ec",
               "cycle": 15,
               "round": 4,
-              "pid": 62877,
+              "pid": 64480,
               "exit_code": 0,
-              "finished_at": "2026-11-25T15:49:38Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/31416aa418134e56a97eed716dbbe9b1.log",
+              "finished_at": "2026-11-25T15:50:53Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a5ee4f609a5c4431912ca9d0803d1d57.log",
               "output_retained": true,
-              "commit": "69a5fc5d00ac76246e502265009b525160566584",
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 1,
+              "wall_time_s": 16,
               "session": "Grok Bot",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "31416aa418134e56a97eed716dbbe9b1",
+                "phase": "fix",
+                "started_at": "2026-11-25T15:49:37Z",
+                "command": "commit-r4-capture.sh",
+                "heartbeat_at": "2026-11-25T15:49:38Z",
+                "plan_sha256": "285cdcbc7bf1ebca3d789b318931891f2c5a862b60649a60cfef56490433aed2",
+                "finding_ids": [
+                  "DO-25"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "76ac5262b8aca2b682317cc4a49d2822c52bd404eec0c95822719f870a37e285",
+                "cycle": 15,
+                "round": 4,
+                "pid": 62877,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:49:38Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/31416aa418134e56a97eed716dbbe9b1.log",
+                "output_retained": true,
+                "commit": "69a5fc5d00ac76246e502265009b525160566584",
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "6a3cc0c339ab465c9be546a30bcdb474",
+                "phase": "review",
+                "started_at": "2026-11-25T15:50:15Z",
+                "command": "review-pass.sh",
+                "heartbeat_at": "2026-11-25T15:50:16Z",
+                "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
+                "finding_ids": [
+                  "DO-25"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot review",
+                "lane_sha256": "68c927c1423571e2d989a48112f2be2558a271e00c7887e47b5330d55f0850ec",
+                "cycle": 15,
+                "round": 4,
+                "pid": 64083,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:50:16Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/6a3cc0c339ab465c9be546a30bcdb474.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:49:38Z",
-          "phase": "review"
+          "stage_entered_at": "2026-11-25T15:51:06Z",
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T15:50:53Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-25T15:51:06Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-25T15:51:06Z"
+          }
         },
         {
           "id": "R4-LASTFAIL",
           "finding_ids": [
             "DO-26"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "Clear or label last failure after a later verify, and raise remaining text to 16 pixels without blocking zoom.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3259,39 +3459,112 @@
             "fix_base_head": "8d84ce2421ef91f3c7ba4b382afe46eb03c7b6d6",
             "fix_status": "passed",
             "job": {
-              "id": "aab9180241c847e1a741c6b045a065d9",
-              "phase": "fix",
-              "started_at": "2026-11-25T15:49:39Z",
-              "command": "commit-r4-lastfail.sh",
-              "heartbeat_at": "2026-11-25T15:49:39Z",
-              "plan_sha256": "deb6f797f81bbff99a8872807ef9328e27ad7167bee67e165f044eb28922b7ae",
+              "id": "a5ee4f609a5c4431912ca9d0803d1d57",
+              "phase": "presuite",
+              "started_at": "2026-11-25T15:50:37Z",
+              "command": "presuite-r4.sh",
+              "heartbeat_at": "2026-11-25T15:50:53Z",
+              "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
               "finding_ids": [
+                "BCL-188",
+                "BCL-189",
+                "DO-25",
                 "DO-26"
               ],
               "worktree": "samantha-next-r13",
               "model": "Grok Bot",
-              "lane_sha256": "5b44f8418ccc9f9af4651da210cbb5869978d6a7c11cdbcf182ccfa04f66957e",
+              "lane_sha256": "0644fec0f1341c8bc7cda94323dc2fd69cfc0fb0f56f63111d3229a67ea3c42a",
               "cycle": 15,
               "round": 4,
-              "pid": 63003,
+              "pid": 64480,
               "exit_code": 0,
-              "finished_at": "2026-11-25T15:49:39Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/aab9180241c847e1a741c6b045a065d9.log",
+              "finished_at": "2026-11-25T15:50:53Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a5ee4f609a5c4431912ca9d0803d1d57.log",
               "output_retained": true,
-              "commit": "8d84ce2421ef91f3c7ba4b382afe46eb03c7b6d6",
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 0,
+              "wall_time_s": 16,
               "session": "Grok Bot",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "aab9180241c847e1a741c6b045a065d9",
+                "phase": "fix",
+                "started_at": "2026-11-25T15:49:39Z",
+                "command": "commit-r4-lastfail.sh",
+                "heartbeat_at": "2026-11-25T15:49:39Z",
+                "plan_sha256": "deb6f797f81bbff99a8872807ef9328e27ad7167bee67e165f044eb28922b7ae",
+                "finding_ids": [
+                  "DO-26"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "5b44f8418ccc9f9af4651da210cbb5869978d6a7c11cdbcf182ccfa04f66957e",
+                "cycle": 15,
+                "round": 4,
+                "pid": 63003,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:49:39Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/aab9180241c847e1a741c6b045a065d9.log",
+                "output_retained": true,
+                "commit": "8d84ce2421ef91f3c7ba4b382afe46eb03c7b6d6",
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "6ff6cd819bf54dbe9d9fa721020c5b3d",
+                "phase": "review",
+                "started_at": "2026-11-25T15:50:16Z",
+                "command": "review-pass.sh",
+                "heartbeat_at": "2026-11-25T15:50:17Z",
+                "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
+                "finding_ids": [
+                  "DO-26"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot review",
+                "lane_sha256": "0644fec0f1341c8bc7cda94323dc2fd69cfc0fb0f56f63111d3229a67ea3c42a",
+                "cycle": 15,
+                "round": 4,
+                "pid": 64183,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:50:17Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/6ff6cd819bf54dbe9d9fa721020c5b3d.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "passed",
+            "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:49:39Z",
-          "phase": "review"
+          "stage_entered_at": "2026-11-25T15:51:06Z",
+          "phase": "install",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T15:50:53Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-25T15:51:06Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "Grok Bot",
+            "at": "2026-11-25T15:51:06Z"
+          }
         }
       ],
       "cycle": 15
@@ -4481,7 +4754,7 @@
       "impact": "Round comparison cannot measure token cost for most jobs, so waste stays invisible.",
       "observed": "On 25 Nov 2026 after the official totals work landed, every Round 3 job on list 123 still had tokens_source none and tokens null. finish-job only reads a stamped or inline Codex session jsonl. Developer-observability already publishes official per-job totals including cache read, with cost as a number or not reported.",
       "done_when": "A finished job records the official observability total and source, or marks the total and cost not reported, including Cursor usage and other harnesses, with tests and a live read on a throwaway list.",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "recommendation": "On the existing job finish path, attach official observability totals. If no matching run is found, write not reported rather than none.",
       "source": "Agent reported",
@@ -4490,7 +4763,14 @@
         "related": "Follows DO-24, which published official totals. This gap is that change-list finish-job does not consume them."
       },
       "created_at": "2026-11-25T15:39:15Z",
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:51:06Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "BCL-189",
@@ -4499,7 +4779,7 @@
       "impact": "Operators have to abandon a leftover run by hand, and the page shows stale running work after merge.",
       "observed": "On 25 Nov 2026 in the evening IST, the leftover Round 2 verification run pr123-r2-736a6ccd stayed active and blocked official verify until it was stopped with the official stop command. After Round 3 verify, the new run pr123-r3-671698d6 is still active, and five already verified lanes still have install status running. Merged lists 121 and 122 also still have an active verification run, with five and twelve lanes still marked install running.",
       "done_when": "When verify finishes, no verified lane still shows install as running, and when merge is recorded the verification run is no longer active, with tests against the earlier list shape and a live check.",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "recommendation": "Clear leftover running install status and an active verification run when verify or merge records a finished outcome. Only clear when every planned check is terminal or when merge is recorded.",
       "source": "Agent reported",
@@ -4508,7 +4788,14 @@
         "related": "Today's stale Round 2 run on list 123 is the evidence. This is leftover running state, not the earlier bug where a stopped run marked fixed issues as failed."
       },
       "created_at": "2026-11-25T15:39:15Z",
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:51:06Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "DO-25",
@@ -4517,7 +4804,7 @@
       "impact": "Documented capture starts fail and need retries, so capture is not reliable on the default path.",
       "observed": "On 25 Nov 2026, four of five capture attempts failed before one success. Failures included a missing trust flag and a model that was not on the plan. The skill document shows a capture command without that flag.",
       "done_when": "The documented capture command includes the required trust flag, and an unknown or unavailable model is recorded as a refusal with the available models rather than a wrapper crash, with tests and one live documented capture on a throwaway prompt.",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "recommendation": "Put the required trust flag on the published command, and record a refused unknown model with the available list. Do not silently trust every tree.",
       "source": "Agent reported",
@@ -4526,7 +4813,14 @@
         "related": "Follow-on to DO-14 and DO-15. The gap is the documented start and the refusal record, not the original run capture itself."
       },
       "created_at": "2026-11-25T15:39:15Z",
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:51:06Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     },
     {
       "id": "DO-26",
@@ -4535,7 +4829,7 @@
       "impact": "A finished fix can look like a current failure, and some text is harder to read.",
       "observed": "On 25 Nov 2026 in the evening IST, the observability last failure still named DO-23 after that issue had been verified. Secondary text was computed at 15 pixels at the default size. Size controls and browser zoom already worked.",
       "done_when": "A later verify clears the last failure or labels it as a last failed job that was later verified, all text is at least 16 pixels at the default size, and the page does not block browser zoom, with tests and a live read.",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "recommendation": "Prefer labelling a later-verified failure as last failed job, later verified, rather than deleting the history. Raise remaining text to 16 pixels and keep zoom working.",
       "source": "Agent reported",
@@ -4544,7 +4838,14 @@
         "related": "Independent of the change-list leftover running cleanup. Keep existing size controls and do not add a maximum scale or disable zoom."
       },
       "created_at": "2026-11-25T15:39:15Z",
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T15:51:06Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     }
   ]
 }
