@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-25T10:57:01Z",
-      "now": "2026-11-25T10:57:01Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-25T10:57:03Z",
+      "now": "2026-11-25T10:57:03Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T10:57:01Z",
+    "last_written_at": "2026-11-25T10:57:03Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1622,8 +1622,8 @@
             "DO-23"
           ],
           "worktree": "samantha-next-r13",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/developer-observability/runtime/backend/round_view.py",
             "plugins/developer-observability/runtime/backend/issue_state.py",
@@ -1664,26 +1664,26 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-25T10:46:20Z",
-          "stage_entered_at": "2026-11-25T10:57:01Z",
+          "stage_entered_at": "2026-11-25T10:57:02Z",
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "3eb1037606dd4e9daba2cfc0db6637d6",
-              "phase": "fix",
-              "started_at": "2026-11-25T10:57:01Z",
-              "command": "refix-do23.sh",
-              "heartbeat_at": "2026-11-25T10:57:01Z",
+              "id": "b2cf60894cd841959e3b1fbb8a05ec5a",
+              "phase": "review",
+              "started_at": "2026-11-25T10:57:03Z",
+              "command": "review-do23.sh",
+              "heartbeat_at": "2026-11-25T10:57:03Z",
               "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
               "finding_ids": [
                 "DO-23"
               ],
               "worktree": "samantha-next-r13",
-              "model": "Grok Bot",
+              "model": "OpenCode beam-free",
               "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
               "cycle": 15,
               "round": 2
             },
-            "tool_fault_streak": 2,
+            "tool_fault_streak": 0,
             "implementer_session": "grok-do23-fix",
             "reviewer_session": "opencode-do23-review",
             "jobs": [
@@ -1766,10 +1766,37 @@
                 "wall_time_s": 0,
                 "session": "grok-do23-fix",
                 "finished_phase_status": "failed"
+              },
+              {
+                "id": "3eb1037606dd4e9daba2cfc0db6637d6",
+                "phase": "fix",
+                "started_at": "2026-11-25T10:57:01Z",
+                "command": "refix-do23.sh",
+                "heartbeat_at": "2026-11-25T10:57:02Z",
+                "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
+                "finding_ids": [
+                  "DO-23"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
+                "cycle": 15,
+                "round": 2,
+                "pid": 93752,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T10:57:02Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/3eb1037606dd4e9daba2cfc0db6637d6.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "grok-do23-fix",
+                "finished_phase_status": "passed"
               }
             ],
-            "reviewer_model": "OpenCode deepseek-v4.1-flash-free",
-            "must_fix_note": "Reviewer exited 1"
+            "reviewer_model": "OpenCode beam-free",
+            "must_fix_note": "Reviewer exited 1",
+            "review_status": "running"
           }
         }
       ]
