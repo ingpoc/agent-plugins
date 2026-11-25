@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-25T15:22:18Z",
-      "now": "2026-11-25T15:22:18Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-25T15:23:28Z",
+      "now": "2026-11-25T15:23:28Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -633,7 +633,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:22:18Z",
+    "last_written_at": "2026-11-25T15:23:28Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -2270,9 +2270,9 @@
             "BCL-182",
             "BCL-183"
           ],
-          "status": "planned",
+          "status": "review",
           "reason": "One job outcome model: credit a named implementer commit, keep a tool-fault review in review, and resume a dead runner through an official finish.",
-          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "worktree": "samantha-next-r13",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
@@ -2289,21 +2289,52 @@
           },
           "codex": {
             "implementer_session": "Grok Bot",
-            "reviewer_session": "Grok Bot review"
+            "reviewer_session": "Grok Bot review",
+            "fix_status": "passed",
+            "job": {
+              "id": "a850d39e7d3d422895c347d3b78bae04",
+              "phase": "fix",
+              "started_at": "2026-11-25T15:23:06Z",
+              "command": "commit-jobout.sh",
+              "heartbeat_at": "2026-11-25T15:23:06Z",
+              "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+              "finding_ids": [
+                "BCL-180",
+                "BCL-182",
+                "BCL-183"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot",
+              "lane_sha256": "b625e6b03ba4860049acb167ae8e5e2e92f43cb113e3d5f60c57030ebbc4e3db",
+              "cycle": 15,
+              "round": 3,
+              "pid": 25992,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T15:23:06Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a850d39e7d3d422895c347d3b78bae04.log",
+              "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 0,
+              "session": "Grok Bot",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:22:18Z",
-          "stage_entered_at": "2026-11-25T15:22:18Z"
+          "stage_entered_at": "2026-11-25T15:23:06Z",
+          "phase": "review"
         },
         {
           "id": "R3-CL1",
           "finding_ids": [
             "CL-1"
           ],
-          "status": "planned",
+          "status": "review",
           "reason": "Find must not return a fleet record that is about another project.",
-          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "worktree": "samantha-next-r13",
           "files": [
             "plugins/context-ledger/context_ledger/contracts.py",
             "plugins/context-ledger/context_ledger/store.py",
@@ -2318,21 +2349,70 @@
           },
           "codex": {
             "implementer_session": "Grok Bot",
-            "reviewer_session": "Grok Bot review"
+            "reviewer_session": "Grok Bot review",
+            "fix_status": "passed",
+            "job": {
+              "id": "583a51b32f22470ea7931665fff06720",
+              "phase": "review",
+              "started_at": "2026-11-25T15:23:28Z",
+              "command": "review-pass.sh",
+              "heartbeat_at": "2026-11-25T15:23:28Z",
+              "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+              "finding_ids": [
+                "CL-1"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot review",
+              "lane_sha256": "ea6002aebc7c7ae97731d96d98f52fda5b25e37c18fde5adb8126e7e9da308c3",
+              "cycle": 15,
+              "round": 3
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "170fad526a6c4805af8b367ea2e5cd67",
+                "phase": "fix",
+                "started_at": "2026-11-25T15:23:12Z",
+                "command": "commit-cl1.sh",
+                "heartbeat_at": "2026-11-25T15:23:13Z",
+                "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+                "finding_ids": [
+                  "CL-1"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "ea6002aebc7c7ae97731d96d98f52fda5b25e37c18fde5adb8126e7e9da308c3",
+                "cycle": 15,
+                "round": 3,
+                "pid": 26181,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:23:13Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/170fad526a6c4805af8b367ea2e5cd67.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:22:18Z",
-          "stage_entered_at": "2026-11-25T15:22:18Z"
+          "stage_entered_at": "2026-11-25T15:23:13Z",
+          "phase": "review"
         },
         {
           "id": "R3-USAGE",
           "finding_ids": [
             "DO-24"
           ],
-          "status": "planned",
+          "status": "review",
           "reason": "Publish official token totals per job and per round, including cache read, with cost or not reported.",
-          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "worktree": "samantha-next-r13",
           "files": [
             "plugins/developer-observability/runtime/backend/issue_trail.py",
             "plugins/developer-observability/runtime/viewer.py",
@@ -2347,12 +2427,41 @@
           },
           "codex": {
             "implementer_session": "Grok Bot",
-            "reviewer_session": "Grok Bot review"
+            "reviewer_session": "Grok Bot review",
+            "fix_status": "passed",
+            "job": {
+              "id": "375b0d4cd46f4810b98896bf901475a1",
+              "phase": "fix",
+              "started_at": "2026-11-25T15:23:14Z",
+              "command": "commit-usage.sh",
+              "heartbeat_at": "2026-11-25T15:23:14Z",
+              "plan_sha256": "aa9cc4bf86bf300f124040b1044f919863fe5202c592861dd695872ce01dd4d7",
+              "finding_ids": [
+                "DO-24"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot",
+              "lane_sha256": "64ae3aebaaec4d1cf9d27d72c4890fef5a703275e60532a0e390774b4fac1352",
+              "cycle": 15,
+              "round": 3,
+              "pid": 26292,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T15:23:14Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/375b0d4cd46f4810b98896bf901475a1.log",
+              "output_retained": true,
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 0,
+              "session": "Grok Bot",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:22:18Z",
-          "stage_entered_at": "2026-11-25T15:22:18Z"
+          "stage_entered_at": "2026-11-25T15:23:14Z",
+          "phase": "review"
         }
       ],
       "cycle": 15
