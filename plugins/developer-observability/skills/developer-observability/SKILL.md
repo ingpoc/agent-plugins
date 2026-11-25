@@ -11,5 +11,6 @@ Task X: `observability_tasks`, then `observability_task`, then `observability_ta
 | --- | --- | --- | --- |
 | Triage | Diagnosing project findings or evidence | `references/triage.md` | |
 | Task usage | Reviewing opt-in Codex task usage | `references/task-usage.md` | |
+| Cursor CLI runs | Model, tokens, wall time or refusals of Cursor CLI jobs | `references/cursor-cli-runs.md` | |
 | Timelines | Filtering issues, sessions, or linked runs | `references/issues-and-sessions.md` | |
 | Optional tools | Ledger pilot, typed choices, storage, or dashboard | `references/optional-tools.md` | |

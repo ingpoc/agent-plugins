@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "\"$CURSOR_PLUGIN_ROOT/bin/developer-observability\" cursor-hook",
+        "timeout": 5
+      }
+    ],
+    "stop": [
+      {
+        "command": "\"$CURSOR_PLUGIN_ROOT/bin/developer-observability\" cursor-hook",
+        "timeout": 5
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "\"$CURSOR_PLUGIN_ROOT/bin/developer-observability\" cursor-hook",
+        "timeout": 5
+      }
+    ]
+  }
+}

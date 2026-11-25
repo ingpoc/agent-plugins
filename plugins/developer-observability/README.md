@@ -81,6 +81,10 @@ Direct task detail exposes `direct_measurement_eligible` when a CLI capture has 
 
 To capture an explicitly launched Codex CLI job, run `bin/developer-observability codex-capture --category analysis -- <codex arguments>`. This forwards Codex JSON events to stdout and stores aggregate usage locally. The optional `--verify` check records a caller-supplied check result, not independent task acceptance. The command exits nonzero if usage cannot be stored. Captured elapsed time ends before the optional check and is not end-to-end time through acceptance. Usage totals remain unknown for failed turns or ambiguous replayed/multiple unidentifiable turns. The JSON event stream is forwarded to stdout and can contain task content; pass `--quiet-events` to suppress it. This wrapper does not capture or attribute T3-delegated child sessions.
 
+## Cursor CLI runs
+
+Cursor CLI headless runs are captured by default. A plugin hook (`hooks/cursor-hooks.json` → `bin/developer-observability cursor-hook`) records model, status, duration and refusal errors for every Cursor session. Official tokens come from Cursor's own result `usage`, which only `-p --output-format json|stream-json` prints: run jobs through `bin/developer-observability cursor-capture -- <agent args>`, or record a saved output with `cursor-usage --ingest FILE`. Read runs back with `bin/developer-observability cursor-usage --run UUID` or `--since/--until`, or with `observability_cursor_runs`. Cursor reports no cost or model version, so both stay null. Details: `skills/developer-observability/references/cursor-cli-runs.md`.
+
 ## Interface
 
 Task tools: `observability_tasks` lists recent runs,
