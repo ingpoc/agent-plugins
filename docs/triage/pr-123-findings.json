@@ -507,8 +507,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-25T15:51:28Z",
-      "now": "2026-11-25T15:51:28Z — Verify in progress"
+      "updated_at": "2026-11-25T15:53:13Z",
+      "now": "2026-11-25T15:53:13Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -1247,7 +1247,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:51:28Z",
+    "last_written_at": "2026-11-25T15:53:14Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1875,8 +1875,9 @@
             "finished_at": "2026-11-25T09:48:26Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-25T09:49:15Z"
+            "status": "complete",
+            "started_at": "2026-11-25T09:49:15Z",
+            "finished_at": "2026-11-25T15:51:28Z"
           },
           "stage_model": {
             "stage": "verify",
@@ -1934,8 +1935,9 @@
           ],
           "plan_review_history": [],
           "install": {
-            "status": "running",
-            "started_at": "2026-11-24T19:24:58Z"
+            "status": "complete",
+            "started_at": "2026-11-24T19:24:58Z",
+            "finished_at": "2026-11-25T15:51:28Z"
           },
           "stage_model": {
             "stage": "verify",
@@ -3013,8 +3015,9 @@
             "finished_at": "2026-11-25T15:23:54Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-25T15:33:11Z"
+            "status": "complete",
+            "started_at": "2026-11-25T15:33:11Z",
+            "finished_at": "2026-11-25T15:51:28Z"
           }
         },
         {
@@ -3141,8 +3144,9 @@
             "finished_at": "2026-11-25T15:23:54Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-25T15:33:11Z"
+            "status": "complete",
+            "started_at": "2026-11-25T15:33:11Z",
+            "finished_at": "2026-11-25T15:51:28Z"
           }
         },
         {
@@ -3269,8 +3273,9 @@
             "finished_at": "2026-11-25T15:23:54Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-25T15:33:11Z"
+            "status": "complete",
+            "started_at": "2026-11-25T15:33:11Z",
+            "finished_at": "2026-11-25T15:51:28Z"
           }
         },
         {
@@ -3278,7 +3283,7 @@
           "finding_ids": [
             "BCL-188"
           ],
-          "status": "verifying",
+          "status": "verified",
           "reason": "When a job finishes, attach official observability token totals, or mark them not reported, not none.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3289,10 +3294,11 @@
           ],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-attach.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-25T15:51:28Z"
           },
           "codex": {
             "implementer_session": "Grok Bot",
@@ -3398,8 +3404,9 @@
             "finished_at": "2026-11-25T15:50:53Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-25T15:51:06Z"
+            "status": "complete",
+            "started_at": "2026-11-25T15:51:06Z",
+            "finished_at": "2026-11-25T15:51:28Z"
           }
         },
         {
@@ -3407,7 +3414,7 @@
           "finding_ids": [
             "BCL-189"
           ],
-          "status": "installing",
+          "status": "verified",
           "reason": "Clear leftover install running status and an active verification run when verify or merge finishes.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3416,10 +3423,11 @@
           ],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-stale.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-25T15:51:29Z"
           },
           "codex": {
             "implementer_session": "Grok Bot",
@@ -3516,22 +3524,18 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:51:06Z",
-          "phase": "install",
+          "updated_at": "2026-11-25T15:51:29Z",
+          "stage_entered_at": "2026-11-25T15:51:29Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-25T15:50:53Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-25T15:51:06Z"
-          },
-          "stage_model": {
-            "stage": "install",
-            "model": "Grok Bot",
-            "at": "2026-11-25T15:51:06Z"
+            "status": "complete",
+            "started_at": "2026-11-25T15:51:06Z",
+            "finished_at": "2026-11-25T15:51:29Z"
           }
         },
         {
@@ -3539,7 +3543,7 @@
           "finding_ids": [
             "DO-25"
           ],
-          "status": "installing",
+          "status": "verified",
           "reason": "Document the required trust flag and record a refused unknown model instead of a wrapper crash.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3550,10 +3554,11 @@
           ],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-capture.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-25T15:51:33Z"
           },
           "codex": {
             "implementer_session": "Grok Bot",
@@ -3650,22 +3655,18 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:51:06Z",
-          "phase": "install",
+          "updated_at": "2026-11-25T15:51:30Z",
+          "stage_entered_at": "2026-11-25T15:51:33Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-25T15:50:53Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-25T15:51:06Z"
-          },
-          "stage_model": {
-            "stage": "install",
-            "model": "Grok Bot",
-            "at": "2026-11-25T15:51:06Z"
+            "status": "complete",
+            "started_at": "2026-11-25T15:51:06Z",
+            "finished_at": "2026-11-25T15:51:33Z"
           }
         },
         {
@@ -3673,7 +3674,7 @@
           "finding_ids": [
             "DO-26"
           ],
-          "status": "installing",
+          "status": "verified",
           "reason": "Clear or label last failure after a later verify, and raise remaining text to 16 pixels without blocking zoom.",
           "worktree": "samantha-next-r13",
           "files": [
@@ -3684,10 +3685,11 @@
           ],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-lastfail.sh",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-25T15:53:13Z"
           },
           "codex": {
             "implementer_session": "Grok Bot",
@@ -3784,22 +3786,18 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:51:06Z",
-          "phase": "install",
+          "updated_at": "2026-11-25T15:53:13Z",
+          "stage_entered_at": "2026-11-25T15:53:13Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-25T15:50:53Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-25T15:51:06Z"
-          },
-          "stage_model": {
-            "stage": "install",
-            "model": "Grok Bot",
-            "at": "2026-11-25T15:51:06Z"
+            "status": "complete",
+            "started_at": "2026-11-25T15:51:06Z",
+            "finished_at": "2026-11-25T15:53:13Z"
           }
         }
       ],
@@ -3812,91 +3810,144 @@
       "installed_at": "2026-11-25T15:51:06Z",
       "install_evidence": "install-local batched-change-list 0.1.75 at d2bcdc449ceca64a9a6a9f8450fd3a70bb69a92d; live plugin sha256 e1db4b82add929dbfdc4191b3da4d5bfecf1f4a53253fb3910002be15be16824; official install stage at 2026-11-25T15:51:06Z with no then-command (context-ledger was not reinstalled; port 8780 was not restarted).",
       "cycle": 15,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "DO-1": {
-          "state": "pending"
+          "state": "inconclusive",
+          "evidence": "This issue was not in the current verify wave.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "PR122-parked-backlog": {
-          "state": "pending"
+          "state": "inconclusive",
+          "evidence": "This issue was not in the current verify wave.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-178": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-14": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-15": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-16": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-17": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-179": {
-          "state": "pending"
+          "state": "inconclusive",
+          "evidence": "This issue was not in the current verify wave.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-180": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-181": {
-          "state": "pending"
+          "state": "inconclusive",
+          "evidence": "This issue was not in the current verify wave.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-182": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-183": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-184": {
-          "state": "pending"
+          "state": "inconclusive",
+          "evidence": "This issue was not in the current verify wave.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-18": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "CL-1": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-21": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-185": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-22": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-186": {
-          "state": "pending"
+          "state": "inconclusive",
+          "evidence": "This issue was not in the current verify wave.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-187": {
-          "state": "pending"
+          "state": "inconclusive",
+          "evidence": "This issue was not in the current verify wave.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-23": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-24": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-188": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "BCL-189": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-25": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         },
         "DO-26": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "Official verify recorded this issue as verified.",
+          "finished_at": "2026-11-25T15:53:13Z"
         }
       },
       "run_id": "pr123-r4-d2bcdc44",
       "pr": 123,
       "round": 4,
-      "started_at": "2026-11-25T15:51:06Z"
+      "started_at": "2026-11-25T15:51:06Z",
+      "ended_at": "2026-11-25T15:53:13Z"
     },
     "introspect": {
       "result": "Introspect recorded",
@@ -4074,7 +4125,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:51:15Z",
+        "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
       }
     },
@@ -4113,7 +4164,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-25T15:51:15Z",
+        "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
       }
     },
@@ -4432,7 +4483,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:51:15Z",
+        "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
       }
     },
@@ -4513,7 +4564,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:51:15Z",
+        "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
       }
     },
@@ -4645,7 +4696,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:51:15Z",
+        "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
       }
     },
@@ -4955,7 +5006,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:51:15Z",
+        "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
       }
     },
@@ -4983,7 +5034,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:51:15Z",
+        "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
       }
     },
@@ -5096,7 +5147,7 @@
       "impact": "Round comparison cannot measure token cost for most jobs, so waste stays invisible.",
       "observed": "On 25 Nov 2026 after the official totals work landed, every Round 3 job on list 123 still had tokens_source none and tokens null. finish-job only reads a stamped or inline Codex session jsonl. Developer-observability already publishes official per-job totals including cache read, with cost as a number or not reported.",
       "done_when": "A finished job records the official observability total and source, or marks the total and cost not reported, including Cursor usage and other harnesses, with tests and a live read on a throwaway list.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "recommendation": "On the existing job finish path, attach official observability totals. If no matching run is found, write not reported rather than none.",
       "source": "Agent reported",
@@ -5111,8 +5162,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:28Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-attach.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-attach.sh"
     },
     {
       "id": "BCL-189",
@@ -5121,7 +5182,7 @@
       "impact": "Operators have to abandon a leftover run by hand, and the page shows stale running work after merge.",
       "observed": "On 25 Nov 2026 in the evening IST, the leftover Round 2 verification run pr123-r2-736a6ccd stayed active and blocked official verify until it was stopped with the official stop command. After Round 3 verify, the new run pr123-r3-671698d6 is still active, and five already verified lanes still have install status running. Merged lists 121 and 122 also still have an active verification run, with five and twelve lanes still marked install running.",
       "done_when": "When verify finishes, no verified lane still shows install as running, and when merge is recorded the verification run is no longer active, with tests against the earlier list shape and a live check.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "recommendation": "Clear leftover running install status and an active verification run when verify or merge records a finished outcome. Only clear when every planned check is terminal or when merge is recorded.",
       "source": "Agent reported",
@@ -5136,8 +5197,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:30Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-stale.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-stale.sh"
     },
     {
       "id": "DO-25",
@@ -5146,7 +5217,7 @@
       "impact": "Documented capture starts fail and need retries, so capture is not reliable on the default path.",
       "observed": "On 25 Nov 2026, four of five capture attempts failed before one success. Failures included a missing trust flag and a model that was not on the plan. The skill document shows a capture command without that flag.",
       "done_when": "The documented capture command includes the required trust flag, and an unknown or unavailable model is recorded as a refusal with the available models rather than a wrapper crash, with tests and one live documented capture on a throwaway prompt.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "recommendation": "Put the required trust flag on the published command, and record a refused unknown model with the available list. Do not silently trust every tree.",
       "source": "Agent reported",
@@ -5161,8 +5232,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:51:33Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-capture.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-capture.sh"
     },
     {
       "id": "DO-26",
@@ -5171,7 +5252,7 @@
       "impact": "A finished fix can look like a current failure, and some text is harder to read.",
       "observed": "On 25 Nov 2026 in the evening IST, the observability last failure still named DO-23 after that issue had been verified. Secondary text was computed at 15 pixels at the default size. Size controls and browser zoom already worked.",
       "done_when": "A later verify clears the last failure or labels it as a last failed job that was later verified, all text is at least 16 pixels at the default size, and the page does not block browser zoom, with tests and a live read.",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "recommendation": "Prefer labelling a later-verified failure as last failed job, later verified, rather than deleting the history. Raise remaining text to 16 pixels and keep zoom working.",
       "source": "Agent reported",
@@ -5186,8 +5267,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T15:53:14Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-lastfail.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-lastfail.sh"
     }
   ]
 }
