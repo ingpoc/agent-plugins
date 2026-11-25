@@ -697,6 +697,23 @@ class MultiProjectTrackerTests(unittest.TestCase):
                 self.assertEqual(changed["pr"], "bcl-r1")
                 self.assertEqual(build_issues("agent-plugins")["pr"], "121")
 
+    def test_round_scope_prefers_the_live_list(self):
+        self._numbered_likeminded(True, "2026-11-25T06:00:00Z")
+        for kwargs in ({"scope": "round:1"}, {"round_id": "1"}):
+            with self.subTest(**kwargs):
+                result = build_issues("likeminded", **kwargs)
+                self.assertEqual(result["pr"], "bcl-r1")
+                self.assertEqual({row["id"] for row in result["issues"]}, {"LM-1", "LM-2"})
+
+    def test_legacy_unmerged_list_without_write_time_is_not_live(self):
+        self._numbered_likeminded(True, "2026-11-25T06:00:00Z")
+        other = self.state / "ingpoc--like-minded-app"
+        (other / "bcl-r1.json").unlink()
+        (other / "20.json").write_text(json.dumps({"tracking": {"cycle": 1, "round": 1,
+            "plan": {"round": 1, "cycle": 1, "groups": []}}, "findings": [
+            {"id": "LEG-1", "title": "Legacy", "status": "untested"}]}))
+        self.assertEqual(build_issues("likeminded")["pr"], "19")
+
     def test_newer_unmerged_numbered_list_still_wins(self):
         self._numbered_likeminded(False, "2026-11-25T09:00:00Z")
         self.assertEqual(build_issues("likeminded")["pr"], "19")

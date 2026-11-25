@@ -910,7 +910,7 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         owning = [item for item in all_trackers
                   if any(row.get("round") == scope_round for row in _history_rows(item[1], item[2]))]
         if owning:
-            focus_pr = str(max(owning, key=_tracker_sort_key)[2])
+            focus_pr = str(max(owning, key=_latest_tracker_key)[2])
 
     current = latest
     current_pr = latest_pr
@@ -918,11 +918,11 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         focused = [item for item in all_trackers if str(item[2]) == requested_pr]
         if not focused:
             raise ValueError("tracker_unavailable: no tracker for this pull request")
-        _, current, current_pr = max(focused, key=_tracker_sort_key)
+        _, current, current_pr = max(focused, key=_latest_tracker_key)
     elif scope_round is not None:
         focused = [item for item in all_trackers if str(item[2]) == str(focus_pr)]
         if focused:
-            _, current, current_pr = max(focused, key=_tracker_sort_key)
+            _, current, current_pr = max(focused, key=_latest_tracker_key)
 
     current_tracking, current_plan, current_round, current_cycle = _meta(current)
     if scope == "round:current":

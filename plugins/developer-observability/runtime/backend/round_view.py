@@ -445,12 +445,15 @@ def _tracker_sort_key(item):
 
 
 def _latest_tracker_key(item):
-    """Rank lists for the default (latest) view: unmerged beats merged, then the most recently
-    written list wins, then the PR number. A live non-numeric list (bcl-r1) is not hidden by an
-    older or merged numbered list (19). History and picker order keep _tracker_sort_key."""
+    """Rank lists when one is selected (default view, round owner, focused PR): a live list (unmerged
+    and written by the live tracker, so it has last_written_at) beats a merged or legacy one, then the
+    most recently written list wins, then the PR number. A live non-numeric list (bcl-r1) is not hidden
+    by an older or merged numbered list (19); a legacy unmerged list with no last_written_at (112) does
+    not beat newer lists. History and picker order keep _tracker_sort_key."""
     pr_num, written, mtime = _tracker_sort_key(item)
     tracking = item[1].get("tracking") if isinstance(item[1].get("tracking"), dict) else {}
-    return (not isinstance(tracking.get("merged"), dict), written, pr_num, mtime)
+    live = not isinstance(tracking.get("merged"), dict) and _parse_time(tracking.get("last_written_at")) is not None
+    return (live, written, pr_num, mtime)
 
 
 def _iter_trackers(project, state_dir=None):
