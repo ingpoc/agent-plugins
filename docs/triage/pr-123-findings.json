@@ -853,7 +853,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:34:17Z",
+    "last_written_at": "2026-11-25T15:39:15Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -4026,6 +4026,78 @@
         "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh (exit 0)"
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-usage.sh"
+    },
+    {
+      "id": "BCL-188",
+      "title": "A finished change list job does not receive official token totals from observability",
+      "summary": "When a change list job finishes, official token totals are read only from a Codex session file. Other harness jobs are stored as having no source and an empty total, instead of the official total or a not reported mark.",
+      "impact": "Round comparison cannot measure token cost for most jobs, so waste stays invisible.",
+      "observed": "On 25 Nov 2026 after the official totals work landed, every Round 3 job on list 123 still had tokens_source none and tokens null. finish-job only reads a stamped or inline Codex session jsonl. Developer-observability already publishes official per-job totals including cache read, with cost as a number or not reported.",
+      "done_when": "A finished job records the official observability total and source, or marks the total and cost not reported, including Cursor usage and other harnesses, with tests and a live read on a throwaway list.",
+      "status": "untested",
+      "priority": "high",
+      "recommendation": "On the existing job finish path, attach official observability totals. If no matching run is found, write not reported rather than none.",
+      "source": "Agent reported",
+      "first_seen": "2026-11-25T15:23:54Z",
+      "details": {
+        "related": "Follows DO-24, which published official totals. This gap is that change-list finish-job does not consume them."
+      },
+      "created_at": "2026-11-25T15:39:15Z",
+      "state_changes": []
+    },
+    {
+      "id": "BCL-189",
+      "title": "Install and verification still show as running after verify or merge finishes",
+      "summary": "After a lane is verified, or after a list is merged, install can still say running and the verification run can still say active. That leftover state blocks the next verify and makes finished work look unfinished.",
+      "impact": "Operators have to abandon a leftover run by hand, and the page shows stale running work after merge.",
+      "observed": "On 25 Nov 2026 in the evening IST, the leftover Round 2 verification run pr123-r2-736a6ccd stayed active and blocked official verify until it was stopped with the official stop command. After Round 3 verify, the new run pr123-r3-671698d6 is still active, and five already verified lanes still have install status running. Merged lists 121 and 122 also still have an active verification run, with five and twelve lanes still marked install running.",
+      "done_when": "When verify finishes, no verified lane still shows install as running, and when merge is recorded the verification run is no longer active, with tests against the earlier list shape and a live check.",
+      "status": "untested",
+      "priority": "high",
+      "recommendation": "Clear leftover running install status and an active verification run when verify or merge records a finished outcome. Only clear when every planned check is terminal or when merge is recorded.",
+      "source": "Agent reported",
+      "first_seen": "2026-11-25T09:49:23Z",
+      "details": {
+        "related": "Today's stale Round 2 run on list 123 is the evidence. This is leftover running state, not the earlier bug where a stopped run marked fixed issues as failed."
+      },
+      "created_at": "2026-11-25T15:39:15Z",
+      "state_changes": []
+    },
+    {
+      "id": "DO-25",
+      "title": "The documented capture command is missing required trust and does not record a refused unknown model",
+      "summary": "The published command for capturing a Cursor run omits the required trust flag, and a model that is not on the plan can fail as a wrapper crash instead of a recorded refusal with the available models.",
+      "impact": "Documented capture starts fail and need retries, so capture is not reliable on the default path.",
+      "observed": "On 25 Nov 2026, four of five capture attempts failed before one success. Failures included a missing trust flag and a model that was not on the plan. The skill document shows a capture command without that flag.",
+      "done_when": "The documented capture command includes the required trust flag, and an unknown or unavailable model is recorded as a refusal with the available models rather than a wrapper crash, with tests and one live documented capture on a throwaway prompt.",
+      "status": "untested",
+      "priority": "high",
+      "recommendation": "Put the required trust flag on the published command, and record a refused unknown model with the available list. Do not silently trust every tree.",
+      "source": "Agent reported",
+      "first_seen": "2026-11-25T00:00:00Z",
+      "details": {
+        "related": "Follow-on to DO-14 and DO-15. The gap is the documented start and the refusal record, not the original run capture itself."
+      },
+      "created_at": "2026-11-25T15:39:15Z",
+      "state_changes": []
+    },
+    {
+      "id": "DO-26",
+      "title": "The observability page still presents a last failure after that issue has been verified, and some text is too small",
+      "summary": "The observability page can still name a last failure for an issue that later verified. Secondary text is also slightly under the 16 pixel minimum, even though size controls and browser zoom already work.",
+      "impact": "A finished fix can look like a current failure, and some text is harder to read.",
+      "observed": "On 25 Nov 2026 in the evening IST, the observability last failure still named DO-23 after that issue had been verified. Secondary text was computed at 15 pixels at the default size. Size controls and browser zoom already worked.",
+      "done_when": "A later verify clears the last failure or labels it as a last failed job that was later verified, all text is at least 16 pixels at the default size, and the page does not block browser zoom, with tests and a live read.",
+      "status": "untested",
+      "priority": "high",
+      "recommendation": "Prefer labelling a later-verified failure as last failed job, later verified, rather than deleting the history. Raise remaining text to 16 pixels and keep zoom working.",
+      "source": "Agent reported",
+      "first_seen": "2026-11-25T10:51:00Z",
+      "details": {
+        "related": "Independent of the change-list leftover running cleanup. Keep existing size controls and do not add a maximum scale or disable zoom."
+      },
+      "created_at": "2026-11-25T15:39:15Z",
+      "state_changes": []
     }
   ]
 }
