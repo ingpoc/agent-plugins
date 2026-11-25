@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-25T11:16:40Z",
-      "now": "2026-11-25T11:16:40Z — Verify in progress"
+      "stage": "review",
+      "updated_at": "2026-11-25T11:16:47Z",
+      "now": "2026-11-25T11:16:47Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T11:16:40Z",
+    "last_written_at": "2026-11-25T11:16:48Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1466,7 +1466,7 @@
             "DO-18"
           ],
           "worktree": "samantha-next-r13",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
@@ -1476,10 +1476,11 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/do18.sh",
             "method": "Named tests, then real node:test spec and TAP output parsed by the r13 collector: passing tests naming error are not flagged, the failing test is.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-25T11:16:41Z"
           },
           "failure_history": [
             {
@@ -1496,7 +1497,7 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-25T11:16:40Z",
-          "stage_entered_at": "2026-11-25T11:16:40Z",
+          "stage_entered_at": "2026-11-25T11:16:41Z",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -1720,16 +1721,16 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-25T10:46:20Z",
-          "stage_entered_at": "2026-11-25T11:14:01Z",
+          "stage_entered_at": "2026-11-25T11:16:47Z",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "6cbeaa41496b4edeb146f87d56edbdba",
+              "id": "72cce36cdcc242d28122864584f0ad83",
               "phase": "plan_review",
-              "started_at": "2026-11-25T11:09:58Z",
+              "started_at": "2026-11-25T11:16:47Z",
               "command": "plan-review-do23.sh",
-              "heartbeat_at": "2026-11-25T11:14:01Z",
-              "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
+              "heartbeat_at": "2026-11-25T11:16:47Z",
+              "plan_sha256": "f1ee7ca1dac7d5bc807994c3f33f8e4a2998a1d09f884da9fad429a2a37e850f",
               "finding_ids": [
                 "DO-23"
               ],
@@ -1737,15 +1738,7 @@
               "model": "OpenCode beam-free",
               "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
               "cycle": 15,
-              "round": 2,
-              "pid": 6637,
-              "exit_code": 0,
-              "finished_at": "2026-11-25T11:14:01Z",
-              "first_error_line": "plan_review after a failure requires ROOT CAUSE and FAILING TEST sections",
-              "output_path": "/Users/gurusharan/.agents/artifacts/bcl-123/r2-do/plan-review-do23-raw.txt",
-              "output_retained": true,
-              "finished_phase_status": "incomplete",
-              "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
+              "round": 2
             },
             "tool_fault_streak": 1,
             "implementer_session": "grok-do23-fix",
@@ -1883,6 +1876,30 @@
                 "session": "grok-do23-fix",
                 "finished_phase_status": "changes_requested",
                 "must_fix": "1. `plugins/developer-observability/runtime/backend/issue_state.py:913` — round ownership still selects with `max(owning, key=_tracker_sort_key)`, so a merged/older numbered tracker (e.g. `19.json`) beats the live tracker (`bcl-r1.json`) for a shared round. Reproduced: `build_issues(\"likeminded\", scope=\"round:1\")` returns `19` instead of `bcl-r1`. Should use `_latest_tracker_key`.\n2. `plugins/developer-observability/runtime/backend/issue_state.py:921` and `:925` — focused/current tracker selection (requested PR and scope-round paths) still uses `_tracker_sort_key`, disagreeing with `_latest_tracker_key` when a PR has multiple tracker files or a non-numeric live list is involved. Should use `_latest_tracker_key`."
+              },
+              {
+                "id": "6cbeaa41496b4edeb146f87d56edbdba",
+                "phase": "plan_review",
+                "started_at": "2026-11-25T11:09:58Z",
+                "command": "plan-review-do23.sh",
+                "heartbeat_at": "2026-11-25T11:14:01Z",
+                "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
+                "finding_ids": [
+                  "DO-23"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode beam-free",
+                "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
+                "cycle": 15,
+                "round": 2,
+                "pid": 6637,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T11:14:01Z",
+                "first_error_line": "plan_review after a failure requires ROOT CAUSE and FAILING TEST sections",
+                "output_path": "/Users/gurusharan/.agents/artifacts/bcl-123/r2-do/plan-review-do23-raw.txt",
+                "output_retained": true,
+                "finished_phase_status": "incomplete",
+                "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
               }
             ],
             "reviewer_model": "OpenCode beam-free",
@@ -2410,7 +2427,7 @@
       "observed": "iter_textlog in sources.py marks a line as log_error when _LOG_ERROR matches \\b(error|exception|traceback|fatal|failed|failure)\\b (case-insensitive) and the line does not contain status=ok. Pytest failures have their own parser; generic text logs do not skip pass marks. In the Likeminded collect of /tmp/bcl-r1/obs-r3 at 09:47 IST 25 Nov 2026, the passing node spec line '✔ unknown routes return a JSON not_found error' was reported as log_error/log failed 1x.",
       "recommendation": "Skip known pass/success lines before the keyword check; status=ok alone is not enough.",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "area": "developer-observability",
       "details": {
@@ -2430,12 +2447,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T11:16:41Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-25T10:49:55Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do18.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do18.sh"
     },
     {
       "id": "CL-1",
