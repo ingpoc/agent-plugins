@@ -2467,15 +2467,10 @@ def start_verification_lanes(document, ids, timestamp, model=None):
 
 
 
-def _verification_run_is_finished(document, run):
-    """True when every remaining check is terminal, or every current-round lane is settled."""
-    if not isinstance(run, dict):
-        return False
-    checks = run.get("checks") if isinstance(run.get("checks"), dict) else {}
-    if checks and all(
-            isinstance(check, dict) and check.get("state") in {"passed", "failed", "inconclusive", "stopped", "stopped-inconclusive"}
-            for check in checks.values()):
-        return True
+TERMINAL_CHECK_STATES = {"fixed", "not_fixed", "blocked", "inconclusive"}
+
+
+def _current_round_lanes_are_settled(document):
     findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
     tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
     plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
@@ -2491,6 +2486,41 @@ def _verification_run_is_finished(document, run):
             continue
         return False
     return True
+
+
+def _settle_verification_checks(document, run, stamp, *, merged=False):
+    """Give every leftover pending check a terminal outcome before completing the run."""
+    if not isinstance(run, dict) or not isinstance(run.get("checks"), dict):
+        return
+    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
+    close_leftovers = merged or _current_round_lanes_are_settled(document)
+    for identifier, check in list(run["checks"].items()):
+        if not isinstance(check, dict):
+            check = {}
+            run["checks"][identifier] = check
+        state = check.get("state")
+        if state in TERMINAL_CHECK_STATES:
+            continue
+        status = (findings.get(identifier) or {}).get("status")
+        if status == "verified_fixed":
+            check["state"] = "fixed"
+            check["evidence"] = "Official verify recorded this issue as verified."
+        elif close_leftovers:
+            check["state"] = "inconclusive"
+            check["evidence"] = "This issue was not in the current verify wave."
+        else:
+            continue
+        check["finished_at"] = stamp
+
+
+def _verification_run_is_finished(document, run):
+    """True when every remaining check is terminal."""
+    if not isinstance(run, dict):
+        return False
+    checks = run.get("checks") if isinstance(run.get("checks"), dict) else {}
+    if not checks:
+        return _current_round_lanes_are_settled(document)
+    return all(isinstance(check, dict) and check.get("state") in TERMINAL_CHECK_STATES for check in checks.values())
 
 
 def clear_finished_running_state(document, stamp, *, merged=False):
@@ -2515,10 +2545,13 @@ def clear_finished_running_state(document, stamp, *, merged=False):
             install["finished_at"] = stamp
             group["install"] = install
     run = tracking.get("verification_run")
-    if isinstance(run, dict) and run.get("status") == "active" and (merged or _verification_run_is_finished(document, run)):
+    if isinstance(run, dict) and run.get("status") == "active":
         run = dict(run)
-        run["status"] = "complete"
-        run["ended_at"] = stamp
+        run["checks"] = dict(run.get("checks") or {})
+        _settle_verification_checks(document, run, stamp, merged=merged)
+        if merged or _verification_run_is_finished(document, run):
+            run["status"] = "complete"
+            run["ended_at"] = stamp
         tracking["verification_run"] = run
     return document
 

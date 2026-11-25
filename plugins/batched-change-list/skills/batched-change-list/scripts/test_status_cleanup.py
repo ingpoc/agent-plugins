@@ -63,3 +63,22 @@ class StatusCleanupTests(unittest.TestCase):
         # A merged list may archive the run, but it must not stay active.
         if "verification_run" in doc["tracking"]:
             self.assertIn(run.get("status"), {"complete", "stopped", "interrupted"})
+
+
+    def test_verify_settles_leftover_pending_checks(self):
+        doc = fixture()
+        doc["findings"].append({"id": "DO-1", "status": "untested", "title": "Other",
+                                "source": "Agent reported", "observed": "seen", "recommendation": "later"})
+        doc["tracking"]["verification_run"]["checks"]["DO-1"] = {"state": "pending"}
+        plan_sha = manager.plan_candidate_sha256(doc["tracking"]["plan"])
+        manager.finish_verification(doc, {
+            "ids": ["ISSUE-01"],
+            "plan_sha256": plan_sha,
+            "command": "/tmp/verify-demo.sh",
+            "timestamp": STAMP,
+        })
+        run = doc["tracking"]["verification_run"]
+        self.assertEqual(run["checks"]["ISSUE-01"]["state"], "fixed")
+        self.assertEqual(run["checks"]["DO-1"]["state"], "inconclusive")
+        self.assertNotEqual(run.get("status"), "active")
+        self.assertEqual(run.get("status"), "complete")
