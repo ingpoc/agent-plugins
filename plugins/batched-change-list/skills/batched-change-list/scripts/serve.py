@@ -135,7 +135,7 @@ def handler_for(page, data=None, inventory=None, viewer_metadata=None, base=None
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('report', type=Path)
-    parser.add_argument('--port', type=int, default=53366)
+    parser.add_argument('--port', type=int, required=True, help='the repo viewer port saved in the registry')
     parser.add_argument('--data', type=Path, help='authoritative tracker JSON to render on each request')
     parser.add_argument('--inventory', type=Path, help='optional installed-plugin inventory JSON')
     parser.add_argument('--viewer-metadata', type=Path)

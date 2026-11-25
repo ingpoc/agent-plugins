@@ -145,20 +145,65 @@ def _guard_output(path, protected):
         if source and _same_path(path, source):
             raise ValueError(f"refusing to write {path}: it aliases the {label} {source}")
 
+PORT_RANGE = (50000, 60000)
+PROTECTED_PORTS = {8765, 8766, 8780}
+
+def _viewer_state_ports():
+    states = []
+    folder = STATE / "viewers"
+    for path in sorted(folder.glob("*.json")) if folder.is_dir() else ():
+        if path.name.endswith(".viewer.json"):
+            continue
+        try:
+            value = json.loads(path.read_text())
+            port = int(value.get("port") or 0)
+        except (OSError, ValueError, TypeError, AttributeError):
+            continue
+        if port:
+            states.append((path.stem, port, value.get("data")))
+    return states
+
 def _project_port(repo, records=None):
+    """Return the repo's one viewer port: chosen once, then never moved or shared.
+
+    A saved registry port wins, then the repo's own viewer state (registry repair). A
+    repo with neither gets a deterministic slot from its id, skipping ports that another
+    repo has saved or that are in use, so each repo keeps one bookmarkable address."""
     records = records if records is not None else registry()
     existing = next((int(record["viewer_port"]) for record in records.values()
                      if record.get("repo") == repo and record.get("viewer_port")), None)
     if existing:
         return existing
-    ports = {int(record["viewer_port"]) for record in records.values()
-             if record.get("repo") != repo and record.get("viewer_port")}
-    candidate = 53366 if 53366 not in ports and _port_is_free(53366) else 0
-    if not candidate:
-        with socket.socket() as sock:
-            sock.bind(("127.0.0.1", 0))
-            candidate = sock.getsockname()[1]
-    return candidate
+    slug = safe_component(repo.replace("/", "--"))
+    lives = {str(Path(record["live"]).resolve()) for record in records.values()
+             if record.get("repo") == repo and record.get("live")}
+    own, reserved = [], set(PROTECTED_PORTS)
+    for stem, port, data in _viewer_state_ports():
+        mine = stem == slug or (isinstance(data, str) and str(Path(data).resolve()) in lives)
+        if mine:
+            own.append(port)
+        else:
+            reserved.add(port)
+    reserved |= {int(record["viewer_port"]) for record in records.values()
+                 if record.get("repo") != repo and record.get("viewer_port")}
+    if own and own[0] not in reserved:
+        return own[0]
+    low, high = PORT_RANGE
+    span = high - low
+    start = int(hashlib.sha256(repo.encode()).hexdigest()[:8], 16) % span
+    for offset in range(span):
+        candidate = low + (start + offset) % span
+        if candidate not in reserved and _port_is_free(candidate):
+            return candidate
+    raise RuntimeError(f"no free viewer port for {repo} in {low}-{high - 1}")
+
+def _save_project_port(key, port):
+    records = registry()
+    record = records.get(key)
+    if record is None or record.get("viewer_port"):
+        return
+    record["viewer_port"] = port
+    save_registry(records)
 
 def report_paths(record, live):
     home = Path(record["home"])
@@ -343,9 +388,12 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
         page, base = report_paths(record, live)
         scripts = scripts_identity()
     port = int(record.get("viewer_port") or old_port or _project_port(project or key))
+    if not record.get("viewer_port"):
+        _save_project_port(key, port)
+        record["viewer_port"] = port
     if not _port_is_free(port):
         if not running or port != old_port:
-            raise RuntimeError(f"project viewer port {port} is occupied; inspect it before retrying")
+            raise RuntimeError(f"project viewer port {port} is occupied; a repo keeps its one saved port, so free it and retry")
     if not page.exists():
         raise RuntimeError(f"viewer report missing: {page}; render the report and retry")
     started = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%b %-d, %Y, %-I:%M %p IST")

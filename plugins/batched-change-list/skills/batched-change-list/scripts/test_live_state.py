@@ -131,7 +131,8 @@ class ViewerLivenessTests(unittest.TestCase):
                 live_state.ensure_viewer('repo/1', first, live, 'v1')
                 value = live_state.ensure_viewer('repo/1', second, live, 'v1')
             self.assertEqual(value['report'], str((second_home / 'report/page.html').resolve()))
-            self.assertEqual(value['port'], 53366)
+            with patch.object(live_state, 'STATE', state), patch.object(live_state, '_port_is_free', return_value=True):
+                self.assertEqual(value['port'], live_state._project_port('repo/1', {}))
             self.assertEqual(popen.call_count, 2)
 
     def test_viewer_record_without_instance_id_is_rejected(self):
@@ -192,7 +193,10 @@ class ViewerLivenessTests(unittest.TestCase):
         }
         with patch.object(live_state, '_port_is_free', return_value=True):
             self.assertEqual(live_state._project_port('owner/project', records), 54123)
-            self.assertEqual(live_state._project_port('new/project', records), 53366)
+            fresh = live_state._project_port('new/project', records)
+            self.assertEqual(fresh, live_state._project_port('new/project', records))
+            self.assertTrue(live_state.PORT_RANGE[0] <= fresh < live_state.PORT_RANGE[1])
+            self.assertNotIn(fresh, {54123, 54124})
 
     def test_adoption_refuses_existing_destination_and_report_alias(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -487,6 +491,109 @@ class LiveStateGuardTests(unittest.TestCase):
         self.assertFalse(live_state._LIVE_WRITES_ALLOWED)
         self.assertIn("unittest", __import__("sys").modules)
         self.assertTrue(live_state.is_live_state_path(live_state.default_live_root() / "registry.json"))
+
+
+class RepoViewerPortTests(unittest.TestCase):
+    """BCL-185: one bookmarkable viewer port per repo, chosen once and never moved."""
+
+    def test_new_repo_slot_is_deterministic_and_skips_other_repos_saved_ports(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, '_port_is_free', return_value=True):
+            slot = live_state._project_port('new/project', {})
+            self.assertEqual(slot, live_state._project_port('new/project', {}))
+            taken = {'other/project/1': {'repo': 'other/project', 'viewer_port': slot}}
+            moved = live_state._project_port('new/project', taken)
+            self.assertNotEqual(moved, slot)
+            self.assertEqual(moved, live_state._project_port('new/project', taken))
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            (viewers / 'other--project.json').write_text(json.dumps({'port': slot, 'data': '/other/list.json'}))
+            self.assertNotEqual(live_state._project_port('new/project', {}), slot)
+
+    def test_registry_repair_recovers_the_repo_port_from_its_viewer_state(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, '_port_is_free', return_value=False):
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            (viewers / 'owner--project.json').write_text(json.dumps({'port': 58771, 'data': '/x/123.json'}))
+            self.assertEqual(live_state._project_port('owner/project', {}), 58771)
+
+    def test_saved_ports_never_change(self):
+        records = {'ingpoc/agent-plugins/123': {'repo': 'ingpoc/agent-plugins', 'viewer_port': 58771},
+                   'ingpoc/like-minded-app/bcl-r1': {'repo': 'ingpoc/like-minded-app', 'viewer_port': 53366}}
+        with patch.object(live_state, '_port_is_free', return_value=False):
+            self.assertEqual(live_state._project_port('ingpoc/agent-plugins', records), 58771)
+            self.assertEqual(live_state._project_port('ingpoc/like-minded-app', records), 53366)
+
+    def test_occupied_saved_port_fails_loudly_and_is_not_moved(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state = Path(temp) / 'state'; live = Path(temp) / 'live.json'; live.write_text('{}')
+            home = Path(temp) / 'home'; (home / 'report').mkdir(parents=True)
+            (home / 'report/page.html').write_text('<html></html>')
+            record = {'home': str(home), 'snapshot': 'report/data.json', 'html': 'report/page.html',
+                      'repo': 'owner/project', 'id': '1', 'live': str(live), 'viewer_port': 54321}
+            with patch.object(live_state, 'STATE', state), \
+                    patch.object(live_state, '_port_is_free', return_value=False), \
+                    patch.object(live_state.subprocess, 'Popen') as popen:
+                live_state.save_registry({'owner/project/1': record})
+                with self.assertRaisesRegex(RuntimeError, 'port 54321 is occupied'):
+                    live_state.ensure_viewer('owner/project/1', record, live, 'v1')
+                self.assertEqual(live_state.registry()['owner/project/1']['viewer_port'], 54321)
+            popen.assert_not_called()
+
+    def test_real_rollover_restart_upgrade_and_repair_keep_the_repo_port(self):
+        temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
+        root = Path(temp.name); state = root / 'state'; home = root / 'home'
+        (home / 'report').mkdir(parents=True)
+        example = json.loads((Path(__file__).resolve().parents[1] / 'examples/findings.json').read_text())
+        live1 = state / 'owner--project' / '1.json'; live1.parent.mkdir(parents=True)
+        live1.write_text(json.dumps({**example, 'title': 'List one marker'}))
+        record1 = {'repo': 'owner/project', 'id': '1', 'live': str(live1), 'home': str(home),
+                   'snapshot': 'report/pr-1-findings.json', 'html': 'report/pr-1.html'}
+        pids = set(); lives = []
+        def cleanup():
+            for path in (state / 'viewers').glob('*.json'):
+                try:
+                    info = json.loads(path.read_text())
+                    if not info.get('instance'): continue
+                    request = Request(f"http://127.0.0.1:{info['port']}/__bcl_shutdown", method='POST', headers={'X-BCL-Instance': info['instance']})
+                    with urlopen(request, timeout=2): pass
+                    live_state._wait_for_port(info['port'])
+                except (OSError, ValueError, KeyError): pass
+            viewer_test_guard.stop_viewers(root, pids)
+        self.addCleanup(cleanup)
+        def health(port):
+            with urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=2) as response:
+                return json.load(response)['path']
+        def page(port):
+            with urlopen(f"http://127.0.0.1:{port}/", timeout=2) as response:
+                return response.read().decode()
+        with patch.object(live_state, 'STATE', state):
+            expected = live_state._project_port('owner/project', {})
+            live_state.save_registry({'owner/project/1': record1})
+            first = live_state.ensure_viewer('owner/project/1', record1, live1, 'v1'); pids.add(first['pid'])
+            self.assertEqual(first['port'], expected)
+            self.assertEqual(live_state.registry()['owner/project/1']['viewer_port'], expected)
+            self.assertIn('List one marker', page(expected))
+            doc2 = {**example, 'title': 'List two marker',
+                    'tracking': {'pull_request': {'label': 'PR #2', 'url': 'https://github.com/owner/project/pull/2'}}}
+            key2, record2, live2 = live_state.register_rollover(live_state.registry()['owner/project/1'], live1, doc2, 'home')
+            self.assertEqual(record2['viewer_port'], expected)
+            second = live_state.ensure_viewer(key2, record2, live2, 'v1'); pids.add(second['pid'])
+            self.assertEqual(second['port'], expected)
+            self.assertEqual(health(expected), str(live2.resolve()))
+            self.assertIn('List two marker', page(expected))
+            upgraded = live_state.ensure_viewer(key2, record2, live2, 'v2'); pids.add(upgraded['pid'])
+            self.assertNotEqual(upgraded['pid'], second['pid'])
+            self.assertEqual(upgraded['port'], expected)
+            repaired = {key: {k: v for k, v in value.items() if k != 'viewer_port'}
+                        for key, value in live_state.registry().items()}
+            live_state.save_registry(repaired)
+            self.assertEqual(live_state._project_port('owner/project'), expected)
+            restarted = live_state.ensure_viewer(key2, repaired[key2], live2, 'v3'); pids.add(restarted['pid'])
+            self.assertEqual(restarted['port'], expected)
+            self.assertEqual(live_state.registry()[key2]['viewer_port'], expected)
+            self.assertEqual(health(expected), str(live2.resolve()))
+            other = live_state._project_port('other/project')
+            self.assertNotEqual(other, expected)
 
 
 if __name__ == '__main__':
