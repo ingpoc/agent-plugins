@@ -2466,6 +2466,63 @@ def start_verification_lanes(document, ids, timestamp, model=None):
             stamp_plan_group(group, timestamp)
 
 
+
+def _verification_run_is_finished(document, run):
+    """True when every remaining check is terminal, or every current-round lane is settled."""
+    if not isinstance(run, dict):
+        return False
+    checks = run.get("checks") if isinstance(run.get("checks"), dict) else {}
+    if checks and all(
+            isinstance(check, dict) and check.get("state") in {"passed", "failed", "inconclusive", "stopped", "stopped-inconclusive"}
+            for check in checks.values()):
+        return True
+    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    groups = RENDERER.plan_groups_for_round(plan, plan.get("round", 1)) if isinstance(plan, dict) else []
+    if not groups:
+        return False
+    settled = {"verified", "parked", "failed", "deferred"}
+    for group in groups:
+        if group.get("status") in settled:
+            continue
+        ids = group.get("finding_ids") or []
+        if ids and all((findings.get(identifier) or {}).get("status") in {"verified_fixed", "closed"} for identifier in ids):
+            continue
+        return False
+    return True
+
+
+def clear_finished_running_state(document, stamp, *, merged=False):
+    """Clear leftover install.running and an active verification run after verify or merge."""
+    tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else None
+    if tracking is None:
+        return document
+    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
+    plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else {}
+    for group in plan.get("groups") or []:
+        if not isinstance(group, dict):
+            continue
+        ids = group.get("finding_ids") or []
+        verified = (group.get("status") == "verified"
+                    or (ids and all((findings.get(identifier) or {}).get("status") == "verified_fixed" for identifier in ids)))
+        if not (merged or verified):
+            continue
+        install = group.get("install") if isinstance(group.get("install"), dict) else None
+        if install and install.get("status") == "running":
+            install = dict(install)
+            install["status"] = "complete"
+            install["finished_at"] = stamp
+            group["install"] = install
+    run = tracking.get("verification_run")
+    if isinstance(run, dict) and run.get("status") == "active" and (merged or _verification_run_is_finished(document, run)):
+        run = dict(run)
+        run["status"] = "complete"
+        run["ended_at"] = stamp
+        tracking["verification_run"] = run
+    return document
+
+
 def finish_verification(document, operation):
     """Record a successful lane verify command and its named findings atomically."""
     ids = operation.get("ids")
@@ -2515,6 +2572,7 @@ def finish_verification(document, operation):
         verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
         verify.update(status="verified", fixed=total, failed=0, total=total, finished_at=stamp)
         group["verify"] = verify
+    clear_finished_running_state(document, stamp, merged=False)
 
 
 def sync_plan_verify(document, finding_ids=None):
@@ -3498,6 +3556,7 @@ def run(args, parser):
                         merged = validate_merged_record(operation.get("merged"))
                         tracking["merged"] = copy.deepcopy(merged)
                         updated_at = merged["merged_at"]
+                        clear_finished_running_state(store["document"], updated_at, merged=True)
                     else:
                         updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                     tracking["workflow"] = {"stage": stage, "updated_at": updated_at}
