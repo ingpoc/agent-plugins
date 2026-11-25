@@ -266,9 +266,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-25T15:40:51Z",
-      "now": "2026-11-25T15:40:51Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-25T15:50:13Z",
+      "now": "2026-11-25T15:50:13Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -1007,7 +1007,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:40:51Z",
+    "last_written_at": "2026-11-25T15:50:13Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -3036,9 +3036,9 @@
           "finding_ids": [
             "BCL-188"
           ],
-          "status": "planned",
+          "status": "review",
           "reason": "When a job finishes, attach official observability token totals, or mark them not reported, not none.",
-          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "worktree": "samantha-next-r13",
           "files": [
             "plugins/batched-change-list/bin/bcl",
             "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
@@ -3046,51 +3046,139 @@
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py"
           ],
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-attach.sh"
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-attach.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "codex": {
             "implementer_session": "Grok Bot",
             "reviewer_session": "Grok Bot review",
-            "fix_base_head": "a090191c7f708233bef8b7ced93ca0647c5e7385"
+            "fix_base_head": "d137b34c44f45744e79a92753d50e8238b7d2a23",
+            "fix_status": "passed",
+            "job": {
+              "id": "022f54a67e8c4cd095ae918ce009d6ef",
+              "phase": "review",
+              "started_at": "2026-11-25T15:50:13Z",
+              "command": "review-pass.sh",
+              "heartbeat_at": "2026-11-25T15:50:13Z",
+              "plan_sha256": "1987b780cb6d6d95a2afa85df9a40c4164d776be3ca9b5b69803df3199903627",
+              "finding_ids": [
+                "BCL-188"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot review",
+              "lane_sha256": "7881f82c093a8a39dedc5cd11e2c12ba60dec1a3f3d1fd0e6a6394783e90470a",
+              "cycle": 15,
+              "round": 4
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "8ef956e40927417ba582a1422fa23eb1",
+                "phase": "fix",
+                "started_at": "2026-11-25T15:49:35Z",
+                "command": "commit-r4-attach.sh",
+                "heartbeat_at": "2026-11-25T15:49:35Z",
+                "plan_sha256": "c306b80dc45547dd9c3758d13b7f4086577770373428eabc359c9c84de82365f",
+                "finding_ids": [
+                  "BCL-188"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "d5f95f7be0e61ad69beb0c2da9caf8b2aa02eafd3da160fe86588a84269fc8a8",
+                "cycle": 15,
+                "round": 4,
+                "pid": 62634,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T15:49:35Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/8ef956e40927417ba582a1422fa23eb1.log",
+                "output_retained": true,
+                "commit": "d137b34c44f45744e79a92753d50e8238b7d2a23",
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "Grok Bot",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "Grok Bot review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:40:51Z"
+          "stage_entered_at": "2026-11-25T15:49:35Z",
+          "phase": "review"
         },
         {
           "id": "R4-STALE",
           "finding_ids": [
             "BCL-189"
           ],
-          "status": "planned",
+          "status": "review",
           "reason": "Clear leftover install running status and an active verification run when verify or merge finishes.",
-          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "worktree": "samantha-next-r13",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/test_status_cleanup.py"
           ],
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-stale.sh"
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-stale.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "codex": {
             "implementer_session": "Grok Bot",
             "reviewer_session": "Grok Bot review",
-            "fix_base_head": "a090191c7f708233bef8b7ced93ca0647c5e7385"
+            "fix_base_head": "cf810975f687ff0b99fff459f7bdbcf63836b9a5",
+            "fix_status": "passed",
+            "job": {
+              "id": "a4975db8223b43ada83a712abfcbf08a",
+              "phase": "fix",
+              "started_at": "2026-11-25T15:49:36Z",
+              "command": "commit-r4-stale.sh",
+              "heartbeat_at": "2026-11-25T15:49:37Z",
+              "plan_sha256": "c1dcf7dc37b40077fe6d86aaec6552b4e628651f53a3583192e0f8e5add4624f",
+              "finding_ids": [
+                "BCL-189"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot",
+              "lane_sha256": "5705d422756f9ea57165c49a14bb91e9b85e16f9ad7feb724c544962be407e7e",
+              "cycle": 15,
+              "round": 4,
+              "pid": 62753,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T15:49:37Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/a4975db8223b43ada83a712abfcbf08a.log",
+              "output_retained": true,
+              "commit": "cf810975f687ff0b99fff459f7bdbcf63836b9a5",
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 1,
+              "session": "Grok Bot",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:40:51Z"
+          "stage_entered_at": "2026-11-25T15:49:37Z",
+          "phase": "review"
         },
         {
           "id": "R4-CAPTURE",
           "finding_ids": [
             "DO-25"
           ],
-          "status": "planned",
+          "status": "review",
           "reason": "Document the required trust flag and record a refused unknown model instead of a wrapper crash.",
-          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "worktree": "samantha-next-r13",
           "files": [
             "plugins/developer-observability/skills/developer-observability/references/cursor-cli-runs.md",
             "plugins/developer-observability/docs/VERIFICATION.md",
@@ -3098,26 +3186,60 @@
             "plugins/developer-observability/tests/test_cursor_runs.py"
           ],
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-capture.sh"
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-capture.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "codex": {
             "implementer_session": "Grok Bot",
             "reviewer_session": "Grok Bot review",
-            "fix_base_head": "a090191c7f708233bef8b7ced93ca0647c5e7385"
+            "fix_base_head": "69a5fc5d00ac76246e502265009b525160566584",
+            "fix_status": "passed",
+            "job": {
+              "id": "31416aa418134e56a97eed716dbbe9b1",
+              "phase": "fix",
+              "started_at": "2026-11-25T15:49:37Z",
+              "command": "commit-r4-capture.sh",
+              "heartbeat_at": "2026-11-25T15:49:38Z",
+              "plan_sha256": "285cdcbc7bf1ebca3d789b318931891f2c5a862b60649a60cfef56490433aed2",
+              "finding_ids": [
+                "DO-25"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot",
+              "lane_sha256": "76ac5262b8aca2b682317cc4a49d2822c52bd404eec0c95822719f870a37e285",
+              "cycle": 15,
+              "round": 4,
+              "pid": 62877,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T15:49:38Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/31416aa418134e56a97eed716dbbe9b1.log",
+              "output_retained": true,
+              "commit": "69a5fc5d00ac76246e502265009b525160566584",
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 1,
+              "session": "Grok Bot",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:40:51Z"
+          "stage_entered_at": "2026-11-25T15:49:38Z",
+          "phase": "review"
         },
         {
           "id": "R4-LASTFAIL",
           "finding_ids": [
             "DO-26"
           ],
-          "status": "planned",
+          "status": "review",
           "reason": "Clear or label last failure after a later verify, and raise remaining text to 16 pixels without blocking zoom.",
-          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "worktree": "samantha-next-r13",
           "files": [
             "plugins/developer-observability/runtime/backend/issue_state.py",
             "plugins/developer-observability/ui/app.js",
@@ -3125,17 +3247,51 @@
             "plugins/developer-observability/tests/test_issues_api.py"
           ],
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-lastfail.sh"
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-lastfail.sh",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "codex": {
             "implementer_session": "Grok Bot",
             "reviewer_session": "Grok Bot review",
-            "fix_base_head": "a090191c7f708233bef8b7ced93ca0647c5e7385"
+            "fix_base_head": "8d84ce2421ef91f3c7ba4b382afe46eb03c7b6d6",
+            "fix_status": "passed",
+            "job": {
+              "id": "aab9180241c847e1a741c6b045a065d9",
+              "phase": "fix",
+              "started_at": "2026-11-25T15:49:39Z",
+              "command": "commit-r4-lastfail.sh",
+              "heartbeat_at": "2026-11-25T15:49:39Z",
+              "plan_sha256": "deb6f797f81bbff99a8872807ef9328e27ad7167bee67e165f044eb28922b7ae",
+              "finding_ids": [
+                "DO-26"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "Grok Bot",
+              "lane_sha256": "5b44f8418ccc9f9af4651da210cbb5869978d6a7c11cdbcf182ccfa04f66957e",
+              "cycle": 15,
+              "round": 4,
+              "pid": 63003,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T15:49:39Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/aab9180241c847e1a741c6b045a065d9.log",
+              "output_retained": true,
+              "commit": "8d84ce2421ef91f3c7ba4b382afe46eb03c7b6d6",
+              "tokens_source": "none",
+              "tokens": null,
+              "wall_time_s": 0,
+              "session": "Grok Bot",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-25T15:40:51Z",
-          "stage_entered_at": "2026-11-25T15:40:51Z"
+          "stage_entered_at": "2026-11-25T15:49:39Z",
+          "phase": "review"
         }
       ],
       "cycle": 15
