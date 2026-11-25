@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-25T10:57:03Z",
-      "now": "2026-11-25T10:57:03Z — Review started"
+      "stage": "verify",
+      "updated_at": "2026-11-25T11:16:40Z",
+      "now": "2026-11-25T11:16:40Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T10:57:03Z",
+    "last_written_at": "2026-11-25T11:16:40Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1466,8 +1466,8 @@
             "DO-18"
           ],
           "worktree": "samantha-next-r13",
-          "status": "review",
-          "phase": "review",
+          "status": "verifying",
+          "phase": "verify",
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector.py"
@@ -1495,33 +1495,33 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T10:46:20Z",
-          "stage_entered_at": "2026-11-25T10:51:18Z",
+          "updated_at": "2026-11-25T11:16:40Z",
+          "stage_entered_at": "2026-11-25T11:16:40Z",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "928fe5fcd03a44edb8c0da0f01025baa",
-              "phase": "review",
-              "started_at": "2026-11-25T10:51:21Z",
-              "command": "review-do18.sh",
-              "heartbeat_at": "2026-11-25T10:56:16Z",
+              "id": "5e5dd7daaffa463b8377a5d2f7bebdfb",
+              "phase": "presuite",
+              "started_at": "2026-11-25T11:09:58Z",
+              "command": "run-presuite.sh",
+              "heartbeat_at": "2026-11-25T11:13:23Z",
               "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
               "finding_ids": [
                 "DO-18"
               ],
               "worktree": "samantha-next-r13",
-              "model": "OpenCode beam-free",
+              "model": "Grok Bot",
               "lane_sha256": "e6107d1efd7a4bca28a50c2d682b83ab77e158a82fa08d14923083a4620163fd",
               "cycle": 15,
               "round": 2,
-              "pid": 88087,
+              "pid": 6634,
               "exit_code": 0,
-              "finished_at": "2026-11-25T10:56:16Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/928fe5fcd03a44edb8c0da0f01025baa.log",
+              "finished_at": "2026-11-25T11:13:23Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/5e5dd7daaffa463b8377a5d2f7bebdfb.log",
               "output_retained": true,
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 295,
+              "wall_time_s": 205,
               "session": "grok-do18-fix",
               "finished_phase_status": "passed"
             },
@@ -1607,11 +1607,47 @@
                 "wall_time_s": 5,
                 "session": "grok-do18-fix",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "928fe5fcd03a44edb8c0da0f01025baa",
+                "phase": "review",
+                "started_at": "2026-11-25T10:51:21Z",
+                "command": "review-do18.sh",
+                "heartbeat_at": "2026-11-25T10:56:16Z",
+                "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
+                "finding_ids": [
+                  "DO-18"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode beam-free",
+                "lane_sha256": "e6107d1efd7a4bca28a50c2d682b83ab77e158a82fa08d14923083a4620163fd",
+                "cycle": 15,
+                "round": 2,
+                "pid": 88087,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T10:56:16Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/928fe5fcd03a44edb8c0da0f01025baa.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 295,
+                "session": "grok-do18-fix",
+                "finished_phase_status": "passed"
               }
             ],
             "reviewer_model": "OpenCode beam-free",
             "must_fix_note": "Reviewer exited 1",
             "review_status": "passed"
+          },
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-25T11:13:23Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot",
+            "at": "2026-11-25T11:16:40Z"
           }
         },
         {
@@ -1623,7 +1659,7 @@
           ],
           "worktree": "samantha-next-r13",
           "status": "review",
-          "phase": "review",
+          "phase": "plan_review",
           "files": [
             "plugins/developer-observability/runtime/backend/round_view.py",
             "plugins/developer-observability/runtime/backend/issue_state.py",
@@ -1660,19 +1696,39 @@
               "tool_fault": true,
               "fault_kind": "fix_job_exit",
               "tool_fault_reason": "failed fix job, not a review finding"
+            },
+            {
+              "attempt_id": "b2cf60894cd841959e3b1fbb8a05ec5a",
+              "source": "review",
+              "reason": "1. `plugins/developer-observability/runtime/backend/issue_state.py:913` — round ownership still selects with `max(owning, key=_tracker_sort_key)`, so a merged/older numbered tracker (e.g. `19.json`) beats the live tracker (`bcl-r1.json`) for a shared round. Reproduced: `build_issues(\"likeminded\", scope=\"round:1\")` returns `19` instead of `bcl-r1`. Should use `_latest_tracker_key`.\n2. `plugins/developer-observability/runtime/backend/issue_state.py:921` and `:925` — focused/current tracker selection (requested PR and scope-round paths) still uses `_tracker_sort_key`, disagreeing with `_latest_tracker_key` when a PR has multiple tracker files or a non-numeric live list is involved. Should use `_latest_tracker_key`.",
+              "cycle": 15,
+              "round": 2,
+              "at": "2026-11-25T11:09:20Z",
+              "plan_answered": true
+            },
+            {
+              "attempt_id": "6cbeaa41496b4edeb146f87d56edbdba",
+              "source": "plan_review",
+              "reason": "Review incomplete: strict verdict or Must-fix section missing",
+              "cycle": 15,
+              "round": 2,
+              "at": "2026-11-25T11:16:31Z",
+              "tool_fault": true,
+              "fault_kind": "incomplete_review",
+              "tool_fault_reason": "Review incomplete: strict verdict or Must-fix section missing"
             }
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-25T10:46:20Z",
-          "stage_entered_at": "2026-11-25T10:57:02Z",
+          "stage_entered_at": "2026-11-25T11:14:01Z",
           "codex": {
             "fix_status": "passed",
             "job": {
-              "id": "b2cf60894cd841959e3b1fbb8a05ec5a",
-              "phase": "review",
-              "started_at": "2026-11-25T10:57:03Z",
-              "command": "review-do23.sh",
-              "heartbeat_at": "2026-11-25T10:57:03Z",
+              "id": "6cbeaa41496b4edeb146f87d56edbdba",
+              "phase": "plan_review",
+              "started_at": "2026-11-25T11:09:58Z",
+              "command": "plan-review-do23.sh",
+              "heartbeat_at": "2026-11-25T11:14:01Z",
               "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
               "finding_ids": [
                 "DO-23"
@@ -1681,9 +1737,17 @@
               "model": "OpenCode beam-free",
               "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
               "cycle": 15,
-              "round": 2
+              "round": 2,
+              "pid": 6637,
+              "exit_code": 0,
+              "finished_at": "2026-11-25T11:14:01Z",
+              "first_error_line": "plan_review after a failure requires ROOT CAUSE and FAILING TEST sections",
+              "output_path": "/Users/gurusharan/.agents/artifacts/bcl-123/r2-do/plan-review-do23-raw.txt",
+              "output_retained": true,
+              "finished_phase_status": "incomplete",
+              "must_fix": "Review incomplete: strict verdict or Must-fix section missing"
             },
-            "tool_fault_streak": 0,
+            "tool_fault_streak": 1,
             "implementer_session": "grok-do23-fix",
             "reviewer_session": "opencode-do23-review",
             "jobs": [
@@ -1792,11 +1856,39 @@
                 "wall_time_s": 1,
                 "session": "grok-do23-fix",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "b2cf60894cd841959e3b1fbb8a05ec5a",
+                "phase": "review",
+                "started_at": "2026-11-25T10:57:03Z",
+                "command": "review-do23.sh",
+                "heartbeat_at": "2026-11-25T11:09:19Z",
+                "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
+                "finding_ids": [
+                  "DO-23"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode beam-free",
+                "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
+                "cycle": 15,
+                "round": 2,
+                "pid": 93883,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T11:09:19Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/b2cf60894cd841959e3b1fbb8a05ec5a.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 736,
+                "session": "grok-do23-fix",
+                "finished_phase_status": "changes_requested",
+                "must_fix": "1. `plugins/developer-observability/runtime/backend/issue_state.py:913` — round ownership still selects with `max(owning, key=_tracker_sort_key)`, so a merged/older numbered tracker (e.g. `19.json`) beats the live tracker (`bcl-r1.json`) for a shared round. Reproduced: `build_issues(\"likeminded\", scope=\"round:1\")` returns `19` instead of `bcl-r1`. Should use `_latest_tracker_key`.\n2. `plugins/developer-observability/runtime/backend/issue_state.py:921` and `:925` — focused/current tracker selection (requested PR and scope-round paths) still uses `_tracker_sort_key`, disagreeing with `_latest_tracker_key` when a PR has multiple tracker files or a non-numeric live list is involved. Should use `_latest_tracker_key`."
               }
             ],
             "reviewer_model": "OpenCode beam-free",
-            "must_fix_note": "Reviewer exited 1",
-            "review_status": "running"
+            "must_fix_note": "1. `plugins/developer-observability/runtime/backend/issue_state.py:913` — round ownership still selects with `max(owning, key=_tracker_sort_key)`, so a merged/older numbered tracker (e.g. `19.json`) beats the live tracker (`bcl-r1.json`) for a shared round. Reproduced: `build_issues(\"likeminded\", scope=\"round:1\")` returns `19` instead of `bcl-r1`. Should use `_latest_tracker_key`.\n2. `plugins/developer-observability/runtime/backend/issue_state.py:921` and `:925` — focused/current tracker selection (requested PR and scope-round paths) still uses `_tracker_sort_key`, disagreeing with `_latest_tracker_key` when a PR has multiple tracker files or a non-numeric live list is involved. Should use `_latest_tracker_key`.",
+            "review_status": "changes_requested",
+            "plan_review_status": "failed"
           }
         }
       ]
@@ -2318,7 +2410,7 @@
       "observed": "iter_textlog in sources.py marks a line as log_error when _LOG_ERROR matches \\b(error|exception|traceback|fatal|failed|failure)\\b (case-insensitive) and the line does not contain status=ok. Pytest failures have their own parser; generic text logs do not skip pass marks. In the Likeminded collect of /tmp/bcl-r1/obs-r3 at 09:47 IST 25 Nov 2026, the passing node spec line '✔ unknown routes return a JSON not_found error' was reported as log_error/log failed 1x.",
       "recommendation": "Skip known pass/success lines before the keyword check; status=ok alone is not enough.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "area": "developer-observability",
       "details": {
@@ -2332,7 +2424,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-25T11:16:40Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-25T10:49:55Z",
         "source": "review"
@@ -2547,8 +2646,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T10:51:20Z",
-        "source": "lane_failure"
+        "at": "2026-11-25T11:16:31Z",
+        "source": "review"
       }
     }
   ]
