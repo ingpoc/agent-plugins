@@ -3,8 +3,9 @@
 Sources, all written by Cursor itself (nothing here is hand-entered by a caller):
   hook     Cursor runs `developer-observability cursor-hook` for sessionStart, stop and sessionEnd
            (hooks/cursor-hooks.json). Rows carry model, model_id, status, duration and errors.
-  capture  `developer-observability cursor-capture -- <agent args>` runs `agent -p --output-format
-           stream-json` and keeps the terminal result envelope: usage, duration_ms, request_id.
+  capture  `developer-observability cursor-capture --format json -- -p --model <model> "prompt"` finds
+           `agent` on PATH, runs it with `--output-format`, and keeps the terminal result envelope
+           (usage, duration_ms, request_id) plus `agent --version` as cursor_version.
   ingest   `developer-observability cursor-usage --ingest FILE` stores a saved json/stream-json output.
 Tokens are official only when Cursor's own `usage` object is present. Cursor reports no cost and no
 model version, so both stay null with a *_source of not_reported; nothing is estimated.
@@ -345,6 +346,25 @@ def _agent_binary():
     return shutil.which('agent') or shutil.which('cursor-agent')
 
 
+VERSION_TIMEOUT = 5
+_VERSION = re.compile(r'^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$')
+
+
+def agent_version(binary, timeout=VERSION_TIMEOUT):
+    """`agent --version` (documented as -v, --version) prints a dated build such as 2026.11.19-f005e9d.
+    One short lookup per run; any failure leaves the version null and never touches the run."""
+    try:
+        done = subprocess.run([binary, '--version'], capture_output=True, text=True, errors='replace',
+                              timeout=timeout, stdin=subprocess.DEVNULL)
+    except Exception:
+        return None
+    line = (done.stdout or '').strip().splitlines()[:1]
+    if done.returncode != 0 or not line:
+        return None
+    value = line[0].strip()
+    return value if _VERSION.match(value) else None
+
+
 def capture(argv=None):
     parser = argparse.ArgumentParser(prog='developer-observability cursor-capture',
                                      description='Run Cursor CLI headless and record its own usage and outcome.')
@@ -359,8 +379,11 @@ def capture(argv=None):
     except ValueError:
         parser.error('run ID must be a UUID')
     agent_args = args.agent_args[1:] if args.agent_args[:1] == ['--'] else args.agent_args
+    # The wrapper finds the CLI itself; a leading `agent` or `cursor-agent` would reach Cursor as an extra word.
+    if agent_args and os.path.basename(agent_args[0]) in ('agent', 'cursor-agent'):
+        agent_args = agent_args[1:]
     if not agent_args:
-        parser.error('provide Cursor CLI arguments after --')
+        parser.error('provide Cursor CLI arguments after --, for example: -- -p --model <model> "prompt"')
     if any(value == '--output-format' or value.startswith('--output-format=') for value in agent_args):
         parser.error('cursor-capture sets --output-format; use --format json|stream-json')
     binary = _agent_binary()
@@ -368,6 +391,9 @@ def capture(argv=None):
         print('developer-observability: Cursor CLI not found (agent or cursor-agent on PATH, or CURSOR_AGENT_BIN)', file=sys.stderr)
         return 127
     print_flag = [] if any(value in ('-p', '--print') for value in agent_args) else ['-p']
+    version = {}
+    lookup = threading.Thread(target=lambda: version.update(value=agent_version(binary)), daemon=True)
+    lookup.start()
     started_at, started = _now(), time.monotonic()
     proc = subprocess.Popen([binary, *print_flag, '--output-format', args.format, *agent_args],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='replace')
@@ -393,15 +419,16 @@ def capture(argv=None):
     code = proc.wait()
     reader.join(timeout=5)
     summary = summarize(lines, tail, code)
+    lookup.join(timeout=VERSION_TIMEOUT + 1)
     summary.update(requested_model=requested_model(agent_args), elapsed_seconds=round(time.monotonic() - started, 3),
-                   output_format=args.format)
+                   output_format=args.format, agent_version=version.get('value'))
     try:
         record_run(args.database, run_id, 'capture', summary, started_at=started_at, finished_at=_now())
     except Exception as error:
         print(f'developer-observability: cursor capture failed ({type(error).__name__})', file=sys.stderr)
         return code or 1
     print(json.dumps({'run_id': run_id, 'capture': 'recorded', 'tokens_source': 'official' if summary['usage'] else 'none',
-                      'error_kind': summary['error_kind']}), file=sys.stderr)
+                      'error_kind': summary['error_kind'], 'cursor_version': summary['agent_version']}), file=sys.stderr)
     return code
 
 
