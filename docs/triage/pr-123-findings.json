@@ -266,9 +266,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-25T15:40:10Z",
-      "now": "2026-11-25T15:40:10Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-25T15:40:51Z",
+      "now": "2026-11-25T15:40:51Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 122,
@@ -318,7 +318,7 @@
       }
     },
     "cycle": 15,
-    "round": 3,
+    "round": 4,
     "round_history": [
       {
         "round": 2,
@@ -579,6 +579,11 @@
         "round": 2,
         "fixed": 10,
         "ended_at": "2026-11-25T15:22:18Z"
+      },
+      {
+        "round": 3,
+        "fixed": 15,
+        "ended_at": "2026-11-25T15:40:51Z"
       }
     ],
     "introspect_history": [
@@ -1002,7 +1007,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:40:10Z",
+    "last_written_at": "2026-11-25T15:40:51Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1160,7 +1165,7 @@
         ]
       }
     ],
-    "round_started_at": "2026-11-25T15:22:18Z",
+    "round_started_at": "2026-11-25T15:40:51Z",
     "gate": {
       "merge_previous_pr_threshold": 16,
       "report_threshold": 15
@@ -1299,13 +1304,10 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 3,
+      "round": 4,
       "groups": [
         {
           "id": "R2-PORT",
@@ -1624,7 +1626,7 @@
             "must_fix_note": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port.",
             "review_status": "passed"
           },
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -1809,13 +1811,16 @@
             "reviewer_model": "Grok Bot",
             "tool_fault_streak": 0
           },
-          "updated_at": "2026-11-25T15:22:18Z"
+          "updated_at": "2026-11-25T15:40:51Z"
         },
         {
           "id": "R2-DO1",
           "finding_ids": [
             "DO-1"
           ],
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+          },
           "parked_to": 2,
           "failure_history": [
             {
@@ -1880,9 +1885,8 @@
             }
           ],
           "status": "parked",
-          "codex": {},
           "stage_entered_at": "2026-11-24T19:18:36Z",
-          "updated_at": "2026-11-25T15:22:18Z"
+          "updated_at": "2026-11-25T15:40:51Z"
         },
         {
           "id": "R2-CURSOR",
@@ -1908,7 +1912,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "stage_entered_at": "2026-11-25T10:44:40Z",
           "stage_model": {
             "stage": "verify",
@@ -1942,7 +1946,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "stage_entered_at": "2026-11-25T10:44:40Z",
           "stage_model": {
             "stage": "verify",
@@ -1989,7 +1993,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "stage_entered_at": "2026-11-25T11:16:41Z",
           "codex": {
             "fix_status": "passed",
@@ -2223,7 +2227,7 @@
               "at": "2026-11-25T11:24:09Z"
             }
           ],
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "stage_entered_at": "2026-11-25T11:41:37Z",
           "codex": {
             "fix_status": "passed",
@@ -2533,7 +2537,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "stage_entered_at": "2026-11-25T11:42:11Z",
           "codex": {
             "implementer_session": "grok-do21-fix",
@@ -2758,7 +2762,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:34:02Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "stage_entered_at": "2026-11-25T15:34:07Z",
           "phase": "verify",
           "presuite": {
@@ -2886,7 +2890,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:34:11Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "stage_entered_at": "2026-11-25T15:34:11Z",
           "phase": "verify",
           "presuite": {
@@ -3014,7 +3018,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:34:16Z",
+          "updated_at": "2026-11-25T15:40:51Z",
           "stage_entered_at": "2026-11-25T15:34:17Z",
           "phase": "verify",
           "presuite": {
@@ -3026,10 +3030,115 @@
             "status": "running",
             "started_at": "2026-11-25T15:33:11Z"
           }
+        },
+        {
+          "id": "R4-ATTACH",
+          "finding_ids": [
+            "BCL-188"
+          ],
+          "status": "planned",
+          "reason": "When a job finishes, attach official observability token totals, or mark them not reported, not none.",
+          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "files": [
+            "plugins/batched-change-list/bin/bcl",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/check_introspect.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_job_usage.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_check_introspect.py"
+          ],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-attach.sh"
+          },
+          "codex": {
+            "implementer_session": "Grok Bot",
+            "reviewer_session": "Grok Bot review",
+            "fix_base_head": "a090191c7f708233bef8b7ced93ca0647c5e7385"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T15:40:51Z",
+          "stage_entered_at": "2026-11-25T15:40:51Z"
+        },
+        {
+          "id": "R4-STALE",
+          "finding_ids": [
+            "BCL-189"
+          ],
+          "status": "planned",
+          "reason": "Clear leftover install running status and an active verification run when verify or merge finishes.",
+          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "files": [
+            "plugins/batched-change-list/skills/batched-change-list/scripts/manage_findings.py",
+            "plugins/batched-change-list/skills/batched-change-list/scripts/test_status_cleanup.py"
+          ],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-stale.sh"
+          },
+          "codex": {
+            "implementer_session": "Grok Bot",
+            "reviewer_session": "Grok Bot review",
+            "fix_base_head": "a090191c7f708233bef8b7ced93ca0647c5e7385"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T15:40:51Z",
+          "stage_entered_at": "2026-11-25T15:40:51Z"
+        },
+        {
+          "id": "R4-CAPTURE",
+          "finding_ids": [
+            "DO-25"
+          ],
+          "status": "planned",
+          "reason": "Document the required trust flag and record a refused unknown model instead of a wrapper crash.",
+          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "files": [
+            "plugins/developer-observability/skills/developer-observability/references/cursor-cli-runs.md",
+            "plugins/developer-observability/docs/VERIFICATION.md",
+            "plugins/developer-observability/runtime/collector/cursor_runs.py",
+            "plugins/developer-observability/tests/test_cursor_runs.py"
+          ],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-capture.sh"
+          },
+          "codex": {
+            "implementer_session": "Grok Bot",
+            "reviewer_session": "Grok Bot review",
+            "fix_base_head": "a090191c7f708233bef8b7ced93ca0647c5e7385"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T15:40:51Z",
+          "stage_entered_at": "2026-11-25T15:40:51Z"
+        },
+        {
+          "id": "R4-LASTFAIL",
+          "finding_ids": [
+            "DO-26"
+          ],
+          "status": "planned",
+          "reason": "Clear or label last failure after a later verify, and raise remaining text to 16 pixels without blocking zoom.",
+          "worktree": "/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13",
+          "files": [
+            "plugins/developer-observability/runtime/backend/issue_state.py",
+            "plugins/developer-observability/ui/app.js",
+            "plugins/developer-observability/tests/test_issue_trail.py",
+            "plugins/developer-observability/tests/test_issues_api.py"
+          ],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r4-lastfail.sh"
+          },
+          "codex": {
+            "implementer_session": "Grok Bot",
+            "reviewer_session": "Grok Bot review",
+            "fix_base_head": "a090191c7f708233bef8b7ced93ca0647c5e7385"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-25T15:40:51Z",
+          "stage_entered_at": "2026-11-25T15:40:51Z"
         }
       ],
-      "cycle": 15,
-      "status": "closed"
+      "cycle": 15
     },
     "verification_run": {
       "id": "pr123-r3-671698d6",
