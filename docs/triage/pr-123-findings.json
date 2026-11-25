@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-25T08:36:29Z",
-      "now": "2026-11-25T08:36:29Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-25T08:38:23Z",
+      "now": "2026-11-25T08:38:23Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -484,7 +484,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T08:36:29Z",
+    "last_written_at": "2026-11-25T08:38:23Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -795,8 +795,8 @@
             "BCL-185"
           ],
           "worktree": "samantha-next-r13",
-          "status": "planned",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
@@ -811,12 +811,67 @@
           "reason": "A repo with no saved viewer port got 53366 or a random port and the computed port was never saved, so the bookmarkable address could drift. Pick a deterministic per-repo slot once, save it on first viewer start, recover it from viewer state, fail loudly when occupied, and write the rule in the skill.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/bcl-185-port.sh",
-            "method": "Temp-state real viewer: rollover, restart, upgrade and registry repair keep the repo port and serve the newest list; deterministic slot skips other repos; occupied port fails; live 127.0.0.1:58771 still serves #123."
+            "method": "Temp-state real viewer: rollover, restart, upgrade and registry repair keep the repo port and serve the newest list; deterministic slot skips other repos; occupied port fails; live 127.0.0.1:58771 still serves #123.",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
+          "stage_entered_at": "2026-11-25T08:37:17Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T08:36:29Z",
-          "stage_entered_at": "2026-11-25T08:36:29Z"
+          "codex": {
+            "fix_status": "passed",
+            "job": {
+              "id": "0078936338734b8cab2d2cd31049f5a2",
+              "phase": "review",
+              "started_at": "2026-11-25T08:38:23Z",
+              "command": "review.sh",
+              "heartbeat_at": "2026-11-25T08:38:23Z",
+              "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
+              "finding_ids": [
+                "BCL-185"
+              ],
+              "worktree": "samantha-next-r13",
+              "model": "OpenCode deepseek-v4.1-flash-free",
+              "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
+              "cycle": 15,
+              "round": 2
+            },
+            "tool_fault_streak": 0,
+            "implementer_session": "grok-bcl-185-fix",
+            "reviewer_session": "opencode-bcl-185-review",
+            "jobs": [
+              {
+                "id": "0b1733d436ad4356a62bb9d023a4fdbd",
+                "phase": "fix",
+                "started_at": "2026-11-25T08:36:57Z",
+                "command": "commit-fix.sh",
+                "heartbeat_at": "2026-11-25T08:37:17Z",
+                "plan_sha256": "553b972c6748d0c84209ee12f42734257b208da134a8a538d3cc137a2425af68",
+                "finding_ids": [
+                  "BCL-185"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "f0663abe50656bbbb78360471a416ddee6d6cc76acd1e778311ba7b333e0081a",
+                "cycle": 15,
+                "round": 2,
+                "pid": 31006,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T08:37:17Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/0b1733d436ad4356a62bb9d023a4fdbd.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 20,
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "OpenCode deepseek-v4.1-flash-free"
+          },
+          "updated_at": "2026-11-25T08:38:17Z"
         },
         {
           "id": "R1-POSTMERGE",
@@ -847,6 +902,12 @@
             "total": 1,
             "finished_at": "2026-11-24T19:25:38Z"
           },
+          "stage_entered_at": "2026-11-24T19:25:38Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-24T19:23:40Z"
+          },
           "failure_history": [
             {
               "attempt_id": "f75d2030f0ee4c90b39514487032080d",
@@ -861,10 +922,16 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T08:36:29Z",
-          "stage_entered_at": "2026-11-24T19:25:38Z",
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-24T19:24:58Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot",
+            "at": "2026-11-24T19:25:31Z"
+          },
           "codex": {
-            "fix_status": "passed",
             "job": {
               "id": "d79465432e594b13b0185991be5b251f",
               "phase": "presuite",
@@ -891,7 +958,6 @@
               "session": "grok-bcl-178-fix",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "f75d2030f0ee4c90b39514487032080d",
@@ -971,33 +1037,22 @@
                 "finished_phase_status": "passed"
               }
             ],
-            "implementer_session": "grok-bcl-178-fix",
-            "reviewer_session": "grok-bcl-178-review",
+            "fix_status": "passed",
             "review_status": "passed",
-            "reviewer_model": "Grok Bot"
+            "reviewer_model": "Grok Bot",
+            "tool_fault_streak": 0
           },
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-24T19:23:40Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-24T19:24:58Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "Grok Bot",
-            "at": "2026-11-24T19:25:31Z"
-          }
+          "updated_at": "2026-11-25T08:36:46Z"
         },
         {
           "id": "R2-DO1",
           "finding_ids": [
             "DO-1"
           ],
+          "status": "parked",
           "reason": "Needs Guru later round",
           "parked_to": 2,
+          "stage_entered_at": "2026-11-24T19:18:36Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -1060,10 +1115,8 @@
               "owner_override": true
             }
           ],
-          "status": "parked",
           "codex": {},
-          "stage_entered_at": "2026-11-24T19:18:36Z",
-          "updated_at": "2026-11-25T08:36:29Z"
+          "updated_at": "2026-11-25T08:36:46Z"
         }
       ]
     },
