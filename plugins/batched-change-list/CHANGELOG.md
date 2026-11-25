@@ -1,6 +1,6 @@
 ## 0.1.75
 
-- Each repo keeps one bookmarkable viewer port: chosen once from a deterministic slot that never takes another repo's saved port, saved on first viewer start, recovered from viewer state after a registry repair, and reused by every new list, rollover, restart and upgrade; an occupied port fails instead of moving, and serve.py needs an explicit `--port` (BCL-185).
+- Each repo keeps one bookmarkable viewer port: chosen once from a deterministic slot that never takes another repo's saved port, saved at adoption or first viewer start, recovered from the repo's own viewer file after a registry repair (old per-list files never decide or veto it), and reused by every new list, rollover, restart and upgrade; an occupied port, two saved ports for one repo, or a port saved by another repo fail instead of moving, and serve.py needs an explicit `--port` (BCL-185).
 
 ## 0.1.74
 

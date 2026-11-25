@@ -507,7 +507,8 @@ class RepoViewerPortTests(unittest.TestCase):
             self.assertEqual(moved, live_state._project_port('new/project', taken))
             viewers = Path(temp) / 'viewers'; viewers.mkdir()
             (viewers / 'other--project.json').write_text(json.dumps({'port': slot, 'data': '/other/list.json'}))
-            self.assertNotEqual(live_state._project_port('new/project', {}), slot)
+            known = {'other/project/1': {'repo': 'other/project'}}
+            self.assertNotEqual(live_state._project_port('new/project', known), slot)
 
     def test_registry_repair_recovers_the_repo_port_from_its_viewer_state(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
@@ -515,6 +516,101 @@ class RepoViewerPortTests(unittest.TestCase):
             viewers = Path(temp) / 'viewers'; viewers.mkdir()
             (viewers / 'owner--project.json').write_text(json.dumps({'port': 58771, 'data': '/x/123.json'}))
             self.assertEqual(live_state._project_port('owner/project', {}), 58771)
+
+    def test_registry_repair_on_the_real_viewer_layout_keeps_58771_and_53366(self):
+        # Old per-list files sort before the per-repo file and one of them (dead) still
+        # records 53366; neither may win or reserve a port after the registry loses viewer_port.
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, '_port_is_free', return_value=False), \
+                patch.object(live_state, '_pid_is_running', return_value=False):
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            layout = {'ingpoc--agent-plugins--107': 61388, 'ingpoc--agent-plugins--111': 53366,
+                      'ingpoc--agent-plugins--112': 57666, 'ingpoc--agent-plugins': 58771,
+                      'ingpoc--like-minded-app': 53366}
+            for stem, port in layout.items():
+                (viewers / f'{stem}.json').write_text(json.dumps({'port': port, 'pid': 999999, 'data': f'/x/{stem}.json'}))
+            records = {'ingpoc/agent-plugins/123': {'repo': 'ingpoc/agent-plugins', 'live': '/x/123.json'},
+                       'ingpoc/agent-plugins/111': {'repo': 'ingpoc/agent-plugins', 'live': '/x/ingpoc--agent-plugins--111.json'},
+                       'ingpoc/like-minded-app/bcl-r1': {'repo': 'ingpoc/like-minded-app', 'live': '/x/bcl-r1.json'}}
+            self.assertEqual(live_state._project_port('ingpoc/agent-plugins', records), 58771)
+            self.assertEqual(live_state._project_port('ingpoc/like-minded-app', records), 53366)
+
+    def test_live_old_viewer_still_reserves_its_port_and_two_saved_ports_fail(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, '_port_is_free', return_value=True), \
+                patch.object(live_state, '_pid_is_running', return_value=True):
+            slot = live_state._project_port('new/project', {})
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            (viewers / 'some--old--list.json').write_text(json.dumps({'port': slot, 'pid': 4242}))
+            self.assertNotEqual(live_state._project_port('new/project', {}), slot)
+            records = {'a/b/1': {'repo': 'a/b', 'viewer_port': 51000}, 'a/b/2': {'repo': 'a/b', 'viewer_port': 51001}}
+            with self.assertRaisesRegex(RuntimeError, 'more than one saved viewer port'):
+                live_state._project_port('a/b', records)
+
+    def test_viewer_start_after_repair_ignores_old_per_list_files(self):
+        # Repaired registry, no per-repo file, only an old per-list file for this repo that
+        # records another repo's saved port: the viewer must use the repo slot, never 53366.
+        with tempfile.TemporaryDirectory() as temp:
+            state = Path(temp) / 'state'; home = Path(temp) / 'home'; (home / 'report').mkdir(parents=True)
+            (home / 'report/page.html').write_text('<html></html>')
+            live = state / 'ingpoc--agent-plugins' / '123.json'; live.parent.mkdir(parents=True); live.write_text('{}')
+            old_live = state / 'ingpoc--agent-plugins' / '111.json'; old_live.write_text('{}')
+            record = {'repo': 'ingpoc/agent-plugins', 'id': '123', 'live': str(live), 'home': str(home),
+                      'snapshot': 'report/data.json', 'html': 'report/page.html'}
+            records = {'ingpoc/agent-plugins/123': record,
+                       'ingpoc/agent-plugins/111': {**record, 'id': '111', 'live': str(old_live)},
+                       'ingpoc/like-minded-app/bcl-r1': {'repo': 'ingpoc/like-minded-app', 'viewer_port': 53366}}
+            with patch.object(live_state, 'STATE', state), \
+                    patch.object(live_state, '_port_is_free', return_value=True), \
+                    patch.object(live_state, '_pid_is_running', return_value=False), \
+                    patch.object(live_state, '_viewer_ready', return_value=True), \
+                    patch.object(live_state.subprocess, 'Popen', return_value=SimpleNamespace(pid=4321)):
+                live_state.save_registry(records)
+                (state / 'viewers').mkdir()
+                (state / 'viewers/ingpoc--agent-plugins--111.json').write_text(json.dumps(
+                    {'port': 53366, 'pid': 999999, 'instance': 'old', 'data': str(old_live)}))
+                expected = live_state._project_port('ingpoc/agent-plugins')
+                value = live_state.ensure_viewer('ingpoc/agent-plugins/123', record, live, 'v1')
+                self.assertNotIn(expected, {53366, 61388})
+                self.assertEqual(value['port'], expected)
+                self.assertEqual(live_state.registry()['ingpoc/agent-plugins/123']['viewer_port'], expected)
+
+    def test_occupied_first_port_is_not_saved(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state = Path(temp) / 'state'; home = Path(temp) / 'home'; (home / 'report').mkdir(parents=True)
+            (home / 'report/page.html').write_text('<html></html>')
+            live = Path(temp) / 'live.json'; live.write_text('{}')
+            record = {'repo': 'owner/project', 'id': '1', 'live': str(live), 'home': str(home),
+                      'snapshot': 'report/data.json', 'html': 'report/page.html'}
+            with patch.object(live_state, 'STATE', state), \
+                    patch.object(live_state, '_project_port', return_value=54999), \
+                    patch.object(live_state, '_port_is_free', return_value=False):
+                live_state.save_registry({'owner/project/1': dict(record)})
+                with self.assertRaisesRegex(RuntimeError, 'port 54999 is occupied'):
+                    live_state.ensure_viewer('owner/project/1', record, live, 'v1')
+                self.assertNotIn('viewer_port', live_state.registry()['owner/project/1'])
+
+    def test_running_old_per_list_viewer_cannot_veto_the_repo_port(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, '_port_is_free', return_value=True), \
+                patch.object(live_state, '_pid_is_running', return_value=True):
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            for stem, port in {'ingpoc--agent-plugins--121': 58771, 'ingpoc--agent-plugins': 58771,
+                               'ingpoc--agent-plugins--111': 53366, 'ingpoc--like-minded-app': 53366}.items():
+                (viewers / f'{stem}.json').write_text(json.dumps({'port': port, 'pid': 4242}))
+            records = {'ingpoc/agent-plugins/123': {'repo': 'ingpoc/agent-plugins'},
+                       'ingpoc/like-minded-app/bcl-r1': {'repo': 'ingpoc/like-minded-app'}}
+            self.assertEqual(live_state._project_port('ingpoc/agent-plugins', records), 58771)
+            self.assertEqual(live_state._project_port('ingpoc/like-minded-app', records), 53366)
+
+    def test_recovered_port_saved_by_another_repo_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, '_port_is_free', return_value=True):
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            (viewers / 'owner--project.json').write_text(json.dumps({'port': 53366}))
+            records = {'other/repo/1': {'repo': 'other/repo', 'viewer_port': 53366}}
+            with self.assertRaisesRegex(RuntimeError, 'saved by another repo'):
+                live_state._project_port('owner/project', records)
 
     def test_saved_ports_never_change(self):
         records = {'ingpoc/agent-plugins/123': {'repo': 'ingpoc/agent-plugins', 'viewer_port': 58771},
