@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-25T09:45:07Z",
-      "now": "2026-11-25T09:45:07Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-25T09:49:15Z",
+      "now": "2026-11-25T09:49:15Z — Install in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -484,7 +484,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T09:48:26Z",
+    "last_written_at": "2026-11-25T09:49:15Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -781,7 +781,8 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "cycle": 15,
@@ -795,8 +796,8 @@
             "BCL-185"
           ],
           "worktree": "samantha-next-r13",
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
@@ -817,7 +818,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-25T09:26:23Z",
+          "stage_entered_at": "2026-11-25T09:49:15Z",
           "failure_history": [
             {
               "attempt_id": "0078936338734b8cab2d2cd31049f5a2",
@@ -1108,6 +1109,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-25T09:48:26Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-25T09:49:15Z"
           }
         },
         {
@@ -1830,7 +1835,7 @@
       "observed": "25 Nov 2026 13:48 IST, Guru: the tracker must keep one assigned port per repo so it can be bookmarked. Today agent-plugins is 58771 (registry saves viewer_port 58771 for #121, #122, #123) and Likeminded is 53366. Code at r13 ead254f4: live_state._project_port picks 53366 if free, otherwise port 0 (random) when a repo has no saved port; serve.py defaults --port to 53366; SKILL.md has no rule; viewer.md still says choose another available port; no test proves a rollover or restart to a new list keeps the repo port and serves the newest list.",
       "recommendation": "Derive a deterministic per-repo port (hash slot, skipping other repos' saved ports), persist it on first viewer start, fall back to the repo viewer state on registry repair, make serve.py --port required, and write the rule in SKILL.md and viewer.md with tests.",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "high",
       "area": "batched-change-list",
       "details": {
@@ -1843,7 +1848,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-25T09:49:15Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-25T09:08:25Z",
         "source": "review"
