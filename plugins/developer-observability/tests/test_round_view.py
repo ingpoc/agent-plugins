@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,7 +11,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "runtime"))
-from backend.round_view import build_round, find_tracker, list_trackers  # noqa: E402
+from backend.round_view import build_round, find_tracker, list_trackers, _pr_number, _tracker_id  # noqa: E402
 
 
 def _write_tracker(root: Path, project: str, pr: str, payload: dict) -> Path:
@@ -459,3 +460,56 @@ class RoundViewTests(unittest.TestCase):
         lane = next((row for row in result["time_tokens"]["by_lane"] if row.get("group_id") == "R7-ACU20"), None)
         self.assertIsNotNone(lane)
         self.assertGreaterEqual(lane["duration_ms"], 8 * 60 * 1000)
+
+
+
+class NonNumericTrackerTests(unittest.TestCase):
+    """Tracker files may use list ids such as bcl-r1, not only numeric PR stems."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        os.environ["OBSERVABILITY_CONFIG"] = str(self.root / "missing-config.json")
+        folder = self.root / "acme--like-minded-app"
+        folder.mkdir(parents=True)
+        (folder / "bcl-r1.json").write_text(json.dumps({
+            "title": "Likeminded change list (bcl-r1)",
+            "tracking": {
+                "list_id": "bcl-r1",
+                "cycle": 1,
+                "round": 1,
+                "plan": {"round": 1, "cycle": 1, "groups": [
+                    {"id": "R1-LM1", "name": "lm", "finding_ids": ["LM-1"], "status": "untested"},
+                ]},
+            },
+            "findings": [{"id": "LM-1", "status": "untested", "title": "Item"}],
+        }))
+        (folder / "19.json").write_text(json.dumps({
+            "title": "Earlier list",
+            "tracking": {"pull_request": {"number": 19, "label": "PR #19"}, "round": 1, "cycle": 1,
+                         "plan": {"round": 1, "groups": []}},
+            "findings": [],
+        }))
+        (folder / "archive.json").write_text(json.dumps({"tracking": {}, "findings": []}))
+        (folder / "notes.json").write_text(json.dumps({"hello": "not a tracker"}))
+
+    def tearDown(self):
+        os.environ.pop("OBSERVABILITY_CONFIG", None)
+        self.tmp.cleanup()
+
+    def test_tracker_id_keeps_non_numeric_ids(self):
+        self.assertEqual(_pr_number("bcl-r1"), "1")
+        self.assertEqual(_tracker_id("bcl-r1"), "bcl-r1")
+        self.assertEqual(_tracker_id("19"), "19")
+        self.assertEqual(_tracker_id("#120"), "120")
+
+    def test_list_and_find_accept_non_numeric_ids(self):
+        rows = list_trackers("like-minded-app", state_dir=str(self.root))
+        self.assertEqual([row["pr"] for row in rows], ["19", "bcl-r1"])
+        path, data, ident = find_tracker("likeminded", "bcl-r1", state_dir=str(self.root))
+        self.assertEqual(ident, "bcl-r1")
+        self.assertEqual(path.stem, "bcl-r1")
+        self.assertEqual(data["tracking"]["list_id"], "bcl-r1")
+        result = build_round("like-minded-app", pr="bcl-r1", state_dir=str(self.root))
+        self.assertEqual(result["pr"]["number"], "bcl-r1")
+        self.assertEqual(result["round"], 1)

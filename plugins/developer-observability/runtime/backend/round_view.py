@@ -192,6 +192,240 @@ def _pr_number(value):
     return match.group(1) if match else None
 
 
+_GENERIC_SLUG_TAILS = frozenset({"app", "web", "api", "frontend", "backend", "service"})
+_DEFAULT_CONFIG = Path.home() / ".config/developer-observability/config.json"
+
+
+def _tracker_id(value):
+    """Stable tracker id. Keeps non-numeric ids such as bcl-r1; does not pull digits out of them."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, dict):
+        for key in ("list_id", "id", "number", "label"):
+            found = _tracker_id(value.get(key))
+            if found:
+                return found
+        return _pr_number(value)
+    text = str(value).strip().lstrip("#")
+    if not text:
+        return None
+    if text.isdigit():
+        return text
+    # URLs and "PR 19" still resolve to the number; lettered ids stay intact.
+    if re.search(r"[A-Za-z]", text) and "://" not in text and "/pull/" not in text:
+        return text
+    return _pr_number(text)
+
+
+def _is_tracker_path(path):
+    if path.name in {"archive.json", "parked.json"} or path.name.startswith("."):
+        return False
+    if path.parent.name == "viewers" or path.name.endswith(".viewer.json"):
+        return False
+    return True
+
+
+def _is_tracker_document(data):
+    return isinstance(data, dict) and (
+        isinstance(data.get("tracking"), dict) or isinstance(data.get("findings"), list)
+    )
+
+
+def _slug_variants(value):
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return set()
+    tokens = [token for token in re.split(r"[^a-z0-9]+", raw) if token]
+    variants = {raw, "".join(tokens)}
+    trimmed = list(tokens)
+    while trimmed and trimmed[-1] in _GENERIC_SLUG_TAILS:
+        trimmed.pop()
+        if trimmed:
+            variants.add("-".join(trimmed))
+            variants.add("".join(trimmed))
+    return variants
+
+
+def _tracker_aliases(path, data):
+    tracking = data.get("tracking") if isinstance(data.get("tracking"), dict) else {}
+    aliases = {path.parent.name, path.stem}
+    if "--" in path.parent.name:
+        aliases.add(path.parent.name.split("--", 1)[1])
+    repo = tracking.get("repo")
+    worktree = tracking.get("worktree")
+    if not repo and isinstance(worktree, dict):
+        repo = worktree.get("repo") or worktree.get("name")
+    if isinstance(repo, str) and repo.strip():
+        aliases.add(repo.strip())
+        aliases.add(Path(repo.rstrip("/")).name)
+    if isinstance(worktree, str) and worktree.strip():
+        aliases.add(Path(worktree.rstrip("/")).name)
+    if tracking.get("project_id"):
+        aliases.add(str(tracking["project_id"]))
+    if tracking.get("list_id"):
+        aliases.add(str(tracking["list_id"]))
+    title = data.get("title")
+    if isinstance(title, str) and title.strip():
+        aliases.add(title.strip())
+        first = re.split(r"[^A-Za-z0-9]+", title.strip(), maxsplit=1)[0]
+        if first:
+            aliases.add(first)
+    return {alias for alias in aliases if alias}
+
+
+def _alias_variants(path, data):
+    variants = set()
+    for alias in _tracker_aliases(path, data):
+        variants |= _slug_variants(alias)
+    return variants
+
+
+def _configured_projects():
+    """Map project id -> readable label from the optional local config. Missing or unreadable is empty."""
+    raw = os.environ.get("OBSERVABILITY_CONFIG") or str(_DEFAULT_CONFIG)
+    path = Path(raw).expanduser()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    projects = payload.get("projects") if isinstance(payload, dict) else None
+    if not isinstance(projects, dict):
+        return {}
+    labels = {}
+    for key, value in projects.items():
+        if not isinstance(key, str) or not key.strip():
+            continue
+        label = key
+        if isinstance(value, dict) and isinstance(value.get("label"), str) and value["label"].strip():
+            label = value["label"].strip()
+        labels[key] = label
+    return labels
+
+
+def _project_matches(project, path, data, configured=None):
+    if not project or not isinstance(project, str):
+        return False
+    wanted = _slug_variants(project)
+    configured = _configured_projects() if configured is None else configured
+    if project in configured:
+        wanted |= _slug_variants(configured[project])
+    # A request for a repo slug should also match a configured alias, and vice versa.
+    have = _alias_variants(path, data)
+    for key, label in configured.items():
+        config_variants = _slug_variants(key) | _slug_variants(label)
+        if config_variants & have:
+            have |= config_variants
+            have |= _slug_variants(key)
+    if wanted & have:
+        return True
+    folder = path.parent.name
+    return (
+        folder == project
+        or folder.endswith(f"--{project}")
+        or project == path.stem
+    )
+
+
+def _canonical_project(path, data, configured=None):
+    """Stable project id for a tracker: a configured id when one matches, otherwise the repo/folder slug."""
+    configured = _configured_projects() if configured is None else configured
+    tracking = data.get("tracking") if isinstance(data.get("tracking"), dict) else {}
+    explicit = tracking.get("project_id")
+    if isinstance(explicit, str) and explicit.strip():
+        explicit = explicit.strip()
+        if explicit in configured or not configured:
+            return explicit
+    have = _alias_variants(path, data)
+    scored = []
+    for key, label in configured.items():
+        variants = _slug_variants(key) | _slug_variants(label)
+        if not (variants & have):
+            continue
+        compact = re.sub(r"[^a-z0-9]+", "", key.lower())
+        score = len(compact)
+        if compact in have or re.sub(r"[^a-z0-9]+", "", (label or "").lower()) in have:
+            score += 100
+        scored.append((score, key))
+    if scored:
+        scored.sort()
+        return scored[-1][1]
+    if isinstance(explicit, str) and explicit:
+        return explicit
+    folder = path.parent.name
+    if "--" in folder:
+        return folder.split("--", 1)[1]
+    repo = tracking.get("repo")
+    if isinstance(repo, str) and repo.strip():
+        return Path(repo.rstrip("/")).name
+    return folder
+
+
+def _project_label(project_id, configured=None):
+    configured = _configured_projects() if configured is None else configured
+    if project_id in configured:
+        return configured[project_id]
+    if project_id == "agent-plugins":
+        return "Agent Plugins"
+    return project_id
+
+
+def _tracker_id_for(path, data):
+    tracking = data.get("tracking") if isinstance(data.get("tracking"), dict) else {}
+    return (
+        _tracker_id(tracking.get("list_id"))
+        or _pr_number(tracking.get("pull_request"))
+        or _tracker_id(path.stem)
+        or path.stem
+    )
+
+
+def _read_tracker(path):
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not _is_tracker_document(data):
+        return None
+    return data
+
+
+def _iter_all_trackers(state_dir=None):
+    """Yield (path, data, id) for every change-list tracker. Read only."""
+    root = _state_root(state_dir)
+    if not root.exists():
+        return
+    for path in sorted(root.glob("*/*.json")):
+        if not _is_tracker_path(path):
+            continue
+        data = _read_tracker(path)
+        if data is None:
+            continue
+        yield path, data, _tracker_id_for(path, data)
+
+
+def _list_projects(state_dir=None, current=None):
+    """Every project that has a tracker, with a readable label. agent-plugins stays first."""
+    configured = _configured_projects()
+    rows = []
+    seen = set()
+    for path, data, _ident in _iter_all_trackers(state_dir):
+        project_id = _canonical_project(path, data, configured)
+        if project_id in seen:
+            continue
+        seen.add(project_id)
+        rows.append({"id": project_id, "label": _project_label(project_id, configured)})
+    def sort_key(row):
+        if row["id"] == "agent-plugins":
+            return (0, row["label"].lower())
+        if current and row["id"] == current:
+            return (1, row["label"].lower())
+        return (2, row["label"].lower())
+    rows.sort(key=sort_key)
+    return rows
+
+
 def _plan_groups(data):
     tracking = data.get("tracking") if isinstance(data, dict) and isinstance(data.get("tracking"), dict) else {}
     plan = tracking.get("plan") if isinstance(tracking.get("plan"), dict) else (data.get("plan") if isinstance(data, dict) and isinstance(data.get("plan"), dict) else {})
@@ -217,37 +451,10 @@ def _iter_trackers(project, state_dir=None):
     root = _state_root(state_dir)
     if not root.exists():
         raise ValueError("tracker_unavailable: no change-list state directory")
-    for path in sorted(root.glob("*/*.json")):
-        if path.name in {"archive.json", "parked.json"} or path.name.startswith("."):
-            continue
-        folder = path.parent.name
-        if folder == "viewers" or path.name.endswith(".viewer.json") or not path.stem.isdigit():
-            continue
-        tentative = project in folder or folder.endswith(f"--{project}") or project in path.stem
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if not isinstance(data, dict):
-            continue
-        tracking = data.get("tracking") if isinstance(data.get("tracking"), dict) else {}
-        label = ""
-        if isinstance(tracking.get("worktree"), dict):
-            label = str(tracking["worktree"].get("repo") or tracking["worktree"].get("name") or "")
-        repo = str(tracking.get("repo") or label or "")
-        title = str(data.get("title") or "")
-        belongs = (
-            tentative
-            or project == repo
-            or project in repo
-            or folder.endswith(f"--{project}")
-            or project in folder
-            or project in title
-        )
-        if not belongs:
-            continue
-        found_pr = _pr_number(tracking.get("pull_request")) or _pr_number(path.stem)
-        yield path, data, found_pr
+    configured = _configured_projects()
+    for path, data, ident in _iter_all_trackers(state_dir):
+        if _project_matches(project, path, data, configured):
+            yield path, data, ident
 
 
 def list_trackers(project, state_dir=None):
@@ -260,14 +467,19 @@ def list_trackers(project, state_dir=None):
         pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
         rows.append({
             "pr": found_pr,
-            "label": pull.get("label") or (f"PR #{found_pr}" if found_pr else path.stem),
+            "label": pull.get("label") or (f"PR #{found_pr}" if str(found_pr or "").isdigit() else (found_pr or path.stem)),
             "url": pull.get("url"),
             "cycle": tracking.get("cycle") or plan.get("cycle"),
             "round": tracking.get("round") or plan.get("round"),
             "group_count": len(groups),
             "has_lanes": bool(groups),
         })
-    rows.sort(key=lambda row: int(row["pr"] or 0), reverse=True)
+    def sort_key(row):
+        ident = str(row["pr"] or "")
+        if ident.isdigit():
+            return (0, -int(ident), "")
+        return (1, 0, ident.lower())
+    rows.sort(key=sort_key)
     return rows
 
 
@@ -277,10 +489,11 @@ def find_tracker(project, pr=None, state_dir=None, prefer_lanes=None):
     When no PR is named, prefer the newest list that has lanes, so a fresh
     rollover list with no groups does not hide the previous list's work.
     """
-    wanted = _pr_number(pr)
+    wanted = _tracker_id(pr) or _pr_number(pr)
     matches = list(_iter_trackers(project, state_dir))
     if wanted:
-        exact = [item for item in matches if item[2] == wanted or item[0].stem == wanted]
+        exact = [item for item in matches
+                 if str(item[2]) == wanted or item[0].stem == wanted or _tracker_id(item[0].stem) == wanted]
         if exact:
             matches = exact
     if not matches:
