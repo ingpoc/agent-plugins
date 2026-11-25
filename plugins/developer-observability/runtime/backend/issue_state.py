@@ -831,25 +831,18 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                  issue_id=None, include=None):
     """Read trackers and job events and return the shared UI/MCP issue contract."""
     try:
-        from .round_view import (_fold_jobs, _history_for_cycle, _iter_trackers, _plan_groups,
-                                 _round_from_group_id, _tracker_sort_key)
+        from .round_view import (_canonical_project, _configured_projects, _fold_jobs,
+                                 _history_for_cycle, _iter_all_trackers, _iter_trackers,
+                                 _list_projects, _plan_groups, _round_from_group_id,
+                                 _tracker_sort_key)
     except ImportError:
-        from round_view import (_fold_jobs, _history_for_cycle, _iter_trackers, _plan_groups,
-                                _round_from_group_id, _tracker_sort_key)
+        from round_view import (_canonical_project, _configured_projects, _fold_jobs,
+                                _history_for_cycle, _iter_all_trackers, _iter_trackers,
+                                _list_projects, _plan_groups, _round_from_group_id,
+                                _tracker_sort_key)
 
     timed = from_time is not None or to_time is not None
-    all_trackers = []
-    for item in _iter_trackers(project, state_dir):
-        tracker_path, document, tracker_pr = item
-        tracking = document.get("tracking") if isinstance(document.get("tracking"), dict) else {}
-        repo = tracking.get("repo")
-        if not repo and isinstance(tracking.get("worktree"), dict):
-            repo = tracking["worktree"].get("repo") or tracking["worktree"].get("name")
-        exact = (tracker_path.parent.name == project or tracker_path.parent.name.endswith(f"--{project}")
-                 or tracking.get("project_id") == project
-                 or (isinstance(repo, str) and Path(repo.rstrip("/")).name == project))
-        if exact:
-            all_trackers.append(item)
+    all_trackers = list(_iter_trackers(project, state_dir))
     if not all_trackers:
         raise ValueError("tracker_unavailable: no tracker for this project")
     latest_path, latest, latest_pr = max(all_trackers, key=_tracker_sort_key)
@@ -1113,11 +1106,37 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
         pr_issues = issues_by_pr.get(str(tracker_pr), [])
         open_count = sum(issue.get("state") != "resolved" for issue in pr_issues)
         pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
-        prs.append({"project": project, "pr": str(tracker_pr), "label": pull.get("label") or f"#{tracker_pr}",
+        ident = str(tracker_pr)
+        label = pull.get("label") or (f"#{ident}" if ident.isdigit() else ident)
+        prs.append({"project": project, "pr": ident, "label": label,
                     "cycle": cycle, "open": open_count, "status": "merged" if merged else "open",
                     "merged": bool(merged), "merged_at": (merged or {}).get("merged_at") if merged else None,
-                    "latest_round": round_number, "live": not merged and str(tracker_pr) == str(latest_pr)})
-    lists = {"projects": [{"id": project, "label": "Agent Plugins" if project == "agent-plugins" else project}],
+                    "latest_round": round_number, "live": not merged and ident == str(latest_pr)})
+    configured = _configured_projects()
+    current_ids = {row["project"] for row in prs}
+    # Tag the current project's rows with the canonical id when the request used an alias.
+    canonical_current = None
+    if all_trackers:
+        canonical_current = _canonical_project(all_trackers[0][0], all_trackers[0][1], configured)
+        if canonical_current and canonical_current != project:
+            for row in prs:
+                row["project"] = canonical_current
+            current_ids = {canonical_current}
+    for item in sorted(_iter_all_trackers(state_dir), key=_tracker_sort_key, reverse=True):
+        path, document, tracker_pr = item
+        other_id = _canonical_project(path, document, configured)
+        if other_id in current_ids:
+            continue
+        tracking, plan, round_number, cycle = _meta(document)
+        merged = tracking.get("merged") if isinstance(tracking.get("merged"), dict) else None
+        pull = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
+        ident = str(tracker_pr)
+        label = pull.get("label") or (f"#{ident}" if ident.isdigit() else ident)
+        prs.append({"project": other_id, "pr": ident, "label": label,
+                    "cycle": cycle, "open": None, "status": "merged" if merged else "open",
+                    "merged": bool(merged), "merged_at": (merged or {}).get("merged_at") if merged else None,
+                    "latest_round": round_number, "live": False})
+    lists = {"projects": _list_projects(state_dir, current=canonical_current or project),
              "prs": prs}
     if timed or scope == "all":
         built = _dedupe_latest_pr(catalog)

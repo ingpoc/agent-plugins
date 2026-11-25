@@ -585,5 +585,91 @@ class CascadeAndAccuracyTests(unittest.TestCase):
         self.assertNotEqual(issue.get("last_seen_at"), "2026-11-24T08:44:00Z")
 
 
+class MultiProjectTrackerTests(unittest.TestCase):
+    """The picker lists every project that has a tracker, including non-numeric list ids."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.state = Path(self.tmp.name) / "state"
+        self.config = Path(self.tmp.name) / "config.json"
+        self.config.write_text(json.dumps({
+            "projects": {
+                "agent-plugins": {"label": "Agent Plugins"},
+                "likeminded": {"label": "Likeminded"},
+            }
+        }))
+        os.environ["BCL_STATE_DIR"] = str(self.state)
+        os.environ["OBSERVABILITY_CONFIG"] = str(self.config)
+        plugins = self.state / "ingpoc--agent-plugins"
+        plugins.mkdir(parents=True)
+        (plugins / "121.json").write_text(json.dumps(_tracker(121, 2, 1, [
+            {"id": "DO-1", "title": "One", "status": "pending", "created_at": "2026-11-24T10:00:00Z"},
+        ])))
+        (plugins / "archive.json").write_text(json.dumps({"tracking": {}, "findings": []}))
+        other = self.state / "ingpoc--like-minded-app"
+        other.mkdir()
+        (other / "bcl-r1.json").write_text(json.dumps({
+            "title": "Likeminded change list (bcl-r1)",
+            "tracking": {
+                "list_id": "bcl-r1",
+                "cycle": 1,
+                "round": 1,
+                "plan": {"round": 1, "cycle": 1, "groups": []},
+                "worktree": "/Users/example/code/worktrees/likeminded-bcl-r1",
+            },
+            "findings": [
+                {"id": "LM-1", "title": "First", "status": "untested"},
+                {"id": "LM-2", "title": "Fixed", "status": "verified_fixed"},
+            ],
+        }))
+        (other / "notes.json").write_text(json.dumps({"hello": "not a tracker"}))
+
+    def tearDown(self):
+        os.environ.pop("BCL_STATE_DIR", None)
+        os.environ.pop("OBSERVABILITY_CONFIG", None)
+        self.tmp.cleanup()
+
+    def test_lists_every_project_with_a_tracker(self):
+        result = build_issues("agent-plugins")
+        ids = [row["id"] for row in result["lists"]["projects"]]
+        self.assertEqual(ids[0], "agent-plugins")
+        self.assertEqual(set(ids), {"agent-plugins", "likeminded"})
+        labels = {row["id"]: row["label"] for row in result["lists"]["projects"]}
+        self.assertEqual(labels["agent-plugins"], "Agent Plugins")
+        self.assertEqual(labels["likeminded"], "Likeminded")
+        self.assertEqual({row["id"] for row in result["issues"]}, {"DO-1"})
+        by_project = {}
+        for row in result["lists"]["prs"]:
+            by_project.setdefault(row["project"], []).append(row["pr"])
+        self.assertEqual(by_project["agent-plugins"], ["121"])
+        self.assertEqual(by_project["likeminded"], ["bcl-r1"])
+
+    def test_non_numeric_tracker_id_is_found_by_project_alias(self):
+        for project in ("likeminded", "like-minded-app", "ingpoc--like-minded-app"):
+            with self.subTest(project=project):
+                result = build_issues(project)
+                self.assertEqual(result["pr"], "bcl-r1")
+                self.assertEqual({row["id"] for row in result["issues"]}, {"LM-1", "LM-2"})
+                self.assertEqual(result["counts"]["by_state"]["resolved"], 1)
+                self.assertEqual(result["counts"]["by_state"]["untested"], 1)
+                ids = {row["id"] for row in result["lists"]["projects"]}
+                self.assertEqual(ids, {"agent-plugins", "likeminded"})
+
+    def test_cascade_to_the_other_project_uses_its_tracker(self):
+        lists = build_issues("agent-plugins")["lists"]
+        changed = apply_cascade(lists, "agent-plugins", "121", 2, {"project": "likeminded"})
+        self.assertEqual(changed, {"project": "likeminded", "pr": "bcl-r1", "round": 1})
+
+    def test_alias_works_without_config_and_uses_the_repo_slug(self):
+        os.environ["OBSERVABILITY_CONFIG"] = str(Path(self.tmp.name) / "missing.json")
+        result = build_issues("likeminded")
+        self.assertEqual(result["pr"], "bcl-r1")
+        ids = [row["id"] for row in result["lists"]["projects"]]
+        self.assertEqual(ids[0], "agent-plugins")
+        self.assertIn("like-minded-app", ids)
+        self.assertNotIn("likeminded", ids)
+
+
+
 if __name__ == "__main__":
     unittest.main()
