@@ -749,7 +749,9 @@ def _bound_issue_to_round(issue, start, end, carried_to=None, *, seed_from_track
         bounded["carried_to"] = str(carried_to).lstrip("#")
         bounded["origin_label"] = f"carried → #{str(carried_to).lstrip('#')}"
     bounded.update(state=state, last_evidence=last_evidence, last_seen_at=last_seen_at,
-                   needs_you=state in {"blocked", "regressed"}, origin=origin_label or issue.get("origin"),
+                   needs_you=state in {"blocked", "regressed"} or bool(issue.get("wait") and (
+                       not instant((issue.get("wait") or {}).get("since")) or _at_or_before(issue["wait"]["since"], end_at))),
+                   origin=origin_label or issue.get("origin"),
                    attempts=len(failures) or 0)
     return bounded
 
@@ -1012,7 +1014,8 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                           "last_evidence": latest_evidence, "attempts": len(failures) or finding.get("attempts", 0) or 0,
                           "round": home_round, "rounds": sorted(set(job_rounds) | ({lane_round} if lane_round else set())),
                           "existed_in": existed, "current_round": current_round if str(tracker_pr) == str(current_pr) else round_number,
-                          "lane": lane, "needs_you": computed in {"blocked", "regressed"}, "events": events,
+                          "lane": lane, "wait": owner_wait(group),
+                          "needs_you": computed in {"blocked", "regressed"} or owner_wait(group) is not None, "events": events,
                           "summary": strip_paths(finding.get("summary") or finding.get("description") or "No summary recorded."),
                           "impact": finding.get("impact"), "done_when": finding.get("done_when"),
                           "jobs": issue_jobs, "raw": finding, "pr": tracker_pr,
@@ -1308,6 +1311,10 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
             issue.pop("jobs", None)
     # Per-check run detail stays in the trackers; the issue rows already carry each check's outcome.
     all_runs = [_light_run(row) for row in all_runs]
+    if detail:
+        # One issue only: the drawer's Raw data box and agents asking for one id need nothing else.
+        return {"schema_version": 1, "project": project, "pr": display_pr, "issue_id": str(issue_id),
+                "include": includes, "issues": selected}
     return {"schema_version": 1, "project": project, "pr": display_pr, "cycle": current_tracking.get("cycle"),
             "round": display_round, "round_started_at": current_tracking.get("round_started_at"),
             "pull_request": ({**pull, "opened_at": pull.get("opened_at")} if pull else None),
@@ -1367,6 +1374,34 @@ def _carry_failures(selected, catalog, end_at=None):
         latest = max(failures, key=lambda event: instant(event["at"]))
         if not issue.get("last_seen_at") or instant(latest["at"]) > instant(issue["last_seen_at"]):
             issue["last_seen_at"] = latest["at"]
+
+
+# The park convention writes the wait as the reason itself ("Needs Guru later round"); prose that merely
+# mentions the owner somewhere in a bulk deferral is not a wait on them.
+_OWNER_WAIT = re.compile(r"(?i)^\s*(?:needs|waiting on|waiting for|blocked on)\s+(?:guru|the owner|owner)\b")
+
+
+def owner_wait(group):
+    """A recorded wait on the owner: the lane is parked, blocked or deferred and its reason says it needs the
+    owner, with no unblock after it was parked. Lane names and other prose are not a wait."""
+    if not isinstance(group, dict):
+        return None
+    if str(group.get("status") or "").lower() not in {"parked", "blocked", "deferred"}:
+        return None
+    field = next((key for key in ("blocked_reason", "reason", "parked_reason")
+                  if isinstance(group.get(key), str) and _OWNER_WAIT.search(group[key])), None)
+    if field is None:
+        return None
+    since = group.get("parked_at") or group.get("updated_at") or group.get("stage_entered_at")
+    unblocks = [instant(row.get("at")) for row in group.get("unblock_history") or [] if isinstance(row, dict)]
+    unblocks = [stamp for stamp in unblocks if stamp]
+    if instant(since):
+        if any(stamp > instant(since) for stamp in unblocks):
+            return None
+    elif unblocks:
+        return None
+    return {"on": "owner", "since": since if instant(since) else None, "lane": group.get("id"),
+            "reason": strip_paths(group[field])[:80], "source": f"tracking.plan.groups[{group.get('id')}].{field}"}
 
 
 def _existed_without_dates(issue, number):

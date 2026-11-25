@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -120,9 +121,10 @@ class LauncherTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def fake_agent(self, stdout_file, stderr_file=None, code=0):
+    def fake_agent(self, stdout_file, stderr_file=None, code=0, version='printf "2026.11.19-f005e9d\\n"; exit 0'):
         script = self.dir / 'agent'
-        body = f'#!/bin/sh\necho "$@" > "{self.dir}/argv"\ncat "{FIX / stdout_file}"\n'
+        body = (f'#!/bin/sh\nif [ "$1" = "--version" ]; then echo x >> "{self.dir}/version_calls"; {version}; fi\n'
+                f'echo "$@" > "{self.dir}/argv"\ncat "{FIX / stdout_file}"\n')
         if stderr_file:
             body += f'cat "{FIX / stderr_file}" >&2\n'
         script.write_text(body + f'exit {code}\n')
@@ -136,7 +138,7 @@ class LauncherTests(unittest.TestCase):
     def test_capture_success_then_read_back(self):
         agent = self.fake_agent('success.stream.jsonl')
         run = self.run_launcher('cursor-capture', '--database', self.db, '--quiet-events', '--',
-                                '-m', 'gemini-4-neon-high', 'hello', agent=agent)
+                                '--model', 'gemini-4-neon-high', 'hello', agent=agent)
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertEqual(run.stdout, '')
         self.assertEqual((self.dir / 'argv').read_text().split()[:3], ['-p', '--output-format', 'stream-json'])
@@ -145,9 +147,42 @@ class LauncherTests(unittest.TestCase):
         row = back['runs'][0]
         self.assertEqual((row['requested_model'], row['tokens_source'], row['tokens_total']), ('gemini-4-neon-high', 'official', 15780))
 
+    def test_capture_drops_a_leading_agent_word_and_records_cursor_version(self):
+        agent = self.fake_agent('success.json')
+        for word in ('agent', 'cursor-agent'):
+            run = self.run_launcher('cursor-capture', '--database', self.db, '--quiet-events', '--format', 'json', '--',
+                                    word, '-p', '--model', 'gemini-4-neon-high', 'hello', agent=agent)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual((self.dir / 'argv').read_text().split(),
+                             ['--output-format', 'json', '-p', '--model', 'gemini-4-neon-high', 'hello'])
+            receipt = json.loads(run.stderr.strip().splitlines()[-1])
+            self.assertEqual(receipt['cursor_version'], '2026.11.19-f005e9d')
+            row = json.loads(self.run_launcher('cursor-usage', '--database', self.db, '--run', receipt['run_id']).stdout)['runs'][0]
+            self.assertEqual((row['cursor_version'], row['requested_model']), ('2026.11.19-f005e9d', 'gemini-4-neon-high'))
+        self.assertEqual(len((self.dir / 'version_calls').read_text().split()), 2)
+
+    def test_failed_version_lookup_leaves_version_null_and_run_intact(self):
+        for version in ('echo boom >&2; exit 3', 'printf "not a version string\\n"; exit 0'):
+            agent = self.fake_agent('success.stream.jsonl', version=version)
+            run = self.run_launcher('cursor-capture', '--database', self.db, '--quiet-events', '--',
+                                    '--model', 'gemini-4-neon-high', 'hi', agent=agent)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            receipt = json.loads(run.stderr.strip().splitlines()[-1])
+            self.assertIsNone(receipt['cursor_version'])
+            self.assertEqual(receipt['tokens_source'], 'official')
+
+    def test_version_lookup_times_out_quickly(self):
+        sleeper = self.dir / 'slow-agent'
+        sleeper.write_text('#!/bin/sh\nsleep 5\n')
+        sleeper.chmod(0o755)
+        started = time.monotonic()
+        self.assertIsNone(cursor_runs.agent_version(str(sleeper), timeout=0.5))
+        self.assertLess(time.monotonic() - started, 3)
+        self.assertIsNone(cursor_runs.agent_version(str(self.dir / 'missing')))
+
     def test_capture_usage_limit_refusal_keeps_exit_code(self):
         agent = self.fake_agent('usage_limit.stdout', code=1)
-        run = self.run_launcher('cursor-capture', '--database', self.db, '--', '-m', 'gemini-4-neon-high', 'hi', agent=agent)
+        run = self.run_launcher('cursor-capture', '--database', self.db, '--', '--model', 'gemini-4-neon-high', 'hi', agent=agent)
         self.assertEqual(run.returncode, 1)
         receipt = json.loads(run.stderr.strip().splitlines()[-1])
         self.assertEqual((receipt['error_kind'], receipt['tokens_source']), ('usage_limit', 'none'))

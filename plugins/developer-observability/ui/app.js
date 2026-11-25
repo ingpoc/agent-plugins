@@ -409,12 +409,14 @@ function groupByState() {
 }
 
 function needRows() {
+  // A recorded wait on the owner (issue.wait) belongs here whatever the state.
+  const rank = i => i.state === 'regressed' ? 2 : i.wait ? 1 : 0;
   const failures = data.issues
-    .filter(i => ['regressed', 'blocked'].includes(i.state))
-    .sort((a, b) => (b.state === 'regressed') - (a.state === 'regressed'))
+    .filter(i => ['regressed', 'blocked'].includes(i.state) || i.wait)
+    .sort((a, b) => rank(b) - rank(a))
     .slice(0, 2);
   const fresh = data.issues.filter(i => i.state === 'untested').length;
-  const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(i.state === 'regressed' ? 'Failed after resolution' : `Blocked · ${i.attempts || 0} failure${(i.attempts || 0) === 1 ? '' : 's'}`)}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
+  const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(i.state === 'regressed' ? 'Failed after resolution' : i.wait ? 'Waiting on your decision' : `Blocked · ${i.attempts || 0} failure${(i.attempts || 0) === 1 ? '' : 's'}`)}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
   if (fresh && rows.length < 3) {
     rows.push(`<div class="need"><span class="id mono"><span class="dot" style="background:${colors.untested}"></span>${fresh} untested</span><span class="what">No attempts</span><button class="act" data-group="untested">Show</button></div>`);
   }
