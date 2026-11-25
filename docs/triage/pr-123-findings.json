@@ -47,8 +47,8 @@
     },
     "workflow": {
       "stage": "review",
-      "updated_at": "2026-11-25T15:30:24Z",
-      "now": "2026-11-25T15:30:24Z — Lane R3-USAGE updated"
+      "updated_at": "2026-11-25T15:32:58Z",
+      "now": "2026-11-25T15:32:58Z — Lane R3-CL1 updated"
     },
     "rollover": {
       "source_pr": 122,
@@ -633,7 +633,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T15:30:24Z",
+    "last_written_at": "2026-11-25T15:32:58Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -2404,11 +2404,7 @@
             "plugins/context-ledger/tests/test_scope.py"
           ],
           "verify": {
-            "command": "cd /Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r13/plugins/context-ledger/tests && python3 -m unittest test_scope.ScopeFilterTests.test_find_hides_a_fleet_record_about_another_project test_scope.ScopeFilterTests.test_find_keeps_a_project_record_for_its_own_caller",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/r3-cl1.sh"
           },
           "codex": {
             "implementer_session": "Grok Bot",
@@ -2504,7 +2500,7 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T15:22:18Z",
+          "updated_at": "2026-11-25T15:32:58Z",
           "stage_entered_at": "2026-11-25T15:23:13Z",
           "phase": "review",
           "presuite": {
