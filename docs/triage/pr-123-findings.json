@@ -479,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T04:19:06Z",
+    "last_written_at": "2026-11-25T05:33:45Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1102,7 +1102,10 @@
         "purpose": "Single parked backlog for frozen-intake nits and process ideas.",
         "also reported as DO-11": "The per-round viewer still needs row polish Lane rows still share one why, hide column labels, and use dashes for missing data. Guru later approved the v3 calm viewer, which supersedes this polish. 24 Nov 2026 mid-afternoon live review, then cancelled 16:19 IST because the v3 viewer replaces the current page.",
         "merged_from": "DO-11",
-        "also reported as new entry": "Needs-you row for issues waiting on the owner's decision A viewer row that lists issues parked or blocked waiting on the owner as 'Waiting on your decision' in Needs you. Guru parked this at 09:37 IST 25 Nov 2026. Shipped in 29c801f0 (owner_wait, issue wait field, Needs you row and rank); removed by a21dc8a3 (local, unpushed as of 09:50 IST), which keeps the one-issue payload fix."
+        "also reported as new entry": "Needs-you row for issues waiting on the owner's decision A viewer row that lists issues parked or blocked waiting on the owner as 'Waiting on your decision' in Needs you. Guru parked this at 09:37 IST 25 Nov 2026. Shipped in 29c801f0 (owner_wait, issue wait field, Needs you row and rank); removed by a21dc8a3 (local, unpushed as of 09:50 IST), which keeps the one-issue payload fix.",
+        "also reported as PROC-07 (Likeminded)": "The change-list tool documents an add command it does not have; verify also refuses an env wrapper Docs gap plus missing feature: the docs name an add command the tool lacks, and a verify check cannot run under an environment wrapper, which is a deliberate refusal. 25 Nov 2026 10:00 IST Likeminded: bcl add returned unknown stage (0.1.70 has no add or check stages; official path is manage_findings.py batch). bcl verify refuses env by design (_plain_command).",
+        "also reported as DO-19": "Grok Bot and OpenCode jobs have no usage capture Missing default, owned by Observability; not DO-14 (Cursor CLI only). Only Codex sessions and BCL finish events with tokens_source stamp/inline plus tokens.total become usage rows. Likeminded: 31 Grok and OpenCode jobs, 0 rows; 17/17 jobs gaps (11 grok-bot-executor, 6 OpenCode). Done when: each Grok Bot and OpenCode job row shows model, plus version, tokens and cost when reported (null + not_reported otherwise). Path: usage sidecar per job id, Grok collector, opencode stats. Likeminded DOBS-01, DOBS-03.",
+        "also reported as DO-20": "Known native-build failures stay as raw build-step log lines Missing default, owned by Observability. Likeminded: SwiftPM resolve hang 12 min on Xcode 27 (BUILD-02), missing Metal toolchain (BUILD-03; does not match _LOG_ERROR) and duplicate privacy manifest were only build_step lines; checklog is CI/xctest oriented. Done when: a collect of those logs yields a named finding per class (package-resolve hang, missing Metal toolchain, duplicate/missing privacy manifest); hang classifier uses inactivity/timeout, not a keyword."
       },
       "created_at": "2026-11-24T17:34:53Z",
       "first_seen": {
@@ -1265,6 +1268,229 @@
       "created_at": "2026-11-25T04:19:06Z",
       "first_seen": {
         "at": "2026-11-25T04:19:06Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-179",
+      "title": "The change-list tool records no failed-first, root-cause or fix-verified steps",
+      "summary": "The change-list tool does not record the failed-first, root-cause and fix-verified steps for each fix.",
+      "impact": "A reviewer cannot audit that each fix was shown failing before it was fixed.",
+      "done_when": "The change-list tool records failed-first, root-cause and fix-verified steps for each fix and shows them on the page.",
+      "observed": "2026-11-25 09:22 IST: bcl 0.1.70 scripts/events.py only supports job events start/finish/failed_start/incomplete and stage_start/stage_finish; grep for issue_failed_first, root_cause_identified, fix_verified across the plugin and developer-observability found nothing.",
+      "recommendation": "Owned by the batched-change-list plugin: add trail events per lane; pass to the plugin owner.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "area": "batched-change-list",
+      "details": {
+        "source finding": "Likeminded PROC-02: Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json"
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-180",
+      "title": "The change-list tool assumes the fix job itself makes the commit",
+      "summary": "Fix work done directly by a helper, not through a coding tool, is recorded as a failed fix.",
+      "impact": "Lanes look failed and the failure streak grows even when the fix is good; parallel lanes in one folder can be credited with each other's commits.",
+      "done_when": "The tool can credit a fix commit made by the named implementer, per lane.",
+      "observed": "2026-11-25 09:22 IST: three bcl fix jobs (OBS-01, CI-01, ENV-01) whose commits already existed exited 3 'fix job made no commit'; bcl only compares HEAD before and after the job, so a concurrent lane's commit in the same worktree would satisfy it. Plan and finding edits are also refused for as long as any job runs (a 12 min build blocked all tracker writes).",
+      "recommendation": "Owned by the batched-change-list plugin: compare lane-scoped files or accept a commit sha argument; allow finding adds while a job runs.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "area": "batched-change-list",
+      "details": {
+        "source finding": "Likeminded PROC-03: Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json",
+        "related": "BCL-147 (archived, verified) made a fix job with no head move fail; that check is what misfires here."
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-181",
+      "title": "Review needs a Codex session id even when no Codex was used",
+      "summary": "The review step refuses to run unless a Codex implementer session is recorded.",
+      "impact": "Non-Codex implementers must fill a placeholder, so the record no longer says who did the work.",
+      "done_when": "Review accepts any recorded implementer identity.",
+      "observed": "2026-11-25 09:31 IST: bcl job --phase review refused all three lanes: 'review requires codex.implementer_session'. Set it to a Grok Bot executor label via update-plan-group.",
+      "recommendation": "Owned by the batched-change-list plugin: rename to implementer_session and accept non-Codex implementers.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "area": "batched-change-list",
+      "details": {
+        "source finding": "Likeminded PROC-04: Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json",
+        "related": "BCL-24 (archived, verified) introduced codex.implementer_session as the required implementer record."
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-182",
+      "title": "A reviewer crash sends the lane back to fixing",
+      "summary": "When a review tool crashes or runs out of quota, the change-list tool demands a new fix commit before re-reviewing.",
+      "impact": "Forces busywork commits and burns the tool-fault streak.",
+      "done_when": "A crashed or quota-out review can simply be rerun.",
+      "observed": "2026-11-25 09:36 and 09:45 IST: OBS-01 review exited 4 (guard false positive) and then deepseek free limit; both times the lane moved to running/fix and 'review jobs require each lane to finish fix'. Reviewer scripts now exit 0 with an incomplete reply so bcl keeps the lane in review.",
+      "recommendation": "Owned by the batched-change-list plugin: keep the lane in review on any review tool fault.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "area": "batched-change-list",
+      "details": {
+        "source finding": "Likeminded PROC-05: Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json",
+        "regression of": "BCL-149 (archived, verified_fixed): done_when said a tool-fault review leaves the lane in review."
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-183",
+      "title": "A job whose runner dies stays running forever and blocks the lane",
+      "summary": "When the change-list runner process dies mid-job, the job stays marked running and every later job on that lane is refused.",
+      "impact": "A dropped connection blocks a lane until someone records the finish by hand.",
+      "done_when": "A job whose runner is gone is shown interrupted and can be finished or restarted with one command.",
+      "observed": "2026-11-25 10:33 IST: Mac connection dropped during BUILD-01 review job fee90d1f; review.sh finished with VERDICT PASS but the job had no exit_code, so presuite was refused (lane build already has a running review job). Recorded the finish from the real reply via bcl's own _job_operations/_job_write_retry.",
+      "recommendation": "Plugin owner: add a recover/finish stage that checks the job pid and records the retained output.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "high",
+      "area": "batched-change-list",
+      "details": {
+        "source finding": "Likeminded PROC-06: Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json",
+        "regression of": "BCL-67 (archived, verified_fixed): done_when said a lane whose job died reads as interrupted and needing resume."
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-184",
+      "title": "bcl merged refuses a list that was started before its pull request existed",
+      "summary": "A change list started before its pull request was opened has no pull request link, and no change-list command can add one later, so the merge cannot be recorded.",
+      "impact": "The merge of a finished list cannot be recorded through the official command, so the list never reaches its merged state.",
+      "done_when": "A list started without a pull request can have its pull request link recorded through a change-list command, and bcl merged then records the merge; tests cover both.",
+      "observed": "25 Nov 2026 (IST), Likeminded test: after PR #19 merged as 73ced46, bcl merged refused with 'bcl merged requires tracking.pull_request.url'. bcl-r1.json tracking has no pull_request key. bin/bcl 0.1.70 _merged_details raises at line 704; the only writer of tracking.pull_request in bin/bcl is rollover (line 1164), and KNOWN_STAGES has no stage to set it. tracker.md only says to provide the url where applicable.",
+      "recommendation": "Let bcl merged take the pull request url (or add a stage that records label and url on a live list), and validate it against the provider before recording the merge.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "area": "batched-change-list",
+      "details": {
+        "source finding": "Reported in Likeminded's test report (not a numbered finding in bcl-r1.json); Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json"
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "DO-18",
+      "title": "Passing test lines that mention 'error' are counted as failures",
+      "summary": "The log reader treats a passing test whose name or text contains the word error as a failure.",
+      "impact": "Healthy test runs raise false failure alerts.",
+      "done_when": "A passing test line (node ✔, TAP 'ok N', and similar pass marks) is never counted as a failure, even if the test name or assertion text contains 'error'.",
+      "observed": "iter_textlog in sources.py marks a line as log_error when _LOG_ERROR matches \\b(error|exception|traceback|fatal|failed|failure)\\b (case-insensitive) and the line does not contain status=ok. Pytest failures have their own parser; generic text logs do not skip pass marks. In the Likeminded collect of /tmp/bcl-r1/obs-r3 at 09:47 IST 25 Nov 2026, the passing node spec line '✔ unknown routes return a JSON not_found error' was reported as log_error/log failed 1x.",
+      "recommendation": "Skip known pass/success lines before the keyword check; status=ok alone is not enough.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "area": "developer-observability",
+      "details": {
+        "source finding": "Likeminded DOBS-02; issue text confirmed by Observability in the plugin at a21dc8a3. Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json",
+        "owner": "Observability implements; list owner ACU tracks it here."
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "CL-1",
+      "title": "Project-scoped Context Ledger lookups return another project's decision",
+      "summary": "Looking up Guru's Likeminded preferences found nothing relevant; one unrelated project's record came back for most queries.",
+      "impact": "Agents get no recalled preferences for this project.",
+      "done_when": "Likeminded-scoped lookups return Likeminded or fleet decisions only.",
+      "observed": "2026-11-25 09:13-09:31 IST: 6 find calls scoped project like-minded-app; 4 returned only decision 364b7d61 (ORN forge CI), 2 returned none; 1 get. Two project-scoped decisions saved this round (6cb7ea19 port, 8675d855 SPM). Empty Likeminded memory alone is not the bug; the bug is the unrelated ORN record matching 4 of 6 project-scoped generic queries.",
+      "recommendation": "Owned by the Context Ledger: tighten the IDF floor so an ORN-entity record does not match generic CI queries.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "area": "context-ledger",
+      "details": {
+        "source finding": "Likeminded LEDGER-02: Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json"
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "DO-21",
+      "title": "Shared observability store grew from 825 KB to about 92 MB in three collects",
+      "summary": "Repeated collects made the shared observability store grow about a hundredfold, mostly from re-scanning Samantha sources, two days after the earlier size fix was verified.",
+      "impact": "Disk use and collect time grow with every collect, which the earlier fix was meant to stop.",
+      "done_when": "Repeated collects keep the shared findings file near its original size and collector outputs stay under the warning limit; a test covers repeated collects.",
+      "observed": "Three collects on 2026-11-14 grew ~/.local/share/developer-observability/collected/findings.json from 825 KB to ~92 MB, mostly version_scopes and session_timelines from re-scanning Samantha sources; collector warned collector_outputs uses 1.7 GiB (warn at 1.0 GiB). Regression check 25 Nov 2026 11:05 IST: DEVOBS-03 (findings.json 80 MB, fixed in devobs b59db8f) was verified 12 Nov 11:28 IST, before this 14 Nov report. Today findings.json is 1.4 MB (mtime 22 Nov 23:58), snapshots/ 77 MB, and collected/.trash 2.2 GB, so the growth needs a live recheck.",
+      "recommendation": "Owned by the Observability bot (developer-observability plugin): bound version_scopes/session_timelines or scope collect to --project-dir sources only. Likeminded side: avoid repeated full collects until fixed.",
+      "source": "Agent reported",
+      "status": "untested",
+      "priority": "medium",
+      "area": "developer-observability",
+      "details": {
+        "source finding": "Likeminded OBS-02: Likeminded bcl real-work test on ingpoc/Like-minded-app (PR #19 merged as 73ced46, CI green); source tracker ~/.agents/state/batched-change-list/ingpoc--like-minded-app/bcl-r1.json",
+        "regression of": "DEVOBS-03 (#107/#110, verified_fixed 12 Nov 2026)",
+        "owner": "Observability implements; list owner ACU tracks it here."
+      },
+      "created_at": "2026-11-25T05:33:45Z",
+      "first_seen": {
+        "at": "2026-11-25T05:33:45Z",
         "pr": null,
         "round": 1,
         "source": "created_at"
