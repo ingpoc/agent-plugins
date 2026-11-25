@@ -479,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T03:35:45Z",
+    "last_written_at": "2026-11-25T04:02:42Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1187,6 +1187,32 @@
       "created_at": "2026-11-25T03:35:45Z",
       "first_seen": {
         "at": "2026-11-25T03:35:45Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "DO-15",
+      "title": "Cursor run capture instructions were wrong and the Cursor version was not recorded",
+      "summary": "The documented way to run a Cursor job through the capture wrapper did not work, and runs captured that way did not record which Cursor version ran them.",
+      "impact": "Following the docs made Cursor reject the job before it started, and wrapper-only runs could not be tied to a Cursor version.",
+      "recommendation": "Fix the documented command, let the wrapper ignore a repeated program name, and record the Cursor version for every wrapped run.",
+      "done_when": "A live Cursor run started the documented way records Cursor own token counts and the Cursor version, with no row written by a person.",
+      "observed": "25 Nov 2026 09:14 IST live runs from r13 binary at 79ac3484: f19cdb9d failed with error: unknown option -m (Observability docs used -m and put agent after --); f7818f4e (--model grok-4) recorded error_kind auth with cursor_version null. Claimed fixed in cdcbcfab (with 29c801f0) on grokbot/samantha-0160-next6; test_cursor_runs 11 tests OK via unittest; no live rerun yet (Cursor CLI not logged in).",
+      "details": {
+        "fix": "plugins/developer-observability: runtime/collector/cursor_runs.py (leading agent/cursor-agent dropped, agent --version with VERSION_TIMEOUT=5), references/cursor-cli-runs.md, docs/VERIFICATION.md (python3 -m unittest discover -s tests)",
+        "commit": "cdcbcfab on grokbot/samantha-0160-next6",
+        "docs_command": "cursor-capture --format json -- -p --model <model> \"prompt\""
+      },
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "developer-observability",
+      "created_at": "2026-11-25T04:02:42Z",
+      "first_seen": {
+        "at": "2026-11-25T04:02:42Z",
         "pr": null,
         "round": 1,
         "source": "created_at"
