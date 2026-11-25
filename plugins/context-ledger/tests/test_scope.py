@@ -151,6 +151,48 @@ class ScopeFilterTests(ScopeCase):
         self.assertNotIn(project, hits)
 
 
+    def test_find_hides_a_fleet_record_about_another_project(self) -> None:
+        other = self.record(
+            "Open Resource Network forge checks stay green before merge",
+            ["open-resource-network"],
+            scope="fleet",
+            rationale="because that project blocks merge on its own forge",
+            applicability="Open Resource Network forge jobs",
+        )
+        own = self.record(
+            "Like minded viewer port stays off the reserved range",
+            ["like-minded-app"],
+            scope="project:like-minded-app",
+            rationale="because that app already owns a viewer port",
+            applicability="the like-minded-app viewer port",
+        )
+        general = self.record(
+            "Shared comet lease rule for agents",
+            ["comet"],
+            scope="fleet",
+            rationale="because the comet lease is shared across projects",
+            applicability="any project that takes a comet lease",
+        )
+        caller = {"project": "like-minded-app", "tools": []}
+        self.assertNotIn(other, self.find("forge checks stay green before merge", caller))
+        self.assertIn(own, self.find("viewer port reserved range", caller))
+        self.assertIn(general, self.find("shared comet lease rule for agents", caller))
+
+    def test_find_keeps_a_project_record_for_its_own_caller(self) -> None:
+        orn = self.record(
+            "Open Resource Network forge checks stay green before merge",
+            ["open-resource-network"],
+            scope="fleet",
+            rationale="because that project blocks merge on its own forge",
+            applicability="Open Resource Network forge jobs",
+        )
+        hits = self.find(
+            "forge checks stay green before merge",
+            {"project": "open-resource-network", "tools": []},
+        )
+        self.assertIn(orn, hits)
+
+
 class SaveContractTests(ScopeCase):
     def test_scope_is_required(self) -> None:
         with self.assertRaises(LedgerError) as ctx:
