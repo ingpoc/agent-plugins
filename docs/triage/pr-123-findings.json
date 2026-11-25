@@ -46,9 +46,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-25T10:51:13Z",
-      "now": "2026-11-25T10:51:13Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-25T10:51:21Z",
+      "now": "2026-11-25T10:51:21Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T10:51:13Z",
+    "last_written_at": "2026-11-25T10:51:21Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1466,8 +1466,8 @@
             "DO-18"
           ],
           "worktree": "samantha-next-r13",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/developer-observability/runtime/collector/sources.py",
             "plugins/developer-observability/tests/test_collector.py"
@@ -1496,26 +1496,26 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-25T10:46:20Z",
-          "stage_entered_at": "2026-11-25T10:49:54Z",
+          "stage_entered_at": "2026-11-25T10:51:18Z",
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "519ff92188264c52b505dd1ee73ac21b",
-              "phase": "fix",
-              "started_at": "2026-11-25T10:51:13Z",
-              "command": "refix.sh",
-              "heartbeat_at": "2026-11-25T10:51:13Z",
+              "id": "928fe5fcd03a44edb8c0da0f01025baa",
+              "phase": "review",
+              "started_at": "2026-11-25T10:51:21Z",
+              "command": "review-do18.sh",
+              "heartbeat_at": "2026-11-25T10:51:21Z",
               "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
               "finding_ids": [
                 "DO-18"
               ],
               "worktree": "samantha-next-r13",
-              "model": "Grok Bot",
+              "model": "OpenCode beam-free",
               "lane_sha256": "e6107d1efd7a4bca28a50c2d682b83ab77e158a82fa08d14923083a4620163fd",
               "cycle": 15,
               "round": 2
             },
-            "tool_fault_streak": 1,
+            "tool_fault_streak": 0,
             "implementer_session": "grok-do18-fix",
             "reviewer_session": "opencode-do18-review",
             "jobs": [
@@ -1571,10 +1571,37 @@
                 "session": "grok-do18-fix",
                 "finished_phase_status": "incomplete",
                 "must_fix": "Reviewer exited 1"
+              },
+              {
+                "id": "519ff92188264c52b505dd1ee73ac21b",
+                "phase": "fix",
+                "started_at": "2026-11-25T10:51:13Z",
+                "command": "refix.sh",
+                "heartbeat_at": "2026-11-25T10:51:18Z",
+                "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
+                "finding_ids": [
+                  "DO-18"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "e6107d1efd7a4bca28a50c2d682b83ab77e158a82fa08d14923083a4620163fd",
+                "cycle": 15,
+                "round": 2,
+                "pid": 87435,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T10:51:18Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/519ff92188264c52b505dd1ee73ac21b.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 5,
+                "session": "grok-do18-fix",
+                "finished_phase_status": "passed"
               }
             ],
-            "reviewer_model": "OpenCode deepseek-v4.1-flash-free",
-            "must_fix_note": "Reviewer exited 1"
+            "reviewer_model": "OpenCode beam-free",
+            "must_fix_note": "Reviewer exited 1",
+            "review_status": "running"
           }
         },
         {
@@ -1585,7 +1612,7 @@
             "DO-23"
           ],
           "worktree": "samantha-next-r13",
-          "status": "running",
+          "status": "failed",
           "phase": "fix",
           "files": [
             "plugins/developer-observability/runtime/backend/round_view.py",
@@ -1612,42 +1639,52 @@
               "tool_fault": true,
               "fault_kind": "runner_exit",
               "tool_fault_reason": "Reviewer exited 1"
+            },
+            {
+              "attempt_id": "78777e14d964406ca049a9b593de3a26",
+              "source": "fix",
+              "reason": "Fix job exited 3",
+              "cycle": 15,
+              "round": 2,
+              "at": "2026-11-25T10:51:20Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
             }
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-25T10:46:20Z",
-          "stage_entered_at": "2026-11-25T10:50:13Z",
+          "stage_entered_at": "2026-11-25T10:51:20Z",
           "codex": {
-            "fix_status": "passed",
+            "fix_status": "failed",
             "job": {
-              "id": "1c8296e81e204aad94e801bbdbd9399f",
-              "phase": "review",
-              "started_at": "2026-11-25T10:46:21Z",
-              "command": "review-do23.sh",
-              "heartbeat_at": "2026-11-25T10:50:13Z",
+              "id": "78777e14d964406ca049a9b593de3a26",
+              "phase": "fix",
+              "started_at": "2026-11-25T10:51:20Z",
+              "command": "refix.sh",
+              "heartbeat_at": "2026-11-25T10:51:20Z",
               "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
               "finding_ids": [
                 "DO-23"
               ],
               "worktree": "samantha-next-r13",
-              "model": "OpenCode deepseek-v4.1-flash-free",
+              "model": "Grok Bot",
               "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
               "cycle": 15,
               "round": 2,
-              "pid": 81595,
-              "exit_code": 1,
-              "finished_at": "2026-11-25T10:50:13Z",
-              "first_error_line": "I'll start by examining the commit and the relevant files.",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/1c8296e81e204aad94e801bbdbd9399f.log",
+              "pid": 87878,
+              "exit_code": 3,
+              "finished_at": "2026-11-25T10:51:20Z",
+              "first_error_line": "fix job made no commit",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/78777e14d964406ca049a9b593de3a26.log",
               "output_retained": true,
               "tokens_source": "none",
               "tokens": null,
-              "wall_time_s": 232,
+              "wall_time_s": 0,
               "session": "grok-do23-fix",
-              "finished_phase_status": "incomplete",
-              "must_fix": "Reviewer exited 1"
+              "finished_phase_status": "failed"
             },
-            "tool_fault_streak": 1,
+            "tool_fault_streak": 2,
             "implementer_session": "grok-do23-fix",
             "reviewer_session": "opencode-do23-review",
             "jobs": [
@@ -1675,9 +1712,36 @@
                 "tokens": null,
                 "wall_time_s": 1,
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "1c8296e81e204aad94e801bbdbd9399f",
+                "phase": "review",
+                "started_at": "2026-11-25T10:46:21Z",
+                "command": "review-do23.sh",
+                "heartbeat_at": "2026-11-25T10:50:13Z",
+                "plan_sha256": "702f459cf4fb8b109f5ffcebd67759ffd5e0713de88ad836a00e0c0861d11dc9",
+                "finding_ids": [
+                  "DO-23"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "OpenCode deepseek-v4.1-flash-free",
+                "lane_sha256": "12b53d18c8fd0a65d9a64c5224585664597d9396d1a44c87ca70af4ccc893f48",
+                "cycle": 15,
+                "round": 2,
+                "pid": 81595,
+                "exit_code": 1,
+                "finished_at": "2026-11-25T10:50:13Z",
+                "first_error_line": "I'll start by examining the commit and the relevant files.",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/1c8296e81e204aad94e801bbdbd9399f.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 232,
+                "session": "grok-do23-fix",
+                "finished_phase_status": "incomplete",
+                "must_fix": "Reviewer exited 1"
               }
             ],
-            "review_status": "failed",
             "reviewer_model": "OpenCode deepseek-v4.1-flash-free",
             "must_fix_note": "Reviewer exited 1"
           }
@@ -2430,8 +2494,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T10:50:14Z",
-        "source": "review"
+        "at": "2026-11-25T10:51:20Z",
+        "source": "lane_failure"
       }
     }
   ]
