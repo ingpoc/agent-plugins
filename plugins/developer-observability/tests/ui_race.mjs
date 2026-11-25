@@ -46,8 +46,7 @@ assert.equal(data.counts.tested, 48);
   const grab = name => script.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}`))[0];
   const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const colors = {regressed: '#b3261e', blocked: '#d4583f', untested: '#cfd2ce'};
-  const data = {issues: [{id: 'DO-1', state: 'untested', wait: {reason: 'Needs Guru later round'}},
-    {id: 'BK', state: 'blocked', attempts: 0}, {id: 'U1', state: 'untested'}]};
+  const data = {issues: [{id: 'BK', state: 'blocked', attempts: 0}, {id: 'U1', state: 'untested'}]};
   const needWhat = eval('(' + grab('needWhat') + ')');
   const needRows = eval('(' + grab('needRows') + ')');
   const html = needRows();
@@ -55,7 +54,8 @@ assert.equal(data.counts.tested, 48);
   assert.match(html, /Blocked on the list · no failed runs/);
   assert.equal(needWhat({state: 'blocked', attempts: 3}), 'Blocked · 3 failures');
   assert.match(script, /regressed \? `<span class="bad">\$\{regressed\} regressed<\/span>` : null, blocked \?/);
-  console.log('PASS untested counts a listed issue once, blocked with no failures says so, headline shows regressed');
+  assert.doesNotMatch(script, /Waiting on your decision|i\.wait/);
+  console.log('PASS blocked with no failures says so, headline shows regressed, no owner-wait row');
 }
 console.log('PASS stale issue responses are discarded and scope controls remain wired');
 console.log('PASS pr=120 plus run=last keeps the #120 breadcrumb for 48 tested');

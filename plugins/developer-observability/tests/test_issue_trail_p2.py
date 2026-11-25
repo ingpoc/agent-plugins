@@ -8,7 +8,7 @@ from pathlib import Path
 RUNTIME = Path(__file__).resolve().parents[1] / "runtime"
 sys.path.insert(0, str(RUNTIME))
 sys.path.insert(0, str(RUNTIME / "backend"))
-from backend.issue_state import build_issues, check_outcome, owner_wait
+from backend.issue_state import build_issues, check_outcome
 from backend.issue_trail import _plain, build_trail
 
 
@@ -130,49 +130,8 @@ class CarryAndCreditTests(unittest.TestCase):
         self.assertIn("jobs", detail["issues"][0])
 
 
-class OwnerWaitTests(unittest.TestCase):
-    PARKED = {"id": "R2-DO1", "status": "parked", "reason": "Needs Guru later round", "finding_ids": ["DO-1"],
-              "parked_at": "2026-11-24T19:18:36Z", "unblock_history": [{"at": "2026-11-22T14:56:28Z"}]}
-
-    def test_rule_needs_parked_lane_owner_reason_and_no_later_unblock(self):
-        self.assertEqual(owner_wait(self.PARKED)["lane"], "R2-DO1")
-        self.assertIsNone(owner_wait({**self.PARKED, "status": "verified"}))
-        self.assertIsNone(owner_wait({**self.PARKED, "unblock_history": [{"at": "2026-11-24T20:00:00Z"}]}))
-        self.assertIsNone(owner_wait({**self.PARKED, "reason": "Guru 16:56 IST root-cause merge; restructure"}))
-        self.assertIsNone(owner_wait({**self.PARKED, "reason": "Later rounds. One item still waits for Guru to pick"}))
-        self.assertIsNotNone(owner_wait({**self.PARKED, "reason": None, "blocked_reason": "Waiting on owner sign-off"}))
-        self.assertIsNone(owner_wait({**self.PARKED, "id": "Needs Guru later round", "reason": "deferred"}))
-        undated = {k: v for k, v in self.PARKED.items() if k != "parked_at"}
-        self.assertIsNone(owner_wait(undated))
-        self.assertIsNotNone(owner_wait({**undated, "unblock_history": []}))
-
-    def test_open_wait_is_needs_you_whatever_state_and_counts_do_not_move(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            folder = Path(tmp) / "agent-plugins"
-            folder.mkdir()
-            resolved_lane = {"id": "R4-171", "status": "verified", "finding_ids": ["BCL-171"],
-                             "parked_at": "2026-11-24T04:00:00Z",
-                             "unblock_history": [{"at": "2026-11-24T16:13:13Z", "reason": "Guru approved"}]}
-            stale_copy = {"id": "R4-171", "status": "parked", "blocked_reason": "Needs Guru later round",
-                          "finding_ids": ["BCL-171"]}
-            (folder / "122.json").write_text(json.dumps(_t(122, [
-                {"id": "BCL-171", "title": "Collect", "status": "verified_fixed"},
-                {"id": "DO-1", "title": "Waits", "status": "open"}],
-                groups=[resolved_lane, self.PARKED], carried=[stale_copy])))
-            payload = build_issues("agent-plugins", state_dir=tmp, pr="122", scope="now")
-            by_id = {i["id"]: i for i in payload["issues"]}
-            self.assertTrue(by_id["DO-1"]["needs_you"])
-            self.assertEqual(by_id["DO-1"]["wait"]["reason"], "Needs Guru later round")
-            self.assertNotIn(by_id["DO-1"]["state"], {"blocked", "regressed"})
-            self.assertFalse(by_id["BCL-171"]["needs_you"])
-            self.assertIsNone(by_id["BCL-171"]["wait"])
-            (folder / "122.json").write_text(json.dumps(_t(122, [
-                {"id": "BCL-171", "title": "Collect", "status": "verified_fixed"},
-                {"id": "DO-1", "title": "Waits", "status": "open"}],
-                groups=[resolved_lane, {**self.PARKED, "reason": "parked for later"}], carried=[stale_copy])))
-            plain = build_issues("agent-plugins", state_dir=tmp, pr="122", scope="now")
-            self.assertEqual(payload["counts"], plain["counts"])
-            self.assertFalse({i["id"]: i for i in plain["issues"]}["DO-1"]["needs_you"])
+class DetailPayloadTests(unittest.TestCase):
+    PARKED = {"id": "R2-DO1", "status": "parked", "reason": "Needs Guru later round", "finding_ids": ["DO-1"]}
 
     def test_detail_payload_is_only_the_issue(self):
         with tempfile.TemporaryDirectory() as tmp:

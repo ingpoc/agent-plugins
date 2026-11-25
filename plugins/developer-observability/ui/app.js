@@ -410,21 +410,17 @@ function groupByState() {
 
 function needWhat(i) {
   if (i.state === 'regressed') return 'Failed after resolution';
-  if (i.wait) return 'Waiting on your decision';
   const n = i.attempts || 0;
   // Blocked with no failed attempt is a hold set on the list or lane, not a broken fix.
   return n ? `Blocked · ${n} failure${n === 1 ? '' : 's'}` : 'Blocked on the list · no failed runs';
 }
 
 function needRows() {
-  // A recorded wait on the owner (issue.wait) belongs here whatever the state.
-  const rank = i => i.state === 'regressed' ? 2 : i.wait ? 1 : 0;
   const failures = data.issues
-    .filter(i => ['regressed', 'blocked'].includes(i.state) || i.wait)
-    .sort((a, b) => rank(b) - rank(a))
+    .filter(i => ['regressed', 'blocked'].includes(i.state))
+    .sort((a, b) => (b.state === 'regressed') - (a.state === 'regressed'))
     .slice(0, 2);
-  // An issue already listed above (a wait) is not counted again as untested.
-  const fresh = data.issues.filter(i => i.state === 'untested' && !failures.includes(i)).length;
+  const fresh = data.issues.filter(i => i.state === 'untested').length;
   const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(needWhat(i))}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
   if (fresh && rows.length < 3) {
     rows.push(`<div class="need"><span class="id mono"><span class="dot" style="background:${colors.untested}"></span>${fresh} untested</span><span class="what">No attempts</span><button class="act" data-group="untested">Show</button></div>`);
