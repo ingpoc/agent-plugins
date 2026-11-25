@@ -114,6 +114,48 @@ def _event(kind, at, summary, ref=None):
     return {"kind": kind, "at": at, "summary": text, "ref": clean_ref(ref)}
 
 
+PASS_CHECK_STATES = {"fixed", "passed", "pass", "resolved"}
+NO_VERDICT_CHECK_STATES = {"inconclusive", "blocked", "stopped", "superseded", "cancelled", "canceled", "aborted",
+                           "interrupted", "skipped"}
+_NO_VERDICT_TEXT = re.compile(r"(?i)^\s*run stopped\b|\bsuperseded by\b|\bstill active\b")
+CORROBORATION_SECONDS = 300
+
+
+def check_outcome(check):
+    """One verdict per verification check: pass, fail, inconclusive, or None while it is still running.
+    A stopped, superseded or still-active run is no verdict at all: neither a fail nor a verify."""
+    if not isinstance(check, dict):
+        return None
+    status = str(check.get("state") or check.get("status") or "").strip().lower()
+    if status in {"pending", "checking", "running", "active", ""}:
+        return None
+    stopped = check.get("stopped")
+    if (stopped not in (None, False, "", "false", "False") or status in NO_VERDICT_CHECK_STATES
+            or any(_NO_VERDICT_TEXT.search(str(check.get(key) or "")) for key in ("evidence", "observation", "summary"))):
+        return "inconclusive"
+    return "pass" if status in PASS_CHECK_STATES else "fail"
+
+
+def _verification_sourced(source):
+    text = str(source or "").strip().lower()
+    return "verif" in text or text.startswith("check")
+
+
+def credible_regression(change, events):
+    """A recorded move to regressed counts when the owner rejected it, when it came from somewhere other than a
+    verification check, or when a real failing check for the issue sits next to it. A tracker that writes
+    regressed for a stopped or superseded run (inconclusive checks) does not move the state."""
+    if not isinstance(change, dict) or change.get("to") != "regressed":
+        return True
+    if change.get("source") == "owner_rejected" or not _verification_sourced(change.get("source")):
+        return True
+    at = instant(change.get("at"))
+    if at is None:
+        return False
+    return any(event.get("kind") == "fail" and str(event.get("ref") or "").startswith("check:") and instant(event.get("at"))
+               and abs((instant(event["at"]) - at).total_seconds()) <= CORROBORATION_SECONDS for event in events or ())
+
+
 def _as_ids(value):
     if isinstance(value, (list, tuple, set, frozenset)):
         return {str(item) for item in value if item}
@@ -154,6 +196,7 @@ def lifecycle_state(finding, events=(), lane=None, prior=None):
     """Compute current state from tracker status, recorded transitions and evidence."""
     status = str(finding.get("status_raw") or finding.get("status") or "").strip().lower()
     transitions = finding.get("state_changes") if isinstance(finding.get("state_changes"), list) else []
+    transitions = [row for row in transitions if credible_regression(row, events)]
     rejected = any(isinstance(row, dict) and (row.get("to") == "regressed" or row.get("source") == "owner_rejected")
                    for row in transitions)
     verification = str(finding.get("verification") or "").lower()
@@ -382,10 +425,10 @@ def _events_for(finding, group, jobs):
             if not isinstance(row, dict):
                 continue
             status = str(row.get("state") or row.get("status") or "").lower()
-            if status in {"pending", "checking", ""}:
+            kind = check_outcome(row)
+            if kind is None:
                 continue
             at = row.get("finished_at") or row.get("updated_at") or row.get("at")
-            kind = "pass" if status in {"fixed", "passed", "pass", "resolved"} else "inconclusive" if status in {"inconclusive", "blocked", "stopped"} else "fail"
             events.append(_event(kind, at, row.get("evidence") or row.get("summary") or status, row.get("ref") or f"check:{finding.get('id')}"))
     status_raw = str(finding.get("status_raw") or finding.get("status") or "").strip().lower()
     if isinstance(group, dict) and status_raw in {"failing", "failed", "blocked", "changes_requested", "incomplete"}:
@@ -626,12 +669,12 @@ def _activity_counts(issues, start, end, now=None):
 
 
 def _check_window_reason(check, issue):
-    status = str(check.get("state") or check.get("status") or "").lower()
-    if status in {"pending", "checking", ""}:
+    outcome = check_outcome(check)
+    if outcome is None:
         return None
-    if status in {"fixed", "passed", "pass", "resolved"}:
+    if outcome == "pass":
         return "fixed"
-    if status in {"inconclusive", "blocked", "stopped"}:
+    if outcome == "inconclusive":
         return "inconclusive"
     events = issue.get("events") or []
     if _had_prior_pass(issue.get("raw") or issue, events):
@@ -971,14 +1014,16 @@ def build_issues(project, pr="current", scope="now", from_time=None, to_time=Non
                 if not isinstance(check, dict):
                     continue
                 check_state = str(check.get("state") or "").lower()
-                if check_state in {"pending", "checking", ""}:
+                kind = check_outcome(check)
+                if kind is None:
                     continue
-                kind = "pass" if check_state in {"fixed", "passed", "pass", "resolved"} else "inconclusive" if check_state in {"inconclusive", "blocked", "stopped"} else "fail"
                 at = check.get("finished_at") or check.get("updated_at")
                 if at:
                     events.append(_event(kind, at, check.get("evidence") or check.get("summary") or check_state,
                                          f"check:{history_run.get('id', 'current')}:{identifier}"))
             events = _sort_events(event for event in events if event)
+            events = [event for event in events if not (event.get("kind") == "regressed" and _verification_sourced(event.get("summary"))
+                      and not credible_regression({"to": "regressed", "source": event.get("summary"), "at": event.get("at")}, events))]
             lane_round = _round_from_group_id(group.get("id")) if group else None
             if lane_round is None and group:
                 try:

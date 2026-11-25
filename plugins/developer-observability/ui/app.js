@@ -408,6 +408,14 @@ function groupByState() {
     .filter(([, list]) => list.length);
 }
 
+function needWhat(i) {
+  if (i.state === 'regressed') return 'Failed after resolution';
+  if (i.wait) return 'Waiting on your decision';
+  const n = i.attempts || 0;
+  // Blocked with no failed attempt is a hold set on the list or lane, not a broken fix.
+  return n ? `Blocked · ${n} failure${n === 1 ? '' : 's'}` : 'Blocked on the list · no failed runs';
+}
+
 function needRows() {
   // A recorded wait on the owner (issue.wait) belongs here whatever the state.
   const rank = i => i.state === 'regressed' ? 2 : i.wait ? 1 : 0;
@@ -415,8 +423,9 @@ function needRows() {
     .filter(i => ['regressed', 'blocked'].includes(i.state) || i.wait)
     .sort((a, b) => rank(b) - rank(a))
     .slice(0, 2);
-  const fresh = data.issues.filter(i => i.state === 'untested').length;
-  const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(i.state === 'regressed' ? 'Failed after resolution' : i.wait ? 'Waiting on your decision' : `Blocked · ${i.attempts || 0} failure${(i.attempts || 0) === 1 ? '' : 's'}`)}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
+  // An issue already listed above (a wait) is not counted again as untested.
+  const fresh = data.issues.filter(i => i.state === 'untested' && !failures.includes(i)).length;
+  const rows = failures.map(i => `<div class="need" title="${esc(i.last_evidence?.summary || i.summary)}"><span class="id mono"><span class="dot" style="background:${colors[i.state]}"></span>${esc(i.id)}</span><span class="what">${esc(needWhat(i))}</span><button class="act" data-open="${esc(i.id)}">Review</button></div>`);
   if (fresh && rows.length < 3) {
     rows.push(`<div class="need"><span class="id mono"><span class="dot" style="background:${colors.untested}"></span>${fresh} untested</span><span class="what">No attempts</span><button class="act" data-group="untested">Show</button></div>`);
   }
@@ -478,12 +487,15 @@ function headline() {
     return `${bits.join('<span class="d">·</span>')}${quiet ? `<span class="d">·</span>${quiet} quiet` : ''}<div class="d" style="margin-top:8px;font-size:1rem">${esc(runBit)}</div>`;
   }
   const blocked = byState.blocked || 0;
+  const regressed = byState.regressed || 0;
   const gate = data.gate || {};
   const verified = gate.verified;
   const threshold = gate.threshold;
   const gateText = typeof threshold === 'number' ? ((verified ?? 0) >= threshold ? `${verified} verified · gate ${threshold} ✓` : `${verified ?? 0}/${threshold} verified`) : (typeof verified === 'number' ? `${verified} verified` : '');
   const last = data.last_fail?.at ? `last fail ${formatTime(data.last_fail.at)}` : '';
-  const parts = [prLabel, rLabel, blocked ? `<span class="bad">${blocked} blocked</span>` : null, gateText, last].filter(Boolean);
+  // gate.threshold is the list's stored merge bar (BCL gate.merge_previous_pr_threshold), not its issue count.
+  const gateHTML = gateText && typeof threshold === 'number' ? `<span title="Merge gate: ${threshold} verified fixes on this list before the previous PR can merge">${gateText}</span>` : gateText;
+  const parts = [prLabel, rLabel, regressed ? `<span class="bad">${regressed} regressed</span>` : null, blocked ? `<span class="bad">${blocked} blocked</span>` : null, gateHTML, last].filter(Boolean);
   return parts.join('<span class="d">·</span>');
 }
 
