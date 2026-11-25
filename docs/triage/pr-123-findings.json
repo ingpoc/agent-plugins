@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-25T09:26:04Z",
-      "now": "2026-11-25T09:26:04Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-25T09:26:43Z",
+      "now": "2026-11-25T09:26:43Z — Review started"
     },
     "rollover": {
       "source_pr": 122,
@@ -484,7 +484,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T09:26:04Z",
+    "last_written_at": "2026-11-25T09:26:43Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -795,8 +795,8 @@
             "BCL-185"
           ],
           "worktree": "samantha-next-r13",
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
             "plugins/batched-change-list/skills/batched-change-list/scripts/serve.py",
@@ -817,7 +817,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-25T09:26:04Z",
+          "stage_entered_at": "2026-11-25T09:26:23Z",
           "failure_history": [
             {
               "attempt_id": "0078936338734b8cab2d2cd31049f5a2",
@@ -864,19 +864,19 @@
             }
           ],
           "codex": {
-            "fix_status": "running",
+            "fix_status": "passed",
             "job": {
-              "id": "bf33903ddefe4237ac68f9cc67a1c55d",
-              "phase": "fix",
-              "started_at": "2026-11-25T09:26:04Z",
-              "command": "commit-fix2.sh",
-              "heartbeat_at": "2026-11-25T09:26:04Z",
+              "id": "cc7ee0acde6e465b9d048841d4178022",
+              "phase": "review",
+              "started_at": "2026-11-25T09:26:43Z",
+              "command": "review.sh",
+              "heartbeat_at": "2026-11-25T09:26:43Z",
               "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
               "finding_ids": [
                 "BCL-185"
               ],
               "worktree": "samantha-next-r13",
-              "model": "Grok Bot",
+              "model": "OpenCode deepseek-v4.1-flash-free",
               "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
               "cycle": 15,
               "round": 2
@@ -1039,10 +1039,37 @@
                 "wall_time_s": 557,
                 "session": "grok-bcl-185-fix",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "bf33903ddefe4237ac68f9cc67a1c55d",
+                "phase": "fix",
+                "started_at": "2026-11-25T09:26:04Z",
+                "command": "commit-fix2.sh",
+                "heartbeat_at": "2026-11-25T09:26:23Z",
+                "plan_sha256": "91b341f30549dc94907f7ba0dc5e42914d37fe82f506528e8c7a35732dc136c6",
+                "finding_ids": [
+                  "BCL-185"
+                ],
+                "worktree": "samantha-next-r13",
+                "model": "Grok Bot",
+                "lane_sha256": "a376f26908f8fbf995de1b131ed1dbcdaa21bbacdaae041e0b57655980c5e2b7",
+                "cycle": 15,
+                "round": 2,
+                "pid": 81512,
+                "exit_code": 0,
+                "finished_at": "2026-11-25T09:26:23Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/471ba3a15ab83747d71f3e623fa16f8dfa8288890f6e679d1ecaa3433d672e81/jobs/bf33903ddefe4237ac68f9cc67a1c55d.log",
+                "output_retained": true,
+                "tokens_source": "none",
+                "tokens": null,
+                "wall_time_s": 19,
+                "session": "grok-bcl-185-fix",
+                "finished_phase_status": "passed"
               }
             ],
             "reviewer_model": "OpenCode deepseek-v4.1-flash-free",
-            "must_fix_note": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port."
+            "must_fix_note": "1. `plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:181-190` — `_viewer_state_ports()` treats every legacy per-list state file as equally authoritative, and `own[0]` / `reserved` then produce the wrong port on the registry-repair path the commit claims to fix. The real state dir (`~/.agents/state/batched-change-list/viewers`) holds both the current per-repo file (`ingpoc--agent-plugins.json`, `ingpoc--like-minded-app.json`) and older per-list files (`ingpoc--agent-plugins--107.json` 61388 pid dead, `--111.json` 53366 pid dead, `--112.json` 57666, …). With `viewer_port` stripped from the registry (exactly the state of `registry.json.bak-20261124-1759-restored-from-nov14`), `_project_port` returns:\n   - `ingpoc/agent-plugins` → **61388** (a dead Nov-14 port) instead of 58771, because `own[0]` is the first *sorted* filename and every `--NNN.json` sorts before `ingpoc--agent-plugins.json`.\n   - `ingpoc/like-minded-app` → **55144** instead of 53366, because the dead `ingpoc--agent-plugins--111.json` also records 53366, so 53366 lands in `reserved` and the repo's own live state port is rejected.\n   \n   Both violate \"survives a registry repair\" and \"Existing saved ports (58771, 53366) must not change\". Reproduce read-only: `live_state._project_port('ingpoc/agent-plugins', {k: {kk: vv for kk, vv in v.items() if kk != 'viewer_port'} ...})` → 61388. Fix direction: prefer the per-repo state file (`stem == slug`) and only fall back to data-matched legacy files when no per-repo file exists, and don't let dead legacy files reserve a port.",
+            "review_status": "running"
           },
           "updated_at": "2026-11-25T08:38:17Z"
         },
