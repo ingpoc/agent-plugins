@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T09:49:33Z",
+    "last_written_at": "2026-11-25T09:49:45Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -823,7 +823,7 @@
             "BCL-185"
           ],
           "worktree": "samantha-next-r13",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "files": [
             "plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py",
@@ -840,12 +840,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/bcl-185-port.sh",
             "method": "Temp-state real viewer: rollover, restart, upgrade and registry repair keep the repo port and serve the newest list; deterministic slot skips other repos; occupied port fails; live 127.0.0.1:58771 still serves #123.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-25T09:49:45Z"
           },
-          "stage_entered_at": "2026-11-25T09:49:33Z",
+          "stage_entered_at": "2026-11-25T09:49:45Z",
           "failure_history": [
             {
               "attempt_id": "0078936338734b8cab2d2cd31049f5a2",
@@ -1918,7 +1919,7 @@
       "observed": "25 Nov 2026 13:48 IST, Guru: the tracker must keep one assigned port per repo so it can be bookmarked. Today agent-plugins is 58771 (registry saves viewer_port 58771 for #121, #122, #123) and Likeminded is 53366. Code at r13 ead254f4: live_state._project_port picks 53366 if free, otherwise port 0 (random) when a repo has no saved port; serve.py defaults --port to 53366; SKILL.md has no rule; viewer.md still says choose another available port; no test proves a rollover or restart to a new list keeps the repo port and serves the newest list.",
       "recommendation": "Derive a deterministic per-repo port (hash slot, skipping other repos' saved ports), persist it on first viewer start, fall back to the repo viewer state on registry repair, make serve.py --port required, and write the rule in SKILL.md and viewer.md with tests.",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "high",
       "area": "batched-change-list",
       "details": {
@@ -1937,12 +1938,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T09:49:45Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-25T09:08:25Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/bcl-185-port.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/bcl-185-port.sh"
     },
     {
       "id": "DO-22",
