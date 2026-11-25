@@ -34,7 +34,7 @@ class JobReceiptTests(BclTests):
         job = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["job"]
         self.assertEqual(job.get("finished_phase_status"), "failed")
         self.assertIn("no commit", job.get("first_error_line", ""))
-        self.assertEqual(job.get("tokens_source"), "none")
+        self.assertEqual(job.get("tokens_source"), "not_reported")
         self.assertIn("wall_time_s", job)
         self.assertEqual(job.get("model"), "Grok Bot")
         self.assertEqual(job.get("session"), "writer")
@@ -54,7 +54,7 @@ class JobReceiptTests(BclTests):
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         job = json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["codex"]["job"]
         self.assertEqual(job.get("finished_phase_status"), "passed")
-        self.assertEqual(job.get("tokens_source"), "none")
+        self.assertEqual(job.get("tokens_source"), "not_reported")
         self.assertIsInstance(job.get("wall_time_s"), int)
         self.assertEqual(job.get("model"), "Grok Bot")
 

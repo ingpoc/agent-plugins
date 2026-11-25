@@ -16,6 +16,7 @@ import render as lane_render
 import tracker_lock
 import workflow_definition
 import check_introspect
+import job_usage
 import events as bcl_events
 import verify_driver
 
@@ -95,6 +96,65 @@ def _write_job_output(list_path, job_id, output_text):
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     path.write_text(output_text or "", encoding="utf-8")
     return path
+
+
+
+def _load_harness_usage_rows(job):
+    """Read official Cursor and other harness usage rows for one finished job."""
+    rows = []
+    started, finished = job.get("started_at"), job.get("finished_at")
+    db = Path.home() / ".local/share/developer-observability/task-usage.sqlite3"
+    # cursor-usage
+    try:
+        devobs = Path(__file__).resolve().parents[2] / "developer-observability" / "runtime"
+        if str(devobs) not in sys.path:
+            sys.path.append(str(devobs))
+        from collector import cursor_runs
+        payload = cursor_runs.read_runs(str(db), since=started, until=finished, limit=20)
+        for row in payload.get("runs") or []:
+            tokens = row.get("tokens") if isinstance(row.get("tokens"), dict) else None
+            rows.append({
+                "job_id": row.get("job_id") or row.get("run_id"),
+                "run_id": row.get("run_id"),
+                "session_id": row.get("session_id"),
+                "started_at": row.get("started_at"),
+                "source": "cursor-usage",
+                "tokens": tokens,
+                "cost": row.get("cost"),
+                "cost_source": row.get("cost_source") or "not_reported",
+            })
+    except Exception:
+        pass
+    # other official tables (Codex / task_usage) when a row names this job or session
+    try:
+        import sqlite3, json as _json
+        if db.is_file():
+            with sqlite3.connect(str(db)) as con:
+                for name, in con.execute("select name from sqlite_master where type='table'").fetchall():
+                    if name in {"cursor_runs", "cursor_hook_events"}:
+                        continue
+                    cols = [row[1] for row in con.execute(f'pragma table_info("{name}")')]
+                    if "summary" not in cols:
+                        continue
+                    for raw in con.execute(f'select summary from "{name}"'):
+                        try:
+                            summary = _json.loads(raw[0]) if isinstance(raw[0], str) else raw[0]
+                        except ValueError:
+                            continue
+                        if not isinstance(summary, dict):
+                            continue
+                        rows.append({
+                            "job_id": summary.get("job_id") or summary.get("task_id"),
+                            "session_id": summary.get("session_id") or summary.get("session"),
+                            "started_at": summary.get("started_at") or summary.get("recorded_at"),
+                            "source": name,
+                            "tokens": summary.get("tokens"),
+                            "cost": summary.get("cost"),
+                            "cost_source": summary.get("cost_source") or "not_reported",
+                        })
+    except Exception:
+        pass
+    return rows
 
 
 def _read_usage(path, job_id):
@@ -652,8 +712,10 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         if len(candidates) == 1:
             usage_path, usage_source = candidates[0], "inline"
     usage = _read_usage(usage_path, job["id"]) if usage_path else None
-    if usage is None:
-        usage_source = "none"
+    attached = job_usage.attach_official_usage(
+        job, _load_harness_usage_rows(job),
+        session_usage=usage, session_source=usage_source if usage else None)
+    usage, usage_source = attached["tokens"], attached["tokens_source"]
     implementer = next(((group.get("codex") or {}).get("implementer_session")
                         for group in groups if isinstance(group, dict)
                         and (group.get("codex") or {}).get("implementer_session")), None)

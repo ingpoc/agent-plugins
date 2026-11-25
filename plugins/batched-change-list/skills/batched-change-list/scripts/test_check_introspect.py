@@ -182,6 +182,36 @@ class IntrospectCheckTests(unittest.TestCase):
             self.assertIs(check.coverage_tracking(successor, tracking, None), tracking)
             self.assertNotEqual(covered.get("plan"), tracking.get("plan"))
 
+    def test_round_comparison_uses_official_total(self):
+        tracking = {
+            "round": 4,
+            "plan": {"cycle": 15, "round": 4, "groups": [{
+                "id": "R4-ATTACH",
+                "codex": {"jobs": [{
+                    "id": "job-cursor-1",
+                    "phase": "fix",
+                    "exit_code": 0,
+                    "tokens_source": "official",
+                    "tokens": {"uncached_input": 19126, "cache_read": 6400, "cache_write": 0,
+                               "output": 24},
+                }, {
+                    "id": "job-missing",
+                    "phase": "review",
+                    "exit_code": 0,
+                    "tokens_source": "not_reported",
+                    "tokens": None,
+                }]},
+            }]},
+            "introspect_history": [{"round": 3, "tokens_total": 1000}],
+        }
+        total, previous, missing, line = check.token_comparison(tracking)
+        self.assertEqual(total, 25550)
+        self.assertEqual(previous, 1000)
+        self.assertIn("job-missing", missing)
+        self.assertNotIn("job-cursor-1", missing)
+        self.assertIn("25550", line)
+
+
 
 if __name__ == "__main__":
     unittest.main()

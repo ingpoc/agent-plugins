@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 import workflow_definition as WF
 import render
+import job_usage
 
 SECTION_ORDER = ("delete", "simplify", "optimize", "automate")
 SECTION_NOUNS = {"delete": "deletion", "simplify": "simplification",
@@ -165,9 +166,9 @@ def token_comparison(tracking):
     current_total = 0
     missing = []
     for row in receipts:
-        tokens = row.get("tokens") or {}
-        if isinstance(tokens.get("total"), int):
-            current_total += tokens["total"]
+        official = job_usage.official_tokens(row.get("tokens"))
+        if official and type(official.get("total")) is int:
+            current_total += official["total"]
         else:
             missing.append(row.get("job_id") or row.get("group_id") or "job")
     previous = None
