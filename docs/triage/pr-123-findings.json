@@ -47,8 +47,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-25T11:41:36Z",
-      "now": "2026-11-25T11:41:36Z — Verify in progress"
+      "updated_at": "2026-11-25T11:41:37Z",
+      "now": "2026-11-25T11:41:37Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 122,
@@ -510,7 +510,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T11:41:36Z",
+    "last_written_at": "2026-11-25T11:42:11Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1661,7 +1661,7 @@
             "DO-23"
           ],
           "worktree": "samantha-next-r13",
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "files": [
             "plugins/developer-observability/runtime/backend/round_view.py",
@@ -1672,10 +1672,11 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh",
             "method": "Named tests, then the r13 backend on the real state: agent-plugins opens 123, likeminded opens bcl-r1, live rows are 123 and bcl-r1.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-25T11:41:37Z"
           },
           "failure_history": [
             {
@@ -1732,7 +1733,7 @@
             }
           ],
           "updated_at": "2026-11-25T11:41:36Z",
-          "stage_entered_at": "2026-11-25T11:41:36Z",
+          "stage_entered_at": "2026-11-25T11:41:37Z",
           "codex": {
             "fix_status": "passed",
             "job": {
@@ -2021,8 +2022,8 @@
             "DO-21"
           ],
           "worktree": "samantha-next-r13",
-          "status": "review",
-          "phase": "review",
+          "status": "verified",
+          "phase": "verify",
           "files": [
             "plugins/developer-observability/runtime/collector/cli.py",
             "plugins/developer-observability/runtime/collector/retention.py",
@@ -2033,15 +2034,16 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh",
             "method": "Named tests, then three real collects into a temp store: total grows under 15% instead of tripling, most sidecars are shared, readers still load details.",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-25T11:42:11Z"
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T11:31:38Z",
-          "stage_entered_at": "2026-11-25T11:31:51Z",
+          "updated_at": "2026-11-25T11:41:37Z",
+          "stage_entered_at": "2026-11-25T11:42:11Z",
           "codex": {
             "implementer_session": "grok-do21-fix",
             "reviewer_session": "opencode-do21-review",
@@ -2135,6 +2137,11 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-25T11:41:20Z"
+          },
+          "stage_model": {
+            "stage": "verify",
+            "model": "Grok Bot",
+            "at": "2026-11-25T11:41:37Z"
           }
         }
       ]
@@ -2726,7 +2733,7 @@
       "observed": "Three collects on 2026-11-14 grew ~/.local/share/developer-observability/collected/findings.json from 825 KB to ~92 MB, mostly version_scopes and session_timelines from re-scanning Samantha sources; collector warned collector_outputs uses 1.7 GiB (warn at 1.0 GiB). Regression check 25 Nov 2026 11:05 IST: DEVOBS-03 (findings.json 80 MB, fixed in devobs b59db8f) was verified 12 Nov 11:28 IST, before this 14 Nov report. Today findings.json is 1.4 MB (mtime 22 Nov 23:58), snapshots/ 77 MB, and collected/.trash 2.2 GB, so the growth needs a live recheck.",
       "recommendation": "Owned by the Observability bot (developer-observability plugin): bound version_scopes/session_timelines or scope collect to --project-dir sources only. Likeminded side: avoid repeated full collects until fixed.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "verified_fixed",
       "priority": "medium",
       "area": "developer-observability",
       "details": {
@@ -2741,7 +2748,24 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-25T11:41:37Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T11:42:11Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
+        }
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do21.sh"
     },
     {
       "id": "BCL-185",
@@ -2886,7 +2910,7 @@
       "observed": "25 Nov 2026 ~14:05 IST, DO-22 review of cb2a5ef1: _tracker_sort_key in runtime/backend/round_view.py orders by (pr number, last_written_at, mtime) with non-numeric ids as 0, so build_issues and find_tracker pick 19.json over a newer live bcl-r1.json.",
       "recommendation": "Rank latest by unmerged first, then last_written_at, then pr number and mtime; keep the chronological order used for history unchanged.",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "area": "developer-observability",
       "details": {
@@ -2906,12 +2930,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-25T11:41:37Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-25T11:16:31Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-123/verify/do23.sh"
     }
   ]
 }
