@@ -273,11 +273,42 @@ def _commit_is_snapshot(cwd, sha):
     return bool(files) and all(_snapshot_commit_paths(path) for path in files)
 
 
+def _recorded_worktree_root(cwd, groups):
+    cwd_top = _git_toplevel(cwd)
+    if not cwd_top:
+        return None
+    cwd_top = str(Path(cwd_top).resolve())
+    cwd = Path(cwd).resolve()
+    for group in groups or []:
+        if not isinstance(group, dict):
+            continue
+        name = str(group.get("worktree") or ((group.get("codex") or {}).get("worktree") if isinstance(group.get("codex"), dict) else "") or "").strip()
+        if not name:
+            continue
+        candidates = [Path(name).expanduser()]
+        if not Path(name).is_absolute():
+            candidates.extend([cwd / name, cwd.parent / name])
+            top = _git_toplevel(cwd)
+            if top:
+                candidates.extend([Path(top) / name, Path(top).parent / name])
+        for path in candidates:
+            if not path.is_dir():
+                continue
+            root = _git_toplevel(path)
+            if root:
+                return str(Path(root).resolve())
+    return None
+
+
 def _named_implementer_commit(cwd, groups, start_head, end_head):
     if not end_head:
         return None
     if start_head and end_head != start_head:
         return end_head
+    recorded = _recorded_worktree_root(cwd, groups)
+    cwd_top = _git_toplevel(cwd)
+    if recorded and cwd_top and str(Path(cwd_top).resolve()) != recorded:
+        return None
     bases = []
     for group in groups or []:
         if not isinstance(group, dict):

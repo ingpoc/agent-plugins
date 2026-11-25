@@ -73,14 +73,16 @@ class ReviewerFallbackTests(unittest.TestCase):
         self.assertEqual(lane["codex"]["review_status"], "passed")
         self.assertEqual(lane["phase"], "review")
 
-    def test_ordinary_runner_exit_still_returns_to_fix(self):
+    def test_ordinary_runner_exit_stays_in_review(self):
         doc = document()
         self._pass_fix(doc)
         transition(doc, "start-job", "review", "review-1")
         transition(doc, "finish-job", "review", "review-1", exit_code=1, reply="codex crashed\n")
         lane = group(doc)
-        self.assertEqual(lane["phase"], "fix")
-        self.assertEqual(lane["status"], "running")
+        self.assertEqual(lane["phase"], "review")
+        self.assertEqual(lane["status"], "review")
+        with self.assertRaisesRegex(ValueError, "stays in review after a tool-fault review"):
+            transition(doc, "start-job", "fix", "fix-2")
 
 
 if __name__ == "__main__":
