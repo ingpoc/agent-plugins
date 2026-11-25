@@ -115,6 +115,30 @@ def dashboard_html():
     return VIEWER_FLAG + html
 
 
+
+
+def usage_payload(query):
+    """Official per-job and per-round token totals for the GET usage API."""
+    if str(ROOT / "runtime") not in __import__("sys").path:
+        __import__("sys").path.insert(0, str(ROOT / "runtime"))
+    if str(ROOT / "runtime" / "backend") not in __import__("sys").path:
+        __import__("sys").path.insert(0, str(ROOT / "runtime" / "backend"))
+    from issue_trail import official_usage_series
+    value = lambda key, default=None: query.get(key, [default])[0]
+    jobs = []
+    try:
+        from backend.round_view import build_round
+        payload = build_round(value("project", "agent-plugins"), pr=value("pr", "current"),
+                              round_id=value("round"))
+        jobs = list(payload.get("jobs") or [])
+        if not jobs:
+            for lane in payload.get("lanes") or payload.get("groups") or []:
+                jobs.extend(lane.get("jobs") or [])
+    except Exception:
+        jobs = []
+    return official_usage_series(jobs)
+
+
 def issues_payload(query):
     """Resolve the GET API query through the same issue state model as MCP."""
     if str(ROOT / 'runtime') not in __import__('sys').path:
@@ -156,6 +180,16 @@ class ViewerHandler(BaseHTTPRequestHandler):
         port = self.server.server_address[1]
         if self.headers.get("Host") not in {f"127.0.0.1:{port}", f"localhost:{port}"}:
             self.send_error(403)
+            return
+        if path == "/api/usage":
+            query = parse_qs(request.query, keep_blank_values=False)
+            try:
+                payload = usage_payload(query)
+                self._send(json.dumps(payload), "application/json; charset=utf-8")
+            except (ValueError, OSError) as error:
+                code = str(error).split(":", 1)[0]
+                status = 400 if str(code).startswith("invalid_") else 500
+                self._send(json.dumps({"error": code}), "application/json; charset=utf-8", status)
             return
         if path == "/api/issues" or path.startswith("/api/issues/"):
             query = parse_qs(request.query, keep_blank_values=False)
