@@ -230,7 +230,9 @@ class LinksAndSignalsTests(V2Base):
         self.log.truncate(0)
         self.store.get({"decision_id": did, "actor": "ledger-internal"}, mcp=True)
         self.assertEqual(self.log.getvalue(), "")
-        row = self.store.open().execute("select tool, caller, ids from access_log").fetchone()
+        row = self.store.open().execute(
+            "select tool, caller, ids from access_log where caller='ledger-internal'"
+        ).fetchone()
         self.assertEqual((row["tool"], row["caller"]), ("get", "ledger-internal"))
         self.assertEqual(json.loads(row["ids"]), [did])
         self.store.get({"decision_id": did, "actor": "public-helper"}, mcp=True)
@@ -336,7 +338,10 @@ class LinksAndSignalsTests(V2Base):
         task = _u()
         self.find("kite comet", actor="smallcase-bot", task_id=task)
         self.store.get({"decision_id": did, "actor": "smallcase-bot"}, mcp=True)
-        rows = self.store.open().execute("select tool, caller, task_id, query, n, bytes, ids from access_log").fetchall()
+        rows = self.store.open().execute(
+            "select tool, caller, task_id, query, n, bytes, ids from access_log "
+            "where tool in ('find', 'get')"
+        ).fetchall()
         self.assertEqual([r["tool"] for r in rows], ["find", "get"])
         self.assertEqual(rows[0]["caller"], "smallcase-bot")
         self.assertEqual(rows[0]["task_id"], task)

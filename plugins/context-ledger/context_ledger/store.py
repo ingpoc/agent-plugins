@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from context_ledger import __version__
 from context_ledger.contracts import (
     APPEND_TYPES,
     ab_arm,
@@ -496,6 +497,12 @@ class Store:
         """Additive v2 tables. Backfill links once; later opens do not rescan or take a write lock."""
         try:
             conn.executescript(V2_DDL)
+            access_log_columns = {
+                row["name"] for row in conn.execute("pragma table_info(access_log)")
+            }
+            for column in ("version", "tokens", "project"):
+                if column not in access_log_columns:
+                    conn.execute(f"alter table access_log add column {column} text")
             if conn.execute("select 1 from v2_meta where key='links_backfill'").fetchone():
                 return
             conn.execute("begin immediate")
@@ -882,7 +889,7 @@ class Store:
                 self._log_access(
                     conn, tool="get", caller=parsed["actor"], task_id=parsed["task_id"], query=None,
                     ids=[parsed["decision_id"]], nbytes=len(canonical_json(packed).encode("utf-8")),
-                    started=started,
+                    started=started, project=self._lookup_project(rec.get("body", {}).get("scope")),
                 )
             return packed
 
@@ -1016,7 +1023,9 @@ class Store:
         if mcp and not parsed["scope"] and ab_arm(self.ab_today()) == "off":
             with self._tx() as conn:
                 self._log_access(conn, tool="find", caller=parsed["actor"], task_id=parsed["task_id"],
-                                 query=parsed["query"], ids=[], nbytes=0, started=started)
+                                 query=parsed["query"], ids=[], nbytes=0, started=started,
+                                 project=(parsed.get("caller_scope") or {}).get("project") or
+                                 self._lookup_project(parsed.get("scope")))
             return {"matches": [], "has_more": False, "arm": "off"}
         with self._tx() as conn:
             scope = self.binding["scope_id"]
@@ -1141,6 +1150,8 @@ class Store:
                 ids=[m["decision_id"] for m in matches] + [r["id"] for m in matches for r in m.get("related", [])],
                 nbytes=nbytes,
                 started=started,
+                project=(parsed.get("caller_scope") or {}).get("project") or
+                self._lookup_project(parsed.get("scope")),
             )
             return result
 
@@ -1287,12 +1298,15 @@ class Store:
         ids: list[str],
         nbytes: int,
         started: float,
+        project: str | None = None,
     ) -> None:
         ms = int((time.monotonic() - started) * 1000)
         who = caller or "unnamed"
         conn.execute(
-            "insert into access_log(ts,tool,caller,task_id,query,n,bytes,ids,ms) values (?,?,?,?,?,?,?,?,?)",
-            (now_ts(), tool, who, task_id, (query or "")[:240], len(ids), nbytes, canonical_json(ids), ms),
+            "insert into access_log(ts,tool,caller,task_id,query,n,bytes,ids,ms,version,tokens,project) "
+            "values (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (now_ts(), tool, who, task_id, (query or "")[:240], len(ids), nbytes, canonical_json(ids), ms,
+             __version__, "not_reported", project or self._lookup_project(self.binding.get("scope_id"))),
         )
         # Internal candidate reads stay auditable without flooding the helper's context.
         if who == "ledger-internal":
@@ -1305,8 +1319,19 @@ class Store:
         sys.stderr.write(canonical_json(line) + "\n")
         sys.stderr.flush()
 
+    @staticmethod
+    def _lookup_project(scope: Any) -> str | None:
+        if not isinstance(scope, str) or not scope:
+            return None
+        if scope.startswith("project:"):
+            return scope.removeprefix("project:") or None
+        if scope == "fleet" or scope.startswith("tool:"):
+            return None
+        return scope
+
     def save(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
         """Compact trace capture. Over-limit text is rejected loudly, never trimmed."""
+        started = time.monotonic()
         parsed = validate_save_input(arguments)
         trace = parsed["trace"]
         with self._tx() as conn:
@@ -1349,8 +1374,17 @@ class Store:
         if parsed["actor"]:
             args["actor"] = parsed["actor"]
         receipt = self.record(args, mcp=mcp, tool="save")
-        return {"decision_id": receipt["decision_id"], "revision": receipt["revision"],
-                **({"superseded_ids": receipt["superseded_ids"]} if "superseded_ids" in receipt else {})}
+        result = {"decision_id": receipt["decision_id"], "revision": receipt["revision"],
+                  **({"superseded_ids": receipt["superseded_ids"]} if "superseded_ids" in receipt else {})}
+        if mcp:
+            with self._tx() as conn:
+                self._log_access(
+                    conn, tool="save", caller=parsed["actor"], task_id=parsed["trace"].get("task_id"),
+                    query=None, ids=[receipt["decision_id"]],
+                    nbytes=len(canonical_json(result).encode("utf-8")), started=started,
+                    project=self._lookup_project(parsed["scope"]),
+                )
+        return result
 
     def access_report(self) -> dict[str, Any]:
         """Per-caller lookups, bytes, and helpful marks (outcome.helpful on the returned ids)."""
