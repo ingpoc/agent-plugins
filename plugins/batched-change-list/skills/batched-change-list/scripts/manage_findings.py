@@ -931,19 +931,23 @@ def unblock_lane(document, operation):
         raise ValueError("unblock timestamp must be an ISO 8601 instant")
     lanes, known_faults = [], set()
     for group in groups:
-        if group.get("status") != "blocked":
+        status = group.get("status")
+        rows = _lane_history(group, "failure_history")
+        failures = _counted_failures(rows)
+        parked_after_blocking = (status == "parked" and len(failures) >= 2
+                                 and not _unblock_covers_failures(group, failures))
+        if status != "blocked" and not parked_after_blocking:
             raise ValueError(f"unblock requires blocked lane {group.get('id')}")
         history = group.setdefault("unblock_history", [])
         if not isinstance(history, list):
             raise ValueError(f"{group.get('id')} unblock_history must be an array")
-        rows = _lane_history(group, "failure_history")
         known_faults.update(row["attempt_id"] for row in rows
                             if isinstance(row.get("attempt_id"), str))
-        lanes.append((group, history, rows))
+        lanes.append((group, history, rows, status))
     unknown = set(tool_faults) - known_faults
     if unknown:
         raise ValueError(f"unblock names unknown attempt ID(s): {', '.join(sorted(unknown))}")
-    for group, history, rows in lanes:
+    for group, history, rows, status in lanes:
         lane_faults = set(tool_faults).intersection(row.get("attempt_id") for row in rows)
         for row in rows:
             if row.get("attempt_id") in lane_faults:
@@ -960,9 +964,10 @@ def unblock_lane(document, operation):
         if owner_override:
             entry["owner_override"] = True
         history.append(entry)
-        group.update(status="running", phase="fix")
+        group.update(status="planned" if status == "parked" else "running", phase="fix")
         group.pop("blocked_reason", None)
         group.pop("failure_block_reason", None)
+        group.pop("parked_to", None)
         codex = group.setdefault("codex", {})
         codex.pop("review_status", None)
         codex.pop("plan_review_status", None)

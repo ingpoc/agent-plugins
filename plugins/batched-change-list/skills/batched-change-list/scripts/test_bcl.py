@@ -1915,6 +1915,52 @@ elif args[:2] != ['pr', 'edit']:
         self.assertTrue(group["failure_history"][0]["tool_fault"])
         self.assertEqual(group["unblock_history"][-1]["tool_faults"], ["attempt-1"])
 
+    def test_unblock_reopens_lane_parked_after_blocking(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(live.read_text())
+        finding = document["findings"][0]
+        finding["status"] = "blocked"
+        group = {"id": "A", "finding_ids": [finding["id"]], "status": "parked", "phase": "deferred",
+            "blocked_reason": "Two counted lane failures require an owner unblock",
+            "failure_block_reason": "Two counted lane failures require an owner unblock", "parked_to": 3,
+            "failure_history": {finding["id"]: [
+                {"attempt_id": "attempt-1", "source": "review", "reason": "first"},
+                {"attempt_id": "attempt-2", "source": "review", "reason": "second"}]}}
+        document["tracking"].update(cycle=1, plan={"cycle": 1, "round": 1, "groups": [group]})
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+
+        result = self.call_without_viewer("unblock", "--ids", finding["id"], "--reason", "owner approved retry")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        updated = json.loads(live.read_text())
+        reopened = updated["tracking"]["plan"]["groups"][0]
+        self.assertEqual((reopened["status"], reopened["phase"]), ("planned", "fix"))
+        self.assertEqual(len(reopened["unblock_history"]), 1)
+        self.assertTrue(reopened["unblock_history"][0]["owner_override"])
+        self.assertEqual(reopened["unblock_history"][0]["covered_attempts"], ["attempt-1", "attempt-2"])
+        for field in ("blocked_reason", "failure_block_reason", "parked_to"):
+            self.assertNotIn(field, reopened)
+        self.assertEqual(updated["findings"][0]["status"], "in_progress")
+        plan = self.root / "retry-plan.json"
+        plan.write_text(json.dumps({"round": 1, "groups": [{"id": "A", "finding_ids": [finding["id"]],
+            "status": "planned", "phase": "fix"}]}))
+        planned = self.call_without_viewer("plan", "--plan", plan, "--ids", finding["id"])
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+
+    def test_unblock_still_refuses_plain_parked_lane(self):
+        self.assertEqual(self.call_without_viewer("start").returncode, 0)
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        document = json.loads(live.read_text())
+        finding = document["findings"][0]
+        document["tracking"].update(cycle=1, plan={"cycle": 1, "round": 1, "groups": [
+            {"id": "A", "finding_ids": [finding["id"]], "status": "parked", "phase": "deferred"}]})
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        before = live.read_bytes()
+        result = self.call_without_viewer("unblock", "--ids", finding["id"], "--reason", "retry")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unblock requires blocked lane", result.stderr)
+        self.assertEqual(live.read_bytes(), before)
+
     def test_review_job_refuses_until_fix_job_finishes(self):
         self.assertEqual(self.call("start").returncode, 0)
         plan = self.root / "plan.json"
