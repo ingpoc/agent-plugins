@@ -1946,6 +1946,23 @@ elif args[:2] != ['pr', 'edit']:
             "status": "planned", "phase": "fix"}]}))
         planned = self.call_without_viewer("plan", "--plan", plan, "--ids", finding["id"])
         self.assertEqual(planned.returncode, 0, planned.stderr)
+        # The reopened lane is no longer blocked or parked: its next fix waits only for the plan review.
+        refused = self.call_job_without_viewer(live, "--ids", finding["id"], "--phase", "fix", "job", "--",
+                                               sys.executable, "-c", "pass")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("requires a passed plan_review", refused.stderr)
+        verdict = self.root / "plan-pass.md"
+        verdict.write_text("VERDICT: PASS\n## Must-fix\nnone\n## ROOT CAUSE\nowner retry\n## FAILING TEST\ntest_retry\n")
+        result_file = self.root / "plan-result.md"
+        reviewed = self.call_job_without_viewer(live, "--ids", finding["id"], "--phase", "plan_review", "--result", result_file,
+                                                "job", "--", sys.executable, "-c",
+                                                f"import shutil; shutil.copy({str(verdict)!r}, {str(result_file)!r})")
+        self.assertEqual(reviewed.returncode, 0, reviewed.stderr)
+        fixed = self.call_job_without_viewer(live, "--ids", finding["id"], "--phase", "fix", "job", "--",
+                                             sys.executable, "-c", "pass")
+        self.assertEqual(fixed.returncode, 0, fixed.stderr)
+        job = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]["job"]
+        self.assertEqual((job["phase"], job["exit_code"]), ("fix", 0))
 
     def test_unblock_still_refuses_plain_parked_lane(self):
         self.assertEqual(self.call_without_viewer("start").returncode, 0)
