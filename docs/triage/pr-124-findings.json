@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-26T07:34:55Z",
-      "now": "2026-11-26T07:34:55Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-26T07:39:06Z",
+      "now": "2026-11-26T07:39:06Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T07:34:55Z",
+    "last_written_at": "2026-11-26T07:39:07Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2909,7 +2909,7 @@
           "finding_ids": [
             "CL-3"
           ],
-          "status": "running",
+          "status": "review",
           "depends_on": [
             "R2-CL-CAPTURE"
           ],
@@ -2925,14 +2925,14 @@
           },
           "worktree": "bcl124-r5-ledger",
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
-            "fix_status": "running",
+            "fix_base_head": "a386dad7e1533d25a7d8138c7c993dafc8fe6d5e",
+            "fix_status": "passed",
             "job": {
               "id": "5351c3f224d545c2aca142f32ae0f4c3",
               "phase": "fix",
               "started_at": "2026-11-26T07:34:55Z",
               "command": "bash",
-              "heartbeat_at": "2026-11-26T07:34:55Z",
+              "heartbeat_at": "2026-11-26T07:36:18Z",
               "plan_sha256": "4f38d93d1b1210f07eaeb0d89ff802157ff19485a54acf3cee009fe23a250779",
               "finding_ids": [
                 "CL-3"
@@ -2941,15 +2941,59 @@
               "model": "grok-bot-executor",
               "lane_sha256": "0ee15f16b71ba51c2b8de9aeea8cc858ad3088066d3643d5c8a8ade41b4abbdc",
               "cycle": 16,
-              "round": 3
-            }
+              "round": 3,
+              "pid": 91601,
+              "steps": [
+                {
+                  "step": "failed_first",
+                  "at": "2026-11-26T07:34:58Z",
+                  "result": "test_card_shows_project_and_whether_last_lookup_matched and test_ledger_page_text_is_at_least_16px fail: cards have no project or last lookup, text tokens are 11-15px"
+                },
+                {
+                  "step": "root_cause",
+                  "at": "2026-11-26T07:34:58Z",
+                  "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control"
+                }
+              ],
+              "latest_step": {
+                "step": "root_cause",
+                "at": "2026-11-26T07:34:58Z",
+                "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control"
+              },
+              "exit_code": 0,
+              "finished_at": "2026-11-26T07:36:18Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/5351c3f224d545c2aca142f32ae0f4c3.log",
+              "output_retained": true,
+              "commit": "a386dad7e1533d25a7d8138c7c993dafc8fe6d5e",
+              "tokens_source": "not_reported",
+              "tokens": null,
+              "wall_time_s": 83,
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "parked_to": 3,
-          "stage_entered_at": "2026-11-26T07:34:55Z",
+          "stage_entered_at": "2026-11-26T07:36:18Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-26T06:57:57Z",
-          "phase": "fix"
+          "phase": "review",
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T07:34:58Z",
+              "result": "test_card_shows_project_and_whether_last_lookup_matched and test_ledger_page_text_is_at_least_16px fail: cards have no project or last lookup, text tokens are 11-15px",
+              "job_id": "5351c3f224d545c2aca142f32ae0f4c3",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T07:34:58Z",
+              "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control",
+              "job_id": "5351c3f224d545c2aca142f32ae0f4c3",
+              "phase": "fix"
+            }
+          ]
         },
         {
           "id": "R3-UNPARK",
@@ -2957,7 +3001,7 @@
             "BCL-194"
           ],
           "status": "review",
-          "phase": "plan_review",
+          "phase": "review",
           "depends_on": [],
           "worktree": "bcl124-r5-unpark",
           "reason": "Owner unblock must reopen a lane parked after blocking; needed before BCL-191 and BCL-192 can retry.",
@@ -2971,21 +3015,21 @@
             "total": 1
           },
           "codex": {
-            "fix_base_head": "672ce658e81b711168ba8fef3ae44ceafd82688c",
+            "fix_base_head": "924353e0a13da05d9b79c44d7b9dd9275b094333",
             "fix_status": "passed",
             "job": {
-              "id": "0c3550946b4a47b0ac858dc8f677e89e",
-              "phase": "plan_review",
-              "started_at": "2026-11-26T07:34:55Z",
+              "id": "b19493d037a946ecb5156aaaa887f355",
+              "phase": "review",
+              "started_at": "2026-11-26T07:39:06Z",
               "command": "codex",
-              "heartbeat_at": "2026-11-26T07:34:55Z",
-              "plan_sha256": "4f38d93d1b1210f07eaeb0d89ff802157ff19485a54acf3cee009fe23a250779",
+              "heartbeat_at": "2026-11-26T07:39:06Z",
+              "plan_sha256": "dbca2df3d12760a27ce6b841170dc7e161e50d45c58ae7182300b0569f901502",
               "finding_ids": [
                 "BCL-194"
               ],
               "worktree": "bcl124-r5-unpark",
               "model": "gpt-6-luna",
-              "lane_sha256": "fa8a8ef0fbbf9f0dce7fc56c1c1d3b8874afe105ce2edf8986bf2c0a8eb6a4f4",
+              "lane_sha256": "bcebd61c6d7a85e841666eec91898f486ca68ac71d307d86543de87869ee1607",
               "cycle": 16,
               "round": 3
             },
@@ -3099,11 +3143,84 @@
                 "session": "rollout-2026-11-26T13-02-13-01a216c4-e768-7791-910e-2561c0aaff85.jsonl",
                 "finished_phase_status": "incomplete",
                 "must_fix": "Changes requested; Must-fix section missing"
+              },
+              {
+                "id": "0c3550946b4a47b0ac858dc8f677e89e",
+                "phase": "plan_review",
+                "started_at": "2026-11-26T07:34:55Z",
+                "command": "codex",
+                "heartbeat_at": "2026-11-26T07:35:28Z",
+                "plan_sha256": "4f38d93d1b1210f07eaeb0d89ff802157ff19485a54acf3cee009fe23a250779",
+                "finding_ids": [
+                  "BCL-194"
+                ],
+                "worktree": "bcl124-r5-unpark",
+                "model": "gpt-6-luna",
+                "lane_sha256": "fa8a8ef0fbbf9f0dce7fc56c1c1d3b8874afe105ce2edf8986bf2c0a8eb6a4f4",
+                "cycle": 16,
+                "round": 3,
+                "pid": 91605,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T07:35:28Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/0c3550946b4a47b0ac858dc8f677e89e.log",
+                "output_retained": true,
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 160482,
+                  "output": 717
+                },
+                "wall_time_s": 33,
+                "session": "rollout-2026-11-26T13-04-56-01a216c7-63d5-7683-8793-afaa23311816.jsonl",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "80e64252efbb47368e48cc8721b15ff8",
+                "phase": "fix",
+                "started_at": "2026-11-26T07:37:22Z",
+                "command": "bash",
+                "heartbeat_at": "2026-11-26T07:37:27Z",
+                "plan_sha256": "03b064a7eeba6453ca6b916ab92c973658ead01e83467d8b4ecf82f6e0aaf963",
+                "finding_ids": [
+                  "BCL-194"
+                ],
+                "worktree": "bcl124-r5-unpark",
+                "model": "grok-bot-executor",
+                "lane_sha256": "fa8a8ef0fbbf9f0dce7fc56c1c1d3b8874afe105ce2edf8986bf2c0a8eb6a4f4",
+                "cycle": 16,
+                "round": 3,
+                "pid": 98404,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-26T07:37:22Z",
+                    "result": "review: test_unblock_reopens_lane_parked_after_blocking stopped at plan and never proved the next fix starts"
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-26T07:37:23Z",
+                    "result": "test_bcl.py reopen test covered unblock and plan only; product path was right, the proof was incomplete"
+                  }
+                ],
+                "latest_step": {
+                  "step": "root_cause",
+                  "at": "2026-11-26T07:37:23Z",
+                  "result": "test_bcl.py reopen test covered unblock and plan only; product path was right, the proof was incomplete"
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-26T07:37:27Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/80e64252efbb47368e48cc8721b15ff8.log",
+                "output_retained": true,
+                "commit": "924353e0a13da05d9b79c44d7b9dd9275b094333",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 5,
+                "session": "gpt-6-luna",
+                "finished_phase_status": "passed"
               }
             ],
-            "review_status": "failed",
             "reviewer_model": "gpt-6-luna",
-            "must_fix_note": "Changes requested; Must-fix section missing"
+            "must_fix_note": "Changes requested; Must-fix section missing",
+            "review_status": "running"
           },
           "failure_history": [
             {
@@ -3127,9 +3244,34 @@
               "plan_answered": true
             }
           ],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "0c3550946b4a47b0ac858dc8f677e89e",
+              "after_failure": "8ce8c4b03c4b4845acda9a4cfa17deb5",
+              "status": "passed",
+              "cycle": 16,
+              "round": 3,
+              "at": "2026-11-26T07:35:28Z"
+            }
+          ],
           "updated_at": "2026-11-26T06:57:57Z",
-          "stage_entered_at": "2026-11-26T07:34:55Z"
+          "stage_entered_at": "2026-11-26T07:37:27Z",
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T07:37:22Z",
+              "result": "review: test_unblock_reopens_lane_parked_after_blocking stopped at plan and never proved the next fix starts",
+              "job_id": "80e64252efbb47368e48cc8721b15ff8",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T07:37:23Z",
+              "result": "test_bcl.py reopen test covered unblock and plan only; product path was right, the proof was incomplete",
+              "job_id": "80e64252efbb47368e48cc8721b15ff8",
+              "phase": "fix"
+            }
+          ]
         }
       ],
       "cycle": 16
