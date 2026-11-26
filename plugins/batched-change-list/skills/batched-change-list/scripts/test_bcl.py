@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 import contextlib
 import io
@@ -2172,6 +2173,78 @@ elif args[:2] != ['pr', 'edit']:
         self.assertTrue(any(row[:3] == ["pr", "edit", "456"] and "--base" in row and "main" in row for row in calls))
         self.assertTrue(any(row[:3] == ["pr", "view", "https://github.com/example/project/pull/123"] for row in calls))
         self.assertTrue(any(row[:3] == ["pr", "list", "--repo"] and "--limit" in row and "1000" in row for row in calls))
+
+    def _live_without_pr(self, stage="report_rollover"):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = self.merge_ready(json.loads(self.data.read_text()))
+        doc["tracking"].pop("pull_request", None)
+        doc["tracking"]["workflow"] = {"stage": stage, "updated_at": "2026-11-14T11:00:00Z"}
+        contents = json.dumps(doc); self.data.write_text(contents); live.write_text(contents)
+        return live
+
+    def test_link_pr_records_the_pull_request_of_a_list_started_before_it(self):
+        live = self._live_without_pr()
+        url = "https://github.com/example/project/pull/123"
+        bad = self.call_without_viewer("link-pr", live, "--pr-url", "https://example.com/not-a-pr")
+        self.assertNotEqual(bad.returncode, 0)
+        self.assertNotIn("pull_request", json.loads(live.read_text())["tracking"])
+        linked = self.call_without_viewer("link-pr", live, "--pr-url", url)
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["pull_request"]["url"], url)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["pull_request"]["label"], "PR #123")
+        again = self.call_without_viewer("link-pr", live, "--pr-url", url)
+        self.assertEqual(again.returncode, 0, again.stderr)
+        other = self.call_without_viewer("link-pr", live, "--pr-url", "https://github.com/example/project/pull/999")
+        self.assertNotEqual(other.returncode, 0)
+        self.assertIn("already links", other.stderr)
+        self.assertEqual(json.loads(live.read_text())["tracking"]["pull_request"]["url"], url)
+
+    def test_merged_pr_url_links_and_records_the_merge_of_a_list_without_a_pr(self):
+        live = self._live_without_pr()
+        refused = self.call("merged", live)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("bcl link-pr --pr-url URL", refused.stderr)
+        result = self.call("merged", live, "--pr-url", "https://github.com/example/project/pull/123",
+                           "--merge-commit", "b" * 40, "--merged-at", "2026-11-14T12:00:00Z", "--base-branch", "feature-123")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tracking = json.loads(live.read_text())["tracking"]
+        self.assertEqual(tracking["workflow"]["stage"], "merged")
+        self.assertEqual(tracking["merged"]["commit_sha"], "b" * 40)
+        self.assertEqual(tracking["pull_request"]["url"], "https://github.com/example/project/pull/123")
+
+    def test_repair_merged_clears_leftover_running_state_without_retarget_or_viewer(self):
+        live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])
+        doc = self.merge_ready(json.loads(self.data.read_text()))
+        doc["tracking"]["workflow"] = {"stage": "report_rollover", "updated_at": "2026-11-14T11:00:00Z"}
+        contents = json.dumps(doc); self.data.write_text(contents); live.write_text(contents)
+        not_merged = self.call("repair-merged", live)
+        self.assertNotEqual(not_merged.returncode, 0)
+        self.assertIn("only repairs a list already recorded as merged", not_merged.stderr)
+        self.assertEqual(self.call("merged", live).returncode, 0)
+        doc = json.loads(live.read_text())
+        groups = doc["tracking"].setdefault("plan", {"cycle": 1, "round": 1, "groups": []}).setdefault("groups", [])
+        groups += [{"id": f"L{n}", "finding_ids": [], "status": "verified", "phase": "verify",
+                    "install": {"status": "running", "started_at": "2026-11-14T10:00:00Z"}} for n in (1, 2)]
+        doc["tracking"]["verification_run"] = {"id": "run-left", "run_id": "run-left", "status": "active", "round": 1, "cycle": 1,
+                                               "build": "fixture build", "revision": "a" * 40, "installed_at": "2026-11-14T10:00:00Z",
+                                               "install_evidence": "fixture install", "started_at": "2026-11-14T10:00:00Z", "checks": {}}
+        merged_before = copy.deepcopy(doc["tracking"]["merged"])
+        live.write_text(json.dumps(doc))
+        self.command_log.write_text("")
+        dry = self.call("repair-merged", live, "--dry-run")
+        self.assertEqual(dry.returncode, 0, dry.stderr)
+        self.assertEqual(json.loads(dry.stdout), {"install_running_cleared": 2, "verification_run_closed": "run-left", "dry_run": True})
+        self.assertEqual(json.loads(live.read_text())["tracking"]["verification_run"]["status"], "active")
+        repaired = self.call("repair-merged", live)
+        self.assertEqual(repaired.returncode, 0, repaired.stderr)
+        self.assertEqual(json.loads(repaired.stdout), {"install_running_cleared": 2, "verification_run_closed": "run-left", "dry_run": False})
+        tracking = json.loads(live.read_text())["tracking"]
+        self.assertEqual([g["install"]["status"] for g in tracking["plan"]["groups"] if "install" in g], ["complete", "complete"])
+        self.assertNotEqual(tracking["verification_run"]["status"], "active")
+        self.assertEqual((tracking["workflow"]["stage"], tracking["merged"]), ("merged", merged_before))
+        self.assertEqual(json.loads(self.call("repair-merged", live).stdout)["install_running_cleared"], 0)
+        self.assertEqual(self.command_log.read_text(), "")
+        self.assertFalse(viewer_test_guard.viewer_pids_under([self.root]))
 
     def test_merged_force_records_reason_when_gate_is_short(self):
         live = Path(json.loads((self.state / "registry.json").read_text())["example/project/123"]["live"])

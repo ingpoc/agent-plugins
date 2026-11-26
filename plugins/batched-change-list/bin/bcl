@@ -890,7 +890,7 @@ def _merged_details(args, tracking, repo):
     pr = tracking.get("pull_request", {})
     url = pr.get("url") if isinstance(pr, dict) else None
     if not isinstance(url, str) or not url:
-        raise ValueError("bcl merged requires tracking.pull_request.url")
+        raise ValueError("bcl merged requires a pull request link; run bcl link-pr --pr-url URL or pass --pr-url URL")
     provider = _provider(url)
     data, problem = (None, None)
     if not (args.merge_commit and args.merged_at and args.base_branch):
@@ -954,6 +954,29 @@ def _retarget_stacked(provider, repo, branch, pull_number):
     status = "complete" if not pending else "partial" if retargeted else "pending"
     return {"status":status, "base_branch":branch, "target_branch":target,
             "retargeted_prs":retargeted, "pending_prs":pending, "todo":todo if pending else ""}
+
+PR_URL = re.compile(r"^https://(?:github\.com/[^/\s]+/[^/\s]+|cursor\.com/codebase/[^/\s]+/[^/\s]+)/pull/(\d+)/?$")
+
+
+def _parse_pr_url(url):
+    match = PR_URL.match(url.strip()) if isinstance(url, str) else None
+    if not match:
+        raise ValueError("--pr-url must be a pull request URL: https://github.com/OWNER/REPO/pull/N "
+                         "or https://cursor.com/codebase/OWNER/REPO/pull/N")
+    return url.strip().rstrip("/"), int(match.group(1))
+
+
+def _link_pr_operation(tracking, url, force=False):
+    """BCL-184: the operation that records a PR link on a list started before its PR, or None if already linked."""
+    url, number = _parse_pr_url(url)
+    pull_request = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
+    current = pull_request.get("url")
+    if current == url:
+        return None
+    if current and not force:
+        raise ValueError(f"this list already links {current}; pass --force with --reason to relink it")
+    return {"action": "link-pull-request", "pull_request": {"label": f"PR #{number}", "url": url, "linked_at": _utc_now()}}
+
 
 def _new_pr_url(old_url, number, explicit):
     if explicit:
@@ -1047,6 +1070,7 @@ KNOWN_STAGES = frozenset((
     "install",
     "install-hooks",
     "install-local",
+    "link-pr",
     "introspect",
     "job",
     "merge",
@@ -1058,6 +1082,7 @@ KNOWN_STAGES = frozenset((
     "report",
     "resume",
     "report-step",
+    "repair-merged",
     "rollover",
     "snapshot",
     "start",
@@ -1092,6 +1117,7 @@ def main():
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--run-id"); parser.add_argument("--outcome", choices=("passed", "failed", "not_run"))
     parser.add_argument("--through-cycle", type=int)
+    parser.add_argument("--pr-url", help="link-pr or merged: the pull request URL of a list started before its PR existed")
     parser.add_argument("stage")
     argv = sys.argv[1:]
     job_command = []
@@ -1135,7 +1161,7 @@ def main():
         report.write_text(render.render(json.loads(live.read_text()), base))
     drafting_introspect = args.stage == "introspect" and args.draft is not None
     if (record and record.get("home") and not record.get("rollover_pending")
-            and args.stage not in ("stop-viewer", "merged", "snapshot", "release-check") and not drafting_introspect):
+            and args.stage not in ("stop-viewer", "merged", "repair-merged", "snapshot", "release-check") and not drafting_introspect):
         _ensure_viewer(parser, key, record, live, plugin_version, args.stage)
     if args.stage == "adopt":
         if not record: parser.error("could not register tracker")
@@ -1374,6 +1400,14 @@ def main():
                 args.reason = manage_findings.require_override_reason(args.reason, "merged")
             except ValueError as error:
                 parser.error(str(error))
+        link = None
+        if args.pr_url:
+            try:
+                link = _link_pr_operation(tracking, args.pr_url)
+            except ValueError as error:
+                parser.error(str(error))
+            if link:
+                tracking["pull_request"] = dict(link["pull_request"])
         url = tracking.get("pull_request", {}).get("url", "")
         repo = live_state.repo_id(record.get("home", ""), _provider(url)) if url else record.get("repo", "")
         try:
@@ -1389,7 +1423,8 @@ def main():
         if args.force:
             operation["override_reason"] = args.reason.strip()
             command.append("--force")
-        result = subprocess.run(command, input=json.dumps([operation]), text=True, capture_output=True)
+        operations = ([link] if link else []) + [operation]
+        result = subprocess.run(command, input=json.dumps(operations), text=True, capture_output=True)
         if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
         live_state.snapshot(record, live)
         try: live_state.stop_viewer(key, record)
@@ -1397,6 +1432,49 @@ def main():
         if stacked["status"] != "complete":
             print(f"TODO: {stacked['todo']}", file=sys.stderr)
         print(f"Marked {tracking.get('pull_request', {}).get('label', 'pull request')} Merged / Done ({commit[:12]} at {merged_at})")
+        return
+    if args.stage == "link-pr":
+        if not args.pr_url:
+            parser.error("link-pr requires --pr-url URL")
+        try:
+            if args.force:
+                args.reason = manage_findings.require_override_reason(args.reason, "link-pr")
+            link = _link_pr_operation(tracking, args.pr_url, force=args.force)
+        except ValueError as error:
+            parser.error(str(error))
+        if link:
+            report, base = live_state.report_paths(record, live)
+            command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(report), "--base", str(base)]
+            if args.force:
+                command += ["--force", "--reason", args.reason]
+            result = subprocess.run(command, input=json.dumps([link]), text=True, capture_output=True)
+            if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+        print(json.dumps({"pull_request": json.loads(live.read_text()).get("tracking", {}).get("pull_request"),
+                          "changed": bool(link)}))
+        return
+    if args.stage == "repair-merged":
+        # BCL-190: clear leftover running marks on an already-merged list. No retarget, no viewer, no snapshot.
+        current = json.loads(live.read_text())
+        current_tracking = current.get("tracking") if isinstance(current.get("tracking"), dict) else {}
+        if not isinstance(current_tracking.get("merged"), dict):
+            parser.error("repair-merged only repairs a list already recorded as merged")
+        groups = (current_tracking.get("plan") or {}).get("groups") or []
+        running = sum(1 for group in groups if isinstance(group, dict) and isinstance(group.get("install"), dict)
+                      and group["install"].get("status") == "running")
+        run = current_tracking.get("verification_run")
+        active = run.get("id") if isinstance(run, dict) and run.get("status") == "active" else None
+        if args.dry_run:
+            print(json.dumps({"install_running_cleared": running, "verification_run_closed": active, "dry_run": True}))
+            return
+        if running or active:
+            _, base = live_state.report_paths(record, live)
+            command = [sys.executable, str(MANAGE), "batch", str(live), "-", "--render", str(live.with_suffix(".html")),
+                       "--base", str(base)]
+            result = subprocess.run(command, input=json.dumps([{"action": "repair-merged"}]), text=True, capture_output=True)
+            if result.returncode: sys.stderr.write(result.stderr or result.stdout); raise SystemExit(result.returncode)
+            repair = json.loads(live.read_text())["tracking"]["repairs"][-1]
+            running, active = repair["install_running_cleared"], repair["verification_run_closed"]
+        print(json.dumps({"install_running_cleared": running, "verification_run_closed": active, "dry_run": False}))
         return
     if args.stage == "stop-viewer":
         try: stopped = live_state.stop_viewer(key, record)

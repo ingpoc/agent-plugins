@@ -3570,6 +3570,38 @@ def run(args, parser):
                     if isinstance(plan, dict):
                         plan["status"] = "closed"
                     continue
+                if action == "link-pull-request":
+                    # BCL-184: record the PR link of a list that was started before its PR existed.
+                    pull_request = operation.get("pull_request")
+                    if (not isinstance(pull_request, dict) or not isinstance(pull_request.get("url"), str)
+                            or not re.search(r"/pull/\d+$", pull_request["url"])
+                            or not isinstance(pull_request.get("label"), str) or not pull_request["label"].strip()):
+                        raise ValueError("link-pull-request requires a pull_request label and /pull/N url")
+                    tracking = store["document"].setdefault("tracking", {})
+                    current = tracking.get("pull_request") if isinstance(tracking.get("pull_request"), dict) else {}
+                    if current.get("url") and current["url"] != pull_request["url"] and not args.force:
+                        raise ValueError("this list already links another pull request; pass --force with --reason")
+                    tracking["pull_request"] = {**current, **{key: pull_request[key] for key in ("label", "url", "linked_at")
+                                                               if key in pull_request}}
+                    continue
+                if action == "repair-merged":
+                    # BCL-190: a list merged before BCL-189 keeps install.running and an active run; clear only those.
+                    tracking = store["document"].get("tracking") if isinstance(store["document"].get("tracking"), dict) else {}
+                    if not isinstance(tracking.get("merged"), dict):
+                        raise ValueError("repair-merged only repairs a list already recorded as merged")
+                    def _running_installs():
+                        return sum(1 for group in ((tracking.get("plan") or {}).get("groups") or [])
+                                   if isinstance(group, dict) and isinstance(group.get("install"), dict)
+                                   and group["install"].get("status") == "running")
+                    before = _running_installs()
+                    run = tracking.get("verification_run")
+                    active = run.get("id") if isinstance(run, dict) and run.get("status") == "active" else None
+                    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    clear_finished_running_state(store["document"], stamp, merged=True)
+                    tracking.setdefault("repairs", []).append({"at": stamp, "action": "repair-merged",
+                                                               "install_running_cleared": before - _running_installs(),
+                                                               "verification_run_closed": active})
+                    continue
                 if action in ("set-stage", "set-activity", "rollover"):
                     target = "report_rollover" if action == "rollover" else operation.get("stage")
                     tracking = store["document"].setdefault("tracking", {})
