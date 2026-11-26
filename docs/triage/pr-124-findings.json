@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-26T06:54:51Z",
-      "now": "2026-11-26T06:54:51Z — Plan recorded"
+      "stage": "review",
+      "updated_at": "2026-11-26T07:18:00Z",
+      "now": "2026-11-26T07:18:00Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T06:54:51Z",
+    "last_written_at": "2026-11-26T07:18:00Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -946,9 +946,15 @@
           "status": "verified",
           "reason": "Both are lane job records in the same code (bin/bcl job flow, manage_findings job transitions, check_install_sessions): failed-first/root-cause/fix-verified steps are not kept per lane, and review insists on a Codex implementer session. One lane avoids two writers on the same functions.",
           "worktree": "samantha-next-r14",
+          "depends_on": [],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
+            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
+            "status": "verified"
+          },
+          "phase": "verify",
           "codex": {
-            "fix_base_head": "2c09858fada99ba24a6b1e1d3ef28c061a869ba8",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "75cd3c1858954c46adeff15bd421da7e",
               "phase": "presuite",
@@ -980,7 +986,6 @@
               "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "f503acb38fcf4bab9d4885b8c985592a",
@@ -1240,19 +1245,39 @@
                 "finished_phase_status": "failed"
               }
             ],
+            "fix_status": "passed",
+            "review_status": "passed",
             "reviewer_model": "grok-bot-executor",
             "must_fix_note": "1. test_bcl.BclTests.test_report_step_after_double_dash_records_the_lane_trail_and_event fails whenever the suite runs inside a bcl job (presuite or fix job), so the pre-push suite would fail.",
-            "review_status": "passed"
+            "tool_fault_streak": 0
           },
-          "depends_on": [],
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
-            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2,
-            "finished_at": "2026-11-26T04:05:13Z"
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T03:32:26Z",
+              "result": "BCL_JOB_ID=abc python3 -m unittest test_bcl...test_report_step_after_double_dash_records_the_lane_trail_and_event fails: report-step refused (outer job id leaks in)",
+              "job_id": "4c1733d0c04b49659a169a985b0c453a",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T03:32:26Z",
+              "result": "test_bcl setUp copies os.environ into self.env and call_job_without_viewer re-applies self.env over the test BCL_JOB_ID patch",
+              "job_id": "4c1733d0c04b49659a169a985b0c453a",
+              "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T04:05:13Z",
+              "source": "verify",
+              "result": "verify: verify-jobrec.sh passed"
+            }
+          ],
+          "stage_entered_at": "2026-11-26T04:05:13Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-26T04:00:43Z"
           },
           "failure_history": [
             {
@@ -1286,36 +1311,6 @@
               "at": "2026-11-26T03:32:25Z"
             }
           ],
-          "updated_at": "2026-11-26T06:54:51Z",
-          "stage_entered_at": "2026-11-26T04:05:13Z",
-          "phase": "verify",
-          "trail": [
-            {
-              "step": "failed_first",
-              "at": "2026-11-26T03:32:26Z",
-              "result": "BCL_JOB_ID=abc python3 -m unittest test_bcl...test_report_step_after_double_dash_records_the_lane_trail_and_event fails: report-step refused (outer job id leaks in)",
-              "job_id": "4c1733d0c04b49659a169a985b0c453a",
-              "phase": "fix"
-            },
-            {
-              "step": "root_cause",
-              "at": "2026-11-26T03:32:26Z",
-              "result": "test_bcl setUp copies os.environ into self.env and call_job_without_viewer re-applies self.env over the test BCL_JOB_ID patch",
-              "job_id": "4c1733d0c04b49659a169a985b0c453a",
-              "phase": "fix"
-            },
-            {
-              "step": "fix_verified",
-              "at": "2026-11-26T04:05:13Z",
-              "source": "verify",
-              "result": "verify: verify-jobrec.sh passed"
-            }
-          ],
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-26T04:00:43Z"
-          },
           "install": {
             "status": "complete",
             "started_at": "2026-11-26T04:01:23Z",
@@ -1325,7 +1320,8 @@
             "stage": "verify",
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:05:11Z"
-          }
+          },
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R1-MERGED",
@@ -1336,9 +1332,15 @@
           "status": "verified",
           "reason": "Both are merged-list lifecycle in bin/bcl merged: a list started before its PR cannot record its merge (BCL-184), and an already-merged list cannot clear leftover install.running and active verification runs (BCL-190). Same code path, one lane, no dependency on other lanes.",
           "worktree": "samantha-next-r14",
+          "depends_on": [],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
+            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
+            "status": "verified"
+          },
+          "phase": "verify",
           "codex": {
-            "fix_base_head": "559767a280495c8447e37bd4942b8a3fe4ab3ab7",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "75cd3c1858954c46adeff15bd421da7e",
               "phase": "presuite",
@@ -1370,7 +1372,6 @@
               "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "942e0a13873f417dac099f87ccf28ec8",
@@ -1503,36 +1504,11 @@
                 "finished_phase_status": "failed"
               }
             ],
+            "fix_status": "passed",
             "review_status": "passed",
-            "reviewer_model": "grok-bot-executor"
+            "reviewer_model": "grok-bot-executor",
+            "tool_fault_streak": 0
           },
-          "depends_on": [],
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
-            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "verified",
-            "fixed": 2,
-            "failed": 0,
-            "total": 2,
-            "finished_at": "2026-11-26T04:08:38Z"
-          },
-          "stage_entered_at": "2026-11-26T04:08:38Z",
-          "failure_history": [
-            {
-              "attempt_id": "942e0a13873f417dac099f87ccf28ec8",
-              "source": "fix",
-              "reason": "Fix job exited 1",
-              "cycle": 16,
-              "round": 1,
-              "at": "2026-11-26T03:08:51Z",
-              "tool_fault": true,
-              "fault_kind": "fix_job_exit",
-              "tool_fault_reason": "failed fix job, not a review finding"
-            }
-          ],
-          "plan_review_history": [],
-          "updated_at": "2026-11-26T06:54:51Z",
-          "phase": "verify",
           "trail": [
             {
               "step": "failed_first",
@@ -1555,20 +1531,30 @@
               "result": "verify: verify-merged.sh passed"
             }
           ],
+          "stage_entered_at": "2026-11-26T04:08:38Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-26T04:00:43Z"
           },
+          "failure_history": [
+            {
+              "attempt_id": "942e0a13873f417dac099f87ccf28ec8",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:08:51Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
+            }
+          ],
+          "plan_review_history": [],
           "install": {
             "status": "complete",
             "started_at": "2026-11-26T04:01:23Z",
             "finished_at": "2026-11-26T04:08:38Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "grok-bot-executor",
-            "at": "2026-11-26T04:05:29Z"
           },
           "verify_reruns": [
             {
@@ -1577,7 +1563,13 @@
               "at": "2026-11-26T04:05:29Z",
               "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
             }
-          ]
+          ],
+          "stage_model": {
+            "stage": "verify",
+            "model": "grok-bot-executor",
+            "at": "2026-11-26T04:05:29Z"
+          },
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R1-REGISTRY",
@@ -1587,9 +1579,15 @@
           "status": "verified",
           "reason": "Registry updates can overwrite each other when two change-list commands run at once.",
           "worktree": "samantha-next-r14",
+          "depends_on": [],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
+            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
+            "status": "verified"
+          },
+          "phase": "verify",
           "codex": {
-            "fix_base_head": "112777a83b090fc79ad87d2b94322506d62ca421",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "75cd3c1858954c46adeff15bd421da7e",
               "phase": "presuite",
@@ -1621,7 +1619,6 @@
               "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "306a3d6bde884cbb964c1053fd3dd2fc",
@@ -1921,55 +1918,12 @@
                 "finished_phase_status": "passed"
               }
             ],
+            "fix_status": "passed",
+            "review_status": "passed",
             "reviewer_model": "grok-bot-executor",
             "must_fix_note": "- [live_state.py:365](/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r14/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:365) creates the adopted live file before entering the registry transaction, but does not remove it if `_project_port()` or `update_registry()` fails. The command then leaves an unregistered file, and retry fails with “adoption destination already exists.” Clean up the file on failure, as `register_rollover` does.\n- The concurrency tests use sleeps without synchronizing the two processes. They can pass if the processes run sequentially, so they do not reliably prove that simultaneous updates survive. Add synchronization that establishes contention and exercise the registry-writing callers.",
-            "review_status": "passed"
+            "tool_fault_streak": 0
           },
-          "depends_on": [],
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
-            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-26T04:01:53Z"
-          },
-          "stage_entered_at": "2026-11-26T04:01:53Z",
-          "failure_history": [
-            {
-              "attempt_id": "306a3d6bde884cbb964c1053fd3dd2fc",
-              "source": "fix",
-              "reason": "Fix job exited 1",
-              "cycle": 16,
-              "round": 1,
-              "at": "2026-11-26T03:08:53Z",
-              "tool_fault": true,
-              "fault_kind": "fix_job_exit",
-              "tool_fault_reason": "failed fix job, not a review finding"
-            },
-            {
-              "attempt_id": "167ef112de534f5282ac475d8fc4a9b4",
-              "source": "review",
-              "reason": "- [live_state.py:365](/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r14/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:365) creates the adopted live file before entering the registry transaction, but does not remove it if `_project_port()` or `update_registry()` fails. The command then leaves an unregistered file, and retry fails with “adoption destination already exists.” Clean up the file on failure, as `register_rollover` does.\n- The concurrency tests use sleeps without synchronizing the two processes. They can pass if the processes run sequentially, so they do not reliably prove that simultaneous updates survive. Add synchronization that establishes contention and exercise the registry-writing callers.",
-              "cycle": 16,
-              "round": 1,
-              "at": "2026-11-26T03:44:26Z",
-              "plan_answered": true
-            }
-          ],
-          "plan_review_history": [
-            {
-              "job_id": "b8b1db685dc949c784996affa4a09a22",
-              "after_failure": "167ef112de534f5282ac475d8fc4a9b4",
-              "status": "passed",
-              "cycle": 16,
-              "round": 1,
-              "at": "2026-11-26T03:49:41Z"
-            }
-          ],
-          "updated_at": "2026-11-26T06:54:51Z",
-          "phase": "verify",
           "trail": [
             {
               "step": "failed_first",
@@ -2020,11 +1974,44 @@
               "result": "verify: verify-registry.sh passed"
             }
           ],
+          "stage_entered_at": "2026-11-26T04:01:53Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-26T04:00:43Z"
           },
+          "failure_history": [
+            {
+              "attempt_id": "306a3d6bde884cbb964c1053fd3dd2fc",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:08:53Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
+            },
+            {
+              "attempt_id": "167ef112de534f5282ac475d8fc4a9b4",
+              "source": "review",
+              "reason": "- [live_state.py:365](/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r14/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:365) creates the adopted live file before entering the registry transaction, but does not remove it if `_project_port()` or `update_registry()` fails. The command then leaves an unregistered file, and retry fails with “adoption destination already exists.” Clean up the file on failure, as `register_rollover` does.\n- The concurrency tests use sleeps without synchronizing the two processes. They can pass if the processes run sequentially, so they do not reliably prove that simultaneous updates survive. Add synchronization that establishes contention and exercise the registry-writing callers.",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:44:26Z",
+              "plan_answered": true
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "b8b1db685dc949c784996affa4a09a22",
+              "after_failure": "167ef112de534f5282ac475d8fc4a9b4",
+              "status": "passed",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:49:41Z"
+            }
+          ],
           "install": {
             "status": "complete",
             "started_at": "2026-11-26T04:01:23Z",
@@ -2034,7 +2021,8 @@
             "stage": "verify",
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:01:38Z"
-          }
+          },
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R2-DO1",
@@ -2042,9 +2030,18 @@
             "DO-1"
           ],
           "reason": "Guru asked to start DO-1 on 26 Nov 2026 08:22 IST. The NUL-delimited path fix (fb07a2ca) is on main; the lane needs review, presuite and live verify.",
+          "status": "verified",
+          "worktree": "samantha-next-r14",
+          "depends_on": [],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
+            "status": "verified"
+          },
+          "parked_to": 2,
+          "phase": "verify",
           "codex": {
-            "fix_base_head": "bee7ef071e1afcbcbe5713d328b6c7329e29807f",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "75cd3c1858954c46adeff15bd421da7e",
               "phase": "presuite",
@@ -2076,7 +2073,6 @@
               "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "d4f54a42e34a477c86ba1a60de831c49",
@@ -2189,23 +2185,25 @@
                 "finished_phase_status": "failed"
               }
             ],
+            "fix_status": "passed",
             "review_status": "passed",
-            "reviewer_model": "grok-bot-executor"
+            "reviewer_model": "grok-bot-executor",
+            "tool_fault_streak": 0
           },
-          "status": "verified",
-          "worktree": "samantha-next-r14",
-          "depends_on": [],
-          "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
-            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-26T04:01:37Z"
-          },
-          "parked_to": 2,
+          "trail": [
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T04:01:37Z",
+              "source": "verify",
+              "result": "verify: verify-do1.sh passed"
+            }
+          ],
           "stage_entered_at": "2026-11-26T04:01:37Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-26T04:00:43Z"
+          },
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -2279,13 +2277,6 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-26T06:54:51Z",
-          "phase": "verify",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-26T04:00:43Z"
-          },
           "install": {
             "status": "complete",
             "started_at": "2026-11-26T04:01:23Z",
@@ -2296,20 +2287,14 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:01:31Z"
           },
-          "trail": [
-            {
-              "step": "fix_verified",
-              "at": "2026-11-26T04:01:37Z",
-              "source": "verify",
-              "result": "verify: verify-do1.sh passed"
-            }
-          ]
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R1-BACKLOG",
           "finding_ids": [
             "PR122-parked-backlog"
           ],
+          "status": "parked",
           "reason": "Parked backlog of review nits and process ideas stays parked.",
           "parked_to": 2,
           "verify": {
@@ -2318,11 +2303,10 @@
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
+          "stage_entered_at": "2026-11-25T16:19:42Z",
           "failure_history": [],
           "plan_review_history": [],
-          "status": "parked",
-          "stage_entered_at": "2026-11-25T16:19:42Z",
-          "updated_at": "2026-11-26T06:54:51Z"
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R1-VIEWER",
@@ -2338,14 +2322,11 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
             "method": "Named unit tests plus the installed live_state judging a reused-pid stale viewer file in a temp state folder",
             "summary": "Reused-pid stale viewer file is not counted live",
-            "status": "verified",
-            "fixed": 1,
-            "failed": 0,
-            "total": 1,
-            "finished_at": "2026-11-26T06:45:00Z"
+            "status": "verified"
           },
+          "parked_to": 2,
           "codex": {
-            "fix_base_head": "d33125982418ad06340de308425bef93657c86ac",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "244120d0da4a4b298d2ab05b97678596",
               "phase": "presuite",
@@ -2530,15 +2511,10 @@
               }
             ],
             "fix_status": "passed",
+            "review_status": "passed",
             "reviewer_model": "grok-bot-executor",
-            "tool_fault_streak": 0,
-            "review_status": "passed"
+            "tool_fault_streak": 0
           },
-          "parked_to": 2,
-          "stage_entered_at": "2026-11-26T06:45:00Z",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-26T06:54:51Z",
           "trail": [
             {
               "step": "failed_first",
@@ -2561,20 +2537,18 @@
               "result": "verify: verify-r4-viewer.sh passed"
             }
           ],
+          "stage_entered_at": "2026-11-26T06:45:00Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-26T06:40:39Z"
           },
+          "failure_history": [],
+          "plan_review_history": [],
           "install": {
             "status": "complete",
             "started_at": "2026-11-26T06:41:58Z",
             "finished_at": "2026-11-26T06:45:00Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "grok-bot-executor",
-            "at": "2026-11-26T06:44:44Z"
           },
           "verify_reruns": [
             {
@@ -2583,13 +2557,21 @@
               "at": "2026-11-26T06:44:44Z",
               "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
             }
-          ]
+          ],
+          "stage_model": {
+            "stage": "verify",
+            "model": "grok-bot-executor",
+            "at": "2026-11-26T06:44:44Z"
+          },
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R2-RACE",
           "finding_ids": [
             "BCL-191"
           ],
+          "status": "parked",
+          "phase": "fix",
           "depends_on": [],
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
           "worktree": "bcl124-r4-race",
@@ -2604,6 +2586,7 @@
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
+          "stage_entered_at": "2026-11-26T06:55:01Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -2635,16 +2618,15 @@
             }
           ],
           "failure_block_reason": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers.",
-          "status": "blocked",
-          "phase": "fix",
-          "stage_entered_at": "2026-11-26T06:54:51Z",
-          "updated_at": "2026-11-26T06:54:51Z"
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R2-PLANHEAD",
           "finding_ids": [
             "BCL-192"
           ],
+          "status": "parked",
+          "phase": "fix",
           "depends_on": [],
           "reason": "Visibility and status wording in render.py plan head and the change-list.html template; no file shared with R2-VIEWER.",
           "worktree": "bcl124-r4-planhead",
@@ -2659,6 +2641,7 @@
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
+          "stage_entered_at": "2026-11-26T06:55:01Z",
           "failure_history": [
             {
               "attempt_id": "ef5c5024f4124b5385fc004d515bc76d",
@@ -2690,10 +2673,7 @@
             }
           ],
           "failure_block_reason": "1. **The navigation buttons can still render below 16px.** In [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:185), `font: 600 1rem/1.3 inherit` is invalid: `inherit` cannot be used as a font family inside that shorthand. The browser discards the declaration, leaving the buttons subject to the browser’s smaller default control font. Set a valid inherited or explicit font and verify computed sizes.\n\n2. **The head does not consistently count settled lanes.** [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:604) defines open lanes using `closed`, while the workflow definition separately classifies blocked and failed lanes as settled. Thus a blocked lane is reported as open and receives “each installs and verifies when ready,” despite the round-close copy saying blocked lanes can close the round. Use consistent state semantics and report open and settled counts for mixed states too.",
-          "status": "blocked",
-          "phase": "fix",
-          "stage_entered_at": "2026-11-26T06:54:51Z",
-          "updated_at": "2026-11-26T06:54:51Z"
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R2-LABEL",
@@ -2717,37 +2697,74 @@
           "stage_entered_at": "2026-11-26T06:45:35Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:54:51Z"
+          "updated_at": "2026-11-26T06:57:57Z"
         },
         {
           "id": "R2-CL-CAPTURE",
           "finding_ids": [
             "CL-2"
           ],
+          "status": "review",
           "depends_on": [],
           "reason": "Guru approved a context-ledger reinstall (12:22 PM IST). Lookup log gains ledger version and tokens not reported on find/get/save; additive migration.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl2.sh",
             "method": "Named tests plus a real installed ledger find, then read its lookup row",
             "summary": "Lookup row has version and tokens not reported",
-            "status": "pending"
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "worktree": "bcl124-r5-ledger",
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+            "fix_base_head": "c42f2964af9e90e7b9cb89846873f0bd493899e2",
+            "fix_status": "passed",
+            "job": {
+              "id": "431008d789a646d282468043f13cad21",
+              "phase": "fix",
+              "started_at": "2026-11-26T06:59:55Z",
+              "command": "codex",
+              "heartbeat_at": "2026-11-26T07:05:56Z",
+              "plan_sha256": "121eac6deb4ae885098ca45ec9476321b7fd7c9be30ba0a50aedd324abf4907d",
+              "finding_ids": [
+                "CL-2"
+              ],
+              "worktree": "bcl124-r5-ledger",
+              "model": "gpt-6-luna",
+              "lane_sha256": "d460f9d733ec8d119cebc754c9794fd1609c55f86e5e7429735c590ff3eff313",
+              "cycle": 16,
+              "round": 3,
+              "pid": 85923,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T07:05:56Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/431008d789a646d282468043f13cad21.log",
+              "output_retained": true,
+              "commit": "c42f2964af9e90e7b9cb89846873f0bd493899e2",
+              "tokens_source": "official",
+              "tokens": {
+                "total": 3287908,
+                "output": 12569
+              },
+              "wall_time_s": 361,
+              "session": "rollout-2026-11-26T12-29-56-01a216a7-5852-76c2-81e9-8269b8507f26.jsonl",
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0
           },
           "parked_to": 3,
+          "stage_entered_at": "2026-11-26T07:05:56Z",
           "failure_history": [],
           "plan_review_history": [],
-          "status": "planned",
-          "updated_at": "2026-11-26T06:54:51Z",
-          "stage_entered_at": "2026-11-26T06:54:51Z"
+          "updated_at": "2026-11-26T06:57:57Z",
+          "phase": "review"
         },
         {
           "id": "R2-CL-VIEW",
           "finding_ids": [
             "CL-3"
           ],
+          "status": "planned",
           "depends_on": [
             "R2-CL-CAPTURE"
           ],
@@ -2763,11 +2780,89 @@
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
           "parked_to": 3,
+          "stage_entered_at": "2026-11-26T06:54:51Z",
           "failure_history": [],
           "plan_review_history": [],
-          "status": "planned",
-          "updated_at": "2026-11-26T06:54:51Z",
-          "stage_entered_at": "2026-11-26T06:54:51Z"
+          "updated_at": "2026-11-26T06:57:57Z"
+        },
+        {
+          "id": "R3-UNPARK",
+          "finding_ids": [
+            "BCL-194"
+          ],
+          "status": "review",
+          "phase": "review",
+          "depends_on": [],
+          "worktree": "bcl124-r5-unpark",
+          "reason": "Owner unblock must reopen a lane parked after blocking; needed before BCL-191 and BCL-192 can retry.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-unpark.sh",
+            "method": "Named tests plus installed bcl unblock on a throwaway copy of the live list",
+            "summary": "Parked blocked lane reopens with owner unblock",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "fix_base_head": "672ce658e81b711168ba8fef3ae44ceafd82688c",
+            "fix_status": "passed",
+            "job": {
+              "id": "5c8a2423313c400ab886af8ea4c7f5c0",
+              "phase": "review",
+              "started_at": "2026-11-26T07:18:00Z",
+              "command": "codex",
+              "heartbeat_at": "2026-11-26T07:18:00Z",
+              "plan_sha256": "6a2bc1da6b0715fe67baabbbbb8d77160fd250d3571b0104b18c6dabdb1fa520",
+              "finding_ids": [
+                "BCL-194"
+              ],
+              "worktree": "bcl124-r5-unpark",
+              "model": "gpt-6.1-terra",
+              "lane_sha256": "fa8a8ef0fbbf9f0dce7fc56c1c1d3b8874afe105ce2edf8986bf2c0a8eb6a4f4",
+              "cycle": 16,
+              "round": 3
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "a28a26268b7940cc9583b414700f593d",
+                "phase": "fix",
+                "started_at": "2026-11-26T06:59:35Z",
+                "command": "codex",
+                "heartbeat_at": "2026-11-26T07:06:27Z",
+                "plan_sha256": "121eac6deb4ae885098ca45ec9476321b7fd7c9be30ba0a50aedd324abf4907d",
+                "finding_ids": [
+                  "BCL-194"
+                ],
+                "worktree": "bcl124-r5-unpark",
+                "model": "gpt-6-luna",
+                "lane_sha256": "91d233bd44658fe5403c0bbc3f72eae74fbc3f46894e59b3fb148c7aa70a1f0e",
+                "cycle": 16,
+                "round": 3,
+                "pid": 84240,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T07:06:27Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/a28a26268b7940cc9583b414700f593d.log",
+                "output_retained": true,
+                "commit": "672ce658e81b711168ba8fef3ae44ceafd82688c",
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 3343816,
+                  "output": 9028
+                },
+                "wall_time_s": 412,
+                "session": "rollout-2026-11-26T12-29-36-01a216a7-0bbf-76c0-a255-7406689e2a43.jsonl",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "gpt-6.1-terra"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-26T06:57:57Z",
+          "stage_entered_at": "2026-11-26T07:06:27Z"
         }
       ],
       "cycle": 16
@@ -3430,6 +3525,31 @@
           "source": "tracker_update"
         }
       ]
+    },
+    {
+      "id": "BCL-194",
+      "title": "A blocked lane moved to parked can never be reopened, even with the owner unblock",
+      "summary": "After a lane blocks on two review failures and is parked with a reason, bcl unblock refuses it (it is not blocked) and moving it back to planned re-blocks it, which parked lanes may not become.",
+      "impact": "An owner approval to retry a parked lane cannot be carried out with bcl, so approved work stalls or tempts a hand edit of the tracker.",
+      "done_when": "bcl unblock with a reason reopens a lane that was parked after blocking, records the unblock and lets its next fix start; a plain parked lane with no counted failures is still refused; tests cover both.",
+      "recommendation": "Let unblock accept a parked lane whose counted failures are not yet covered and return it to planned in the fix phase, clearing the park fields.",
+      "observed": "26 Nov 2026 12:26 IST on #124: bcl unblock --ids BCL-191 says unblock requires blocked lane R2-RACE; update-plan-group to planned says cannot move from parked to blocked; a batch with unblock says cannot move from parked to running. The skill says a parked blocked lane stays blocked until bcl unblock.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "batched-change-list",
+      "details": {
+        "kind": "bug",
+        "regression_against_main": "no"
+      },
+      "created_at": "2026-11-26T06:57:54Z",
+      "first_seen": {
+        "at": "2026-11-26T06:57:54Z",
+        "pr": null,
+        "round": 3,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
