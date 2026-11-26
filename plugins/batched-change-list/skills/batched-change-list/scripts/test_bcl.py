@@ -60,8 +60,9 @@ class BclTests(unittest.TestCase):
         plan["groups"][0]["codex"]["job"] = {"id": "job-trail", "phase": "review", "cycle": 1, "round": 1, "started_at": bcl_entrypoint._utc_now(),
                                              "plan_sha256": bcl_entrypoint.manage_findings.plan_candidate_sha256(plan)}
         live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
-        with patch.dict(os.environ, {"BCL_JOB_ID": "job-trail"}):
-            step = self.call_job_without_viewer(live, "report-step", "--", "root_cause", "argv split dropped the step")
+        # The suite itself may run inside a bcl job (presuite); the step must name this fixture job.
+        self.env = {**self.env, "BCL_JOB_ID": "job-trail"}
+        step = self.call_job_without_viewer(live, "report-step", "--", "root_cause", "argv split dropped the step")
         self.assertEqual(step.returncode, 0, step.stdout + step.stderr)
         trail = json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["trail"]
         self.assertEqual([(row["step"], row["result"], row["job_id"]) for row in trail],
