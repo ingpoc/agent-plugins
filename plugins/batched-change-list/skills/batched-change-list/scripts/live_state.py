@@ -368,7 +368,11 @@ def locate(path, adopt=False, render_path=None):
             current[key] = {"live": str(live), "snapshot": str(path.relative_to(root)),
                             "html": str(html_path.relative_to(root)), "home": str(root), "repo": repo, "id": ident,
                             "viewer_port": _project_port(repo, current)}
-        update_registry(adopt_record)
+        try:
+            update_registry(adopt_record)
+        except BaseException:
+            live.unlink(missing_ok=True)
+            raise
         records = registry()
     record = records.get(key)
     if not record: return key, None, None

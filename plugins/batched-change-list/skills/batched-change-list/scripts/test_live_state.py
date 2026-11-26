@@ -496,28 +496,41 @@ class LiveStateGuardTests(unittest.TestCase):
 class RegistryConcurrencyTests(unittest.TestCase):
     """BCL-186: concurrent registry updates must never lose a change."""
 
-    def _add_key_process(self, state, key, sleep=0.3):
+    def _add_key_process(self, state, key, hold_until=None):
+        """Add KEY under the registry lock; with HOLD_UNTIL, stay inside the lock until that file exists."""
+        ready = state.parent / f"{key.replace('/', '-')}.ready"
         helper = "\n".join((
             "import sys, time",
+            "from pathlib import Path",
             "sys.path.insert(0, sys.argv[1])",
             "import live_state",
             "def add(records):",
-            "    time.sleep(float(sys.argv[3]))",
+            "    if sys.argv[3]:",
+            "        deadline = time.monotonic() + 20",
+            "        while not Path(sys.argv[3]).exists() and time.monotonic() < deadline:",
+            "            time.sleep(0.01)",
+            "        time.sleep(0.3)",
             "    records[sys.argv[2]] = {'live': sys.argv[2]}",
+            "Path(sys.argv[4]).touch()",
             "live_state.update_registry(add)",
         ))
         env = {**os.environ, "BCL_STATE_DIR": str(state)}
-        return subprocess.Popen([sys.executable, "-c", helper, str(Path(__file__).resolve().parent),
-                                 key, str(sleep)], env=env, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen([sys.executable, "-c", helper, str(Path(__file__).resolve().parent),
+                                    key, str(hold_until or ""), str(ready)], env=env, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, text=True)
+        return process, ready
 
     def test_two_processes_keep_both_added_keys(self):
         with tempfile.TemporaryDirectory() as temp:
             state = Path(temp) / "state"
-            processes = [self._add_key_process(state, "owner/project/one"),
-                         self._add_key_process(state, "owner/project/two")]
-            for process in processes:
-                out, err = process.communicate(timeout=30)
+            state.mkdir()
+            second_ready = Path(temp) / "owner-project-two.ready"
+            # The first writer stays inside its update until the second has started its own update,
+            # so the two read-modify-writes overlap in time.
+            first, _ = self._add_key_process(state, "owner/project/one", hold_until=second_ready)
+            second, _ = self._add_key_process(state, "owner/project/two")
+            for process in (first, second):
+                out, err = process.communicate(timeout=60)
                 self.assertEqual(process.returncode, 0, err or out)
             saved = json.loads((state / "registry.json").read_text())
             self.assertEqual(set(saved), {"owner/project/one", "owner/project/two"})
@@ -528,19 +541,42 @@ class RegistryConcurrencyTests(unittest.TestCase):
             state.mkdir(parents=True)
             record = {"live": str(state / "a.json"), "rollover_pending": True}
             (state / "registry.json").write_text(json.dumps({"owner/project/A": record}))
-            process = self._add_key_process(state, "owner/project/B")
+            process, ready = self._add_key_process(state, "owner/project/B")
 
             def clear(records):
+                deadline = time.monotonic() + 20
+                while not ready.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertTrue(ready.exists(), "the concurrent writer never started")
                 time.sleep(0.3)
                 records["owner/project/A"].pop("rollover_pending", None)
 
             with patch.object(live_state, "STATE", state):
                 live_state.update_registry(clear)
-            out, err = process.communicate(timeout=30)
+            out, err = process.communicate(timeout=60)
             self.assertEqual(process.returncode, 0, err or out)
             saved = json.loads((state / "registry.json").read_text())
             self.assertIn("owner/project/B", saved)
             self.assertNotIn("rollover_pending", saved["owner/project/A"])
+
+    def test_failed_adoption_leaves_no_live_file_and_can_be_retried(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "repo"; root.mkdir()
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            tracker = root / "findings.json"
+            tracker.write_text((Path(__file__).resolve().parents[1] / "examples/findings.json").read_text())
+            state = Path(temp) / "state"
+            with patch.object(live_state, "STATE", state), \
+                    patch.object(live_state, "_project_port", side_effect=RuntimeError("no port")):
+                with self.assertRaises(RuntimeError):
+                    live_state.locate(tracker, adopt=True)
+                self.assertEqual([p for p in state.rglob("*.json") if p.name != "registry.json"], [])
+                self.assertEqual(live_state.registry(), {})
+            with patch.object(live_state, "STATE", state), \
+                    patch.object(live_state, "_project_port", return_value=58999):
+                key, record, live = live_state.locate(tracker, adopt=True)
+                self.assertTrue(live.exists())
+                self.assertEqual(live_state.registry()[key]["viewer_port"], 58999)
 
     def test_only_update_registry_calls_save_registry(self):
         import ast
