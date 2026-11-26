@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-26T08:16:43Z",
-      "now": "2026-11-26T08:16:43Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-26T08:46:24Z",
+      "now": "2026-11-26T08:46:24Z — Fix started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T08:16:43Z",
+    "last_written_at": "2026-11-26T08:46:24Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -946,15 +946,15 @@
             "BCL-181"
           ],
           "status": "verified",
+          "phase": "verify",
           "reason": "Both are lane job records in the same code (bin/bcl job flow, manage_findings job transitions, check_install_sessions): failed-first/root-cause/fix-verified steps are not kept per lane, and review insists on a Codex implementer session. One lane avoids two writers on the same functions.",
-          "worktree": "samantha-next-r14",
-          "depends_on": [],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
             "status": "verified"
           },
-          "phase": "verify",
+          "worktree": "samantha-next-r14",
+          "depends_on": [],
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
@@ -1323,7 +1323,7 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:05:11Z"
           },
-          "updated_at": "2026-11-26T06:57:57Z"
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R1-MERGED",
@@ -1332,15 +1332,15 @@
             "BCL-190"
           ],
           "status": "verified",
+          "phase": "verify",
           "reason": "Both are merged-list lifecycle in bin/bcl merged: a list started before its PR cannot record its merge (BCL-184), and an already-merged list cannot clear leftover install.running and active verification runs (BCL-190). Same code path, one lane, no dependency on other lanes.",
-          "worktree": "samantha-next-r14",
-          "depends_on": [],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
             "status": "verified"
           },
-          "phase": "verify",
+          "worktree": "samantha-next-r14",
+          "depends_on": [],
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
@@ -1571,7 +1571,7 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:05:29Z"
           },
-          "updated_at": "2026-11-26T06:57:57Z"
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R1-REGISTRY",
@@ -1579,15 +1579,15 @@
             "BCL-186"
           ],
           "status": "verified",
+          "phase": "verify",
           "reason": "Registry updates can overwrite each other when two change-list commands run at once.",
-          "worktree": "samantha-next-r14",
-          "depends_on": [],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
             "status": "verified"
           },
-          "phase": "verify",
+          "worktree": "samantha-next-r14",
+          "depends_on": [],
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
@@ -2024,24 +2024,24 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:01:38Z"
           },
-          "updated_at": "2026-11-26T06:57:57Z"
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R2-DO1",
           "finding_ids": [
             "DO-1"
           ],
-          "reason": "Guru asked to start DO-1 on 26 Nov 2026 08:22 IST. The NUL-delimited path fix (fb07a2ca) is on main; the lane needs review, presuite and live verify.",
           "status": "verified",
-          "worktree": "samantha-next-r14",
-          "depends_on": [],
+          "phase": "verify",
+          "reason": "Guru asked to start DO-1 on 26 Nov 2026 08:22 IST. The NUL-delimited path fix (fb07a2ca) is on main; the lane needs review, presuite and live verify.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
             "status": "verified"
           },
+          "worktree": "samantha-next-r14",
+          "depends_on": [],
           "parked_to": 2,
-          "phase": "verify",
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
@@ -2289,7 +2289,7 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:01:31Z"
           },
-          "updated_at": "2026-11-26T06:57:57Z"
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R1-BACKLOG",
@@ -2298,17 +2298,20 @@
           ],
           "status": "parked",
           "reason": "Parked backlog of review nits and process ideas stays parked.",
-          "parked_to": 2,
           "verify": {
-            "status": "pending"
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
+          "parked_to": 2,
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
           "stage_entered_at": "2026-11-25T16:19:42Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:57:57Z"
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R1-VIEWER",
@@ -2317,15 +2320,15 @@
           ],
           "status": "verified",
           "phase": "verify",
-          "depends_on": [],
           "reason": "Status accuracy: _state_is_live trusts a pid alone, so a reused pid makes a dead per-list viewer file look running and reserve its port. Count a viewer live only when its health check answers with its recorded identity; ignore (do not delete) dead per-list files, so #112 state is untouched.",
-          "worktree": "samantha-next-r14",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
             "method": "Named unit tests plus the installed live_state judging a reused-pid stale viewer file in a temp state folder",
             "summary": "Reused-pid stale viewer file is not counted live",
             "status": "verified"
           },
+          "worktree": "samantha-next-r14",
+          "depends_on": [],
           "parked_to": 2,
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
@@ -2565,18 +2568,16 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T06:44:44Z"
           },
-          "updated_at": "2026-11-26T06:57:57Z"
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R2-RACE",
           "finding_ids": [
             "BCL-191"
           ],
-          "status": "running",
-          "phase": "fix",
-          "depends_on": [],
+          "status": "review",
+          "phase": "review",
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
-          "worktree": "bcl124-r4-race",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh",
             "method": "Named unit tests plus 6 concurrent installed bcl status runs under CPU load against the live viewer 58771",
@@ -2586,16 +2587,17 @@
             "failed": 0,
             "total": 1
           },
+          "worktree": "bcl124-r4-race",
+          "depends_on": [],
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
-            "fix_status": "running",
             "job": {
-              "id": "f1d83c39430a4625b831cac6a2851f3f",
-              "phase": "fix",
-              "started_at": "2026-11-26T08:02:52Z",
+              "id": "cc0a6e99add04f73bef2a8b7ff0cba2b",
+              "phase": "review",
+              "started_at": "2026-11-26T08:46:05Z",
               "command": "codex",
-              "heartbeat_at": "2026-11-26T08:15:58Z",
-              "plan_sha256": "69b51096ee0fc90b3fb61b4415bae0e738da5daac910edc8da1addf42359ac95",
+              "heartbeat_at": "2026-11-26T08:46:05Z",
+              "plan_sha256": "c1c7a3915872f606c7dfc3b0dc9ba16eccc955e4857b5962e7dd1978e752f6e5",
               "finding_ids": [
                 "BCL-191"
               ],
@@ -2604,10 +2606,46 @@
               "lane_sha256": "8a9d5eb5375f931aa195a25beb4090edbae3f534fc5716f6bfb281b54d983cd5",
               "cycle": 16,
               "round": 3,
-              "pid": 70784
-            }
+              "pid": 42686
+            },
+            "fix_status": "passed",
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "f1d83c39430a4625b831cac6a2851f3f",
+                "phase": "fix",
+                "started_at": "2026-11-26T08:02:52Z",
+                "command": "codex",
+                "heartbeat_at": "2026-11-26T08:41:57Z",
+                "plan_sha256": "69b51096ee0fc90b3fb61b4415bae0e738da5daac910edc8da1addf42359ac95",
+                "finding_ids": [
+                  "BCL-191"
+                ],
+                "worktree": "bcl124-r4-race",
+                "model": "gpt-6-luna",
+                "lane_sha256": "8a9d5eb5375f931aa195a25beb4090edbae3f534fc5716f6bfb281b54d983cd5",
+                "cycle": 16,
+                "round": 3,
+                "pid": 70784,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T08:41:57Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/f1d83c39430a4625b831cac6a2851f3f.log",
+                "output_retained": true,
+                "commit": "91aa0fa6620b7bd535745b358c1b8c5ba154497e",
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 11609087,
+                  "output": 93120
+                },
+                "wall_time_s": 2345,
+                "session": "rollout-2026-11-26T13-32-53-01a216e0-fc2f-7370-99d4-4ca1dd2cdafd.jsonl",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "gpt-6-luna"
           },
-          "stage_entered_at": "2026-11-26T08:02:52Z",
+          "stage_entered_at": "2026-11-26T08:41:57Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -2638,7 +2676,6 @@
               "at": "2026-11-26T06:23:52Z"
             }
           ],
-          "updated_at": "2026-11-26T06:57:57Z",
           "unblock_history": [
             {
               "at": "2026-11-26T07:59:27Z",
@@ -2653,18 +2690,17 @@
               "round": 3,
               "owner_override": true
             }
-          ]
+          ],
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R2-PLANHEAD",
           "finding_ids": [
             "BCL-192"
           ],
-          "status": "review",
-          "phase": "review",
-          "depends_on": [],
+          "status": "blocked",
+          "phase": "fix",
           "reason": "Visibility and status wording in render.py plan head and the change-list.html template; no file shared with R2-VIEWER.",
-          "worktree": "bcl124-r4-planhead",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh",
             "method": "Named unit tests plus live run of the installed bcl 0.1.77 against the live viewer 58771",
@@ -2674,15 +2710,17 @@
             "failed": 0,
             "total": 1
           },
+          "worktree": "bcl124-r4-planhead",
+          "depends_on": [],
+          "blocked_reason": "Second failure",
           "codex": {
-            "fix_base_head": "a081343a674b7f3bf2330c27e06700cd5e00d2b8",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "75fb170208d343ebbe9fcf481f883f57",
               "phase": "review",
               "started_at": "2026-11-26T08:16:43Z",
               "command": "codex",
-              "heartbeat_at": "2026-11-26T08:16:43Z",
+              "heartbeat_at": "2026-11-26T08:18:19Z",
               "plan_sha256": "c4195c08d256c3f89ea120a4ecd6ce6d89538241b03302d1d2d5dfc136e3ee46",
               "finding_ids": [
                 "BCL-192"
@@ -2691,9 +2729,22 @@
               "model": "gpt-6-luna",
               "lane_sha256": "b3890eed4310084ff8f895727e67ba9d7104cbcb7fbd4615a26e10983a609cf5",
               "cycle": 16,
-              "round": 3
+              "round": 3,
+              "pid": 99053,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T08:18:19Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/75fb170208d343ebbe9fcf481f883f57.log",
+              "output_retained": true,
+              "tokens_source": "official",
+              "tokens": {
+                "total": 384013,
+                "output": 2520
+              },
+              "wall_time_s": 96,
+              "session": "rollout-2026-11-26T13-46-43-01a216ed-a81b-70f0-8a0c-6d4a5706447b.jsonl",
+              "finished_phase_status": "incomplete",
+              "must_fix": "Changes requested; Must-fix section missing"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "1ac44cda3b7c473dac497b1910348084",
@@ -2726,10 +2777,13 @@
                 "finished_phase_status": "passed"
               }
             ],
-            "review_status": "running",
-            "reviewer_model": "gpt-6-luna"
+            "fix_status": "passed",
+            "review_status": "blocked",
+            "reviewer_model": "gpt-6-luna",
+            "must_fix_note": "Changes requested; Must-fix section missing",
+            "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-26T08:08:58Z",
+          "stage_entered_at": "2026-11-26T08:18:19Z",
           "failure_history": [
             {
               "attempt_id": "ef5c5024f4124b5385fc004d515bc76d",
@@ -2748,6 +2802,14 @@
               "round": 2,
               "at": "2026-11-26T06:30:01Z",
               "plan_answered": true
+            },
+            {
+              "attempt_id": "75fb170208d343ebbe9fcf481f883f57",
+              "source": "review",
+              "reason": "Changes requested; Must-fix section missing",
+              "cycle": 16,
+              "round": 3,
+              "at": "2026-11-26T08:18:19Z"
             }
           ],
           "plan_review_history": [
@@ -2760,7 +2822,6 @@
               "at": "2026-11-26T06:24:02Z"
             }
           ],
-          "updated_at": "2026-11-26T06:57:57Z",
           "unblock_history": [
             {
               "at": "2026-11-26T07:59:28Z",
@@ -2775,7 +2836,9 @@
               "round": 3,
               "owner_override": true
             }
-          ]
+          ],
+          "failure_block_reason": "Changes requested; Must-fix section missing",
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R2-LABEL",
@@ -2784,8 +2847,6 @@
           ],
           "status": "verified",
           "phase": "verify",
-          "depends_on": [],
-          "worktree": "samantha-next-r14",
           "reason": "Status accuracy: render.py lane display falls back to Paused · needs resume for a passed fix waiting for review. Same file as R2-PLANHEAD (render.py) but a different function (lane display vs plan head and template).",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh",
@@ -2797,9 +2858,10 @@
             "total": 1,
             "finished_at": "2026-11-26T07:58:58Z"
           },
+          "worktree": "samantha-next-r14",
+          "depends_on": [],
           "codex": {
-            "fix_base_head": "817c1e924d02411c2b34c5b29942a795006fc8b9",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "ad1aa86e8ae8428ba4143f4304417263",
               "phase": "presuite",
@@ -2828,7 +2890,6 @@
               "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "159693b06dcf47b2ab395867dfd6d251",
@@ -2916,11 +2977,26 @@
                 "finished_phase_status": "passed"
               }
             ],
+            "fix_status": "passed",
             "review_status": "passed",
             "reviewer_model": "gpt-6-luna",
-            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
+            "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing",
+            "tool_fault_streak": 0
           },
+          "trail": [
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T07:58:58Z",
+              "source": "verify",
+              "result": "verify: verify-r4-label.sh passed"
+            }
+          ],
           "stage_entered_at": "2026-11-26T07:58:58Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-26T07:56:35Z"
+          },
           "failure_history": [
             {
               "attempt_id": "967a71e6946a4b14a76d83dc1af50034",
@@ -2935,25 +3011,12 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T07:58:57Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-26T07:56:35Z"
-          },
           "install": {
             "status": "complete",
             "started_at": "2026-11-26T07:57:20Z",
             "finished_at": "2026-11-26T07:58:58Z"
           },
-          "trail": [
-            {
-              "step": "fix_verified",
-              "at": "2026-11-26T07:58:58Z",
-              "source": "verify",
-              "result": "verify: verify-r4-label.sh passed"
-            }
-          ]
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R2-CL-CAPTURE",
@@ -2961,7 +3024,7 @@
             "CL-2"
           ],
           "status": "verified",
-          "depends_on": [],
+          "phase": "verify",
           "reason": "Guru approved a context-ledger reinstall (12:22 PM IST). Lookup log gains ledger version and tokens not reported on find/get/save; additive migration.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl2.sh",
@@ -2974,9 +3037,10 @@
             "finished_at": "2026-11-26T07:58:59Z"
           },
           "worktree": "samantha-next-r14",
+          "depends_on": [],
+          "parked_to": 3,
           "codex": {
-            "fix_base_head": "9364773aa57089154b7dc63b99933a2cee06f6a8",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "ad1aa86e8ae8428ba4143f4304417263",
               "phase": "presuite",
@@ -3005,7 +3069,6 @@
               "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "431008d789a646d282468043f13cad21",
@@ -3149,15 +3212,11 @@
                 "finished_phase_status": "passed"
               }
             ],
+            "fix_status": "passed",
             "review_status": "passed",
-            "reviewer_model": "gpt-6-luna"
+            "reviewer_model": "gpt-6-luna",
+            "tool_fault_streak": 0
           },
-          "parked_to": 3,
-          "stage_entered_at": "2026-11-26T07:58:59Z",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-26T07:58:59Z",
-          "phase": "verify",
           "trail": [
             {
               "step": "failed_first",
@@ -3194,16 +3253,20 @@
               "result": "verify: verify-r5-cl2.sh passed"
             }
           ],
+          "stage_entered_at": "2026-11-26T07:58:59Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-26T07:56:35Z"
           },
+          "failure_history": [],
+          "plan_review_history": [],
           "install": {
             "status": "complete",
             "started_at": "2026-11-26T07:57:20Z",
             "finished_at": "2026-11-26T07:58:59Z"
-          }
+          },
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R2-CL-VIEW",
@@ -3211,7 +3274,7 @@
             "CL-3"
           ],
           "status": "parked",
-          "depends_on": [],
+          "phase": "plan_review",
           "reason": "Ships in the same worktree and install as R2-CL-CAPTURE, on top of its commits; the page tolerates a log without the project column. Verified after CL-2.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh",
@@ -3223,9 +3286,10 @@
             "total": 1
           },
           "worktree": "bcl124-r5-ledger",
+          "depends_on": [],
+          "parked_to": 4,
           "codex": {
-            "fix_base_head": "a386dad7e1533d25a7d8138c7c993dafc8fe6d5e",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "226ef312f9d64b5cbb420b3f3cf35882",
               "phase": "plan_review",
@@ -3256,7 +3320,6 @@
               "finished_phase_status": "incomplete",
               "must_fix": "Changes requested; Must-fix section missing"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "5351c3f224d545c2aca142f32ae0f4c3",
@@ -3362,12 +3425,29 @@
                 "must_fix": "Changes requested; Must-fix section missing"
               }
             ],
+            "fix_status": "passed",
             "review_status": "changes_requested",
+            "plan_review_status": "failed",
             "reviewer_model": "gpt-6-luna",
             "must_fix_note": "- The acceptance requires a UI test, but the added tests in `tests/test_viewer.py` check backend card data and search source files for CSS tokens and markup strings. They do not render the page or verify that each decision visibly shows its project and lookup match, or that the size controls work. Add a test that exercises the rendered UI behavior.",
-            "plan_review_status": "failed"
+            "tool_fault_streak": 0
           },
-          "parked_to": 4,
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T07:34:58Z",
+              "result": "test_card_shows_project_and_whether_last_lookup_matched and test_ledger_page_text_is_at_least_16px fail: cards have no project or last lookup, text tokens are 11-15px",
+              "job_id": "5351c3f224d545c2aca142f32ae0f4c3",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T07:34:58Z",
+              "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control",
+              "job_id": "5351c3f224d545c2aca142f32ae0f4c3",
+              "phase": "fix"
+            }
+          ],
           "stage_entered_at": "2026-11-26T07:48:53Z",
           "failure_history": [
             {
@@ -3396,24 +3476,7 @@
               "at": "2026-11-26T07:48:22Z"
             }
           ],
-          "updated_at": "2026-11-26T07:48:53Z",
-          "phase": "plan_review",
-          "trail": [
-            {
-              "step": "failed_first",
-              "at": "2026-11-26T07:34:58Z",
-              "result": "test_card_shows_project_and_whether_last_lookup_matched and test_ledger_page_text_is_at_least_16px fail: cards have no project or last lookup, text tokens are 11-15px",
-              "job_id": "5351c3f224d545c2aca142f32ae0f4c3",
-              "phase": "fix"
-            },
-            {
-              "step": "root_cause",
-              "at": "2026-11-26T07:34:58Z",
-              "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control",
-              "job_id": "5351c3f224d545c2aca142f32ae0f4c3",
-              "phase": "fix"
-            }
-          ]
+          "updated_at": "2026-11-26T08:45:56Z"
         },
         {
           "id": "R3-UNPARK",
@@ -3422,8 +3485,6 @@
           ],
           "status": "verified",
           "phase": "verify",
-          "depends_on": [],
-          "worktree": "samantha-next-r14",
           "reason": "Owner unblock must reopen a lane parked after blocking; needed before BCL-191 and BCL-192 can retry.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-unpark.sh",
@@ -3435,9 +3496,10 @@
             "total": 1,
             "finished_at": "2026-11-26T07:59:04Z"
           },
+          "worktree": "samantha-next-r14",
+          "depends_on": [],
           "codex": {
-            "fix_base_head": "924353e0a13da05d9b79c44d7b9dd9275b094333",
-            "fix_status": "passed",
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
               "id": "ad1aa86e8ae8428ba4143f4304417263",
               "phase": "presuite",
@@ -3466,7 +3528,6 @@
               "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 0,
             "jobs": [
               {
                 "id": "a28a26268b7940cc9583b414700f593d",
@@ -3680,9 +3741,39 @@
                 "finished_phase_status": "passed"
               }
             ],
+            "fix_status": "passed",
+            "review_status": "passed",
             "reviewer_model": "gpt-6-luna",
             "must_fix_note": "Changes requested; Must-fix section missing",
-            "review_status": "passed"
+            "tool_fault_streak": 0
+          },
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T07:37:22Z",
+              "result": "review: test_unblock_reopens_lane_parked_after_blocking stopped at plan and never proved the next fix starts",
+              "job_id": "80e64252efbb47368e48cc8721b15ff8",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T07:37:23Z",
+              "result": "test_bcl.py reopen test covered unblock and plan only; product path was right, the proof was incomplete",
+              "job_id": "80e64252efbb47368e48cc8721b15ff8",
+              "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T07:59:04Z",
+              "source": "verify",
+              "result": "verify: verify-r5-unpark.sh passed"
+            }
+          ],
+          "stage_entered_at": "2026-11-26T07:59:04Z",
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-26T07:56:35Z"
           },
           "failure_history": [
             {
@@ -3716,40 +3807,56 @@
               "at": "2026-11-26T07:35:28Z"
             }
           ],
-          "updated_at": "2026-11-26T07:59:00Z",
-          "stage_entered_at": "2026-11-26T07:59:04Z",
-          "trail": [
-            {
-              "step": "failed_first",
-              "at": "2026-11-26T07:37:22Z",
-              "result": "review: test_unblock_reopens_lane_parked_after_blocking stopped at plan and never proved the next fix starts",
-              "job_id": "80e64252efbb47368e48cc8721b15ff8",
-              "phase": "fix"
-            },
-            {
-              "step": "root_cause",
-              "at": "2026-11-26T07:37:23Z",
-              "result": "test_bcl.py reopen test covered unblock and plan only; product path was right, the proof was incomplete",
-              "job_id": "80e64252efbb47368e48cc8721b15ff8",
-              "phase": "fix"
-            },
-            {
-              "step": "fix_verified",
-              "at": "2026-11-26T07:59:04Z",
-              "source": "verify",
-              "result": "verify: verify-r5-unpark.sh passed"
-            }
-          ],
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-26T07:56:35Z"
-          },
           "install": {
             "status": "complete",
             "started_at": "2026-11-26T07:57:20Z",
             "finished_at": "2026-11-26T07:59:04Z"
-          }
+          },
+          "updated_at": "2026-11-26T08:45:56Z"
+        },
+        {
+          "id": "R3-PLANCAP",
+          "finding_ids": [
+            "BCL-197"
+          ],
+          "status": "running",
+          "phase": "fix",
+          "depends_on": [],
+          "worktree": "bcl124-r5-plancap",
+          "reason": "Recurring: plan review CHANGES looped 7 times on Likeminded PROC-10 and reopened on #124 via an unrelated finding; cap it at 2 in a row.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-plancap.sh",
+            "method": "Named tests plus installed bcl refusing a third plan review on a throwaway copy",
+            "summary": "Third plan review after two CHANGES is refused",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
+            "fix_status": "running",
+            "job": {
+              "id": "6359160c682d48afa2a0c7a42de6ea67",
+              "phase": "fix",
+              "started_at": "2026-11-26T08:46:24Z",
+              "command": "codex",
+              "heartbeat_at": "2026-11-26T08:46:24Z",
+              "plan_sha256": "c1c7a3915872f606c7dfc3b0dc9ba16eccc955e4857b5962e7dd1978e752f6e5",
+              "finding_ids": [
+                "BCL-197"
+              ],
+              "worktree": "bcl124-r5-plancap",
+              "model": "gpt-6-luna",
+              "lane_sha256": "fc8dfa1f5724055ab7ad69b75e566edf835c41655236985cd86e55fffa7fdd5d",
+              "cycle": 16,
+              "round": 3
+            }
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-26T08:45:56Z",
+          "stage_entered_at": "2026-11-26T08:46:24Z"
         }
       ],
       "cycle": 16
@@ -3960,7 +4067,8 @@
         "also reported as new entry": "Needs-you row for issues waiting on the owner's decision A viewer row that lists issues parked or blocked waiting on the owner as 'Waiting on your decision' in Needs you. Guru parked this at 09:37 IST 25 Nov 2026. Shipped in 29c801f0 (owner_wait, issue wait field, Needs you row and rank); removed by a21dc8a3 (local, unpushed as of 09:50 IST), which keeps the one-issue payload fix.",
         "also reported as PROC-07 (Likeminded)": "The change-list tool documents an add command it does not have; verify also refuses an env wrapper Docs gap plus missing feature: the docs name an add command the tool lacks, and a verify check cannot run under an environment wrapper, which is a deliberate refusal. 25 Nov 2026 10:00 IST Likeminded: bcl add returned unknown stage (0.1.70 has no add or check stages; official path is manage_findings.py batch). bcl verify refuses env by design (_plain_command).",
         "also reported as DO-19": "Grok Bot and OpenCode jobs have no usage capture Missing default, owned by Observability; not DO-14 (Cursor CLI only). Only Codex sessions and BCL finish events with tokens_source stamp/inline plus tokens.total become usage rows. Likeminded: 31 Grok and OpenCode jobs, 0 rows; 17/17 jobs gaps (11 grok-bot-executor, 6 OpenCode). Done when: each Grok Bot and OpenCode job row shows model, plus version, tokens and cost when reported (null + not_reported otherwise). Path: usage sidecar per job id, Grok collector, opencode stats. Likeminded DOBS-01, DOBS-03.",
-        "also reported as DO-20": "Known native-build failures stay as raw build-step log lines Missing default, owned by Observability. Likeminded: SwiftPM resolve hang 12 min on Xcode 27 (BUILD-02), missing Metal toolchain (BUILD-03; does not match _LOG_ERROR) and duplicate privacy manifest were only build_step lines; checklog is CI/xctest oriented. Done when: a collect of those logs yields a named finding per class (package-resolve hang, missing Metal toolchain, duplicate/missing privacy manifest); hang classifier uses inactivity/timeout, not a keyword."
+        "also reported as DO-20": "Known native-build failures stay as raw build-step log lines Missing default, owned by Observability. Likeminded: SwiftPM resolve hang 12 min on Xcode 27 (BUILD-02), missing Metal toolchain (BUILD-03; does not match _LOG_ERROR) and duplicate privacy manifest were only build_step lines; checklog is CI/xctest oriented. Done when: a collect of those logs yields a named finding per class (package-resolve hang, missing Metal toolchain, duplicate/missing privacy manifest); hang classifier uses inactivity/timeout, not a keyword.",
+        "also reported as LM-EXEC-INTERRUPT": "One-off: Likeminded executor interrupted mid-lane An executor subagent stopped mid-lane (context limit) and the next run resumed from tracker and git state. 26 Nov 2026 IST, Likeminded; same happened once on #124 Round 5 and resumed cleanly. Logged only: the job-outcome model already marks a dead job interrupted and resumable, so no new rule or skill text."
       },
       "created_at": "2026-11-24T17:34:53Z",
       "first_seen": {
@@ -4309,7 +4417,7 @@
       "observed": "26 Nov 2026 11:33 IST: curl http://127.0.0.1:58771/ showed Round 1 · 0 lanes · each installs and verifies when ready, then 4 verified. render.py:686 uses len(active_groups); templates/change-list.html has 7x font-size:11px, 6x 11.5px, 6x .75rem.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "blocked",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -4335,13 +4443,19 @@
           "from": "blocked",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T08:18:19Z",
+          "from": "in_progress",
+          "to": "blocked",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
-        "at": "2026-11-26T06:30:01Z",
+        "at": "2026-11-26T08:18:19Z",
         "source": "review"
       },
-      "needs": "1. **The navigation buttons can still render below 16px.** In [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:185), `font: 600 1rem/1.3 inherit` is invalid: `inherit` cannot be used as a font family inside that shorthand. The browser discards the declaration, leaving the buttons subject to the browser’s smaller default control font. Set a valid inherited or explicit font and verify computed sizes.\n\n2. **The head does not consistently count settled lanes.** [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:604) defines open lanes using `closed`, while the workflow definition separately classifies blocked and failed lanes as settled. Thus a blocked lane is reported as open and receives “each installs and verifies when ready,” despite the round-close copy saying blocked lanes can close the round. Use consistent state semantics and report open and settled counts for mixed states too."
+      "needs": "Changes requested; Must-fix section missing"
     },
     {
       "id": "CL-2",
@@ -4550,6 +4664,31 @@
       "created_at": "2026-11-26T07:48:53Z",
       "first_seen": {
         "at": "2026-11-26T07:48:53Z",
+        "pr": null,
+        "round": 3,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-197",
+      "title": "A lane's plan review can return CHANGES without limit",
+      "summary": "A lane may take another plan review whenever any finding was filed after its last one, anywhere on the list, so a plan that keeps getting CHANGES loops instead of stopping.",
+      "impact": "Likeminded's PROC-10 lane got 7 plan-review CHANGES in a row, burning reviewer tokens and hours with no fix started; on #124 lane R2-CL-VIEW got a second plan review only because unrelated BCL-195 was filed in between.",
+      "done_when": "After 2 plan reviews in a row return CHANGES, bcl refuses another plan review on that lane whatever else was filed and says to park it; an owner unblock resets the count; a test covers both, and a finding filed on another lane no longer reopens it.",
+      "recommendation": "In manage_findings.py job start for phase plan_review, count the lane's trailing CHANGES plan reviews and refuse at 2; only a finding filed for that lane's own items counts as filed after review.",
+      "observed": "26 Nov 2026 IST: Likeminded PROC-10 plan review returned CHANGES 7 times in a row. #124 Round 5: R2-CL-VIEW plan review CHANGES twice, the second allowed by unrelated BCL-195. Code: manage_findings.py plan_review start checks _filed_after_review(document, last review), which is list-wide.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "batched-change-list",
+      "details": {
+        "kind": "bug",
+        "regression_against_main": "no"
+      },
+      "created_at": "2026-11-26T08:44:50Z",
+      "first_seen": {
+        "at": "2026-11-26T08:44:50Z",
         "pr": null,
         "round": 3,
         "source": "created_at"
