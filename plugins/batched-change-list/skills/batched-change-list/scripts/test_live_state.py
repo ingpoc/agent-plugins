@@ -553,7 +553,7 @@ class RegistryConcurrencyTests(unittest.TestCase):
                             and inner.func.id == "save_registry"):
                         callers.add(node.name)
         self.assertEqual(callers, {"update_registry"})
-        plugin = Path(__file__).resolve().parents[3]
+        from test_bcl import PLUGIN as plugin
         sources = (plugin / "bin/bcl", plugin / "bin/bcl-hook",
                    *sorted((Path(__file__).resolve().parent).glob("*.py")))
         for path in sources:
