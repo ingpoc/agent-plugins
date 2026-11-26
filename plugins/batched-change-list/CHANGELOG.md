@@ -1,3 +1,7 @@
+## 0.1.78
+
+- `bcl unblock --reason` now reopens a lane that was parked after blocking on two counted failures: it records the owner override, clears the park fields and returns the lane to planned, so its next plan review and fix can start. A plainly parked lane is still refused (BCL-194).
+
 ## 0.1.77
 
 - A viewer file counts as running only when its own health check answers with its recorded identity, so a dead per-list viewer file whose process id was reused no longer reserves a port; old files are ignored, not deleted (BCL-187).
