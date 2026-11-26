@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-26T06:03:10Z",
-      "now": "2026-11-26T06:03:10Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-26T06:10:22Z",
+      "now": "2026-11-26T06:10:22Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 123,
@@ -77,7 +77,7 @@
       }
     },
     "cycle": 16,
-    "round": 1,
+    "round": 2,
     "round_history": [
       {
         "round": 2,
@@ -348,6 +348,11 @@
         "round": 4,
         "fixed": 19,
         "ended_at": "2026-11-25T16:16:22Z"
+      },
+      {
+        "round": 1,
+        "fixed": 6,
+        "ended_at": "2026-11-26T06:10:22Z"
       }
     ],
     "introspect_history": [
@@ -474,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T06:03:10Z",
+    "last_written_at": "2026-11-26T06:10:22Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -632,7 +637,7 @@
         ]
       }
     ],
-    "round_started_at": "2026-11-25T15:40:51Z",
+    "round_started_at": "2026-11-26T06:10:22Z",
     "gate": {
       "merge_previous_pr_threshold": 16,
       "report_threshold": 15
@@ -770,14 +775,11 @@
     },
     "stages_reached": [
       "collect",
-      "plan_fix",
       "review",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 1,
+      "round": 2,
       "groups": [
         {
           "id": "R1-JOBREC",
@@ -1128,7 +1130,7 @@
               "at": "2026-11-26T03:32:25Z"
             }
           ],
-          "updated_at": "2026-11-26T04:05:11Z",
+          "updated_at": "2026-11-26T06:10:22Z",
           "stage_entered_at": "2026-11-26T04:05:13Z",
           "phase": "verify",
           "trail": [
@@ -1373,7 +1375,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T04:05:29Z",
+          "updated_at": "2026-11-26T06:10:22Z",
           "phase": "verify",
           "trail": [
             {
@@ -1810,7 +1812,7 @@
               "at": "2026-11-26T03:49:41Z"
             }
           ],
-          "updated_at": "2026-11-26T04:01:38Z",
+          "updated_at": "2026-11-26T06:10:22Z",
           "phase": "verify",
           "trail": [
             {
@@ -2121,7 +2123,7 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-26T04:01:31Z",
+          "updated_at": "2026-11-26T06:10:22Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -2148,52 +2150,151 @@
           ]
         },
         {
-          "id": "R1-VIEWER",
-          "finding_ids": [
-            "BCL-187"
-          ],
-          "status": "parked",
-          "reason": "Over the four-lane cap this round. Old per-list viewer files and reused process ids stay deferred.",
-          "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
-          },
-          "parked_to": 2,
-          "stage_entered_at": "2026-11-25T16:19:42Z",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-26T02:56:45Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          }
-        },
-        {
           "id": "R1-BACKLOG",
           "finding_ids": [
             "PR122-parked-backlog"
           ],
-          "status": "parked",
           "reason": "Parked backlog of review nits and process ideas stays parked.",
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
           "parked_to": 2,
-          "stage_entered_at": "2026-11-25T16:19:42Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T02:56:45Z",
+          "updated_at": "2026-11-26T06:10:22Z",
           "verify": {
             "status": "pending",
             "fixed": 0,
             "failed": 0,
             "total": 1
-          }
+          },
+          "status": "parked",
+          "stage_entered_at": "2026-11-25T16:19:42Z"
+        },
+        {
+          "id": "R1-VIEWER",
+          "finding_ids": [
+            "BCL-187"
+          ],
+          "depends_on": [],
+          "reason": "Status accuracy: _state_is_live trusts a pid alone, so a reused pid makes a dead per-list viewer file look running and reserve its port. Count a viewer live only when its health check answers with its recorded identity; ignore (do not delete) dead per-list files, so #112 state is untouched.",
+          "worktree": "bcl124-r4-viewer",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
+            "method": "Named unit tests plus the installed live_state judging a reused-pid stale viewer file in a temp state folder",
+            "summary": "Reused-pid stale viewer file is not counted live",
+            "status": "pending"
+          },
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+          },
+          "parked_to": 2,
+          "failure_history": [],
+          "plan_review_history": [],
+          "status": "planned",
+          "updated_at": "2026-11-26T06:10:22Z",
+          "stage_entered_at": "2026-11-26T06:10:22Z"
+        },
+        {
+          "id": "R2-RACE",
+          "finding_ids": [
+            "BCL-191"
+          ],
+          "status": "planned",
+          "phase": "fix",
+          "depends_on": [],
+          "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
+          "worktree": "bcl124-r4-race",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh",
+            "method": "Named unit tests plus 6 concurrent installed bcl status runs under CPU load against the live viewer 58771",
+            "summary": "Six concurrent starts pass; viewer pid unchanged",
+            "status": "pending"
+          },
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-26T06:10:22Z",
+          "stage_entered_at": "2026-11-26T06:10:22Z"
+        },
+        {
+          "id": "R2-PLANHEAD",
+          "finding_ids": [
+            "BCL-192"
+          ],
+          "status": "planned",
+          "phase": "fix",
+          "depends_on": [],
+          "reason": "Visibility and status wording in render.py plan head and the change-list.html template; no file shared with R2-VIEWER.",
+          "worktree": "bcl124-r4-planhead",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh",
+            "method": "Named unit tests plus live run of the installed bcl 0.1.77 against the live viewer 58771",
+            "summary": "Plan head shows open lanes; no text under 16px",
+            "status": "pending"
+          },
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-26T06:10:22Z",
+          "stage_entered_at": "2026-11-26T06:10:22Z"
+        },
+        {
+          "id": "R2-CL-CAPTURE",
+          "finding_ids": [
+            "CL-2"
+          ],
+          "status": "parked",
+          "phase": "deferred",
+          "depends_on": [],
+          "reason": "Deferred: verified_fixed needs an installed live check, and reinstalling context-ledger is off-limits this round. Unblock with Guru OK to reinstall context-ledger.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-cl2.sh",
+            "method": "Named tests plus a fixture-ledger find, then read the access_log row",
+            "summary": "Lookup row has version and tokens not reported",
+            "status": "pending"
+          },
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 3,
+          "updated_at": "2026-11-26T06:10:22Z",
+          "stage_entered_at": "2026-11-26T06:10:22Z"
+        },
+        {
+          "id": "R2-CL-VIEW",
+          "finding_ids": [
+            "CL-3"
+          ],
+          "status": "parked",
+          "phase": "deferred",
+          "depends_on": [
+            "R2-CL-CAPTURE"
+          ],
+          "reason": "Deferred: depends on CL-2 lookup-log fields for last-lookup match, and needs a context-ledger reinstall to verify.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-cl3.sh",
+            "method": "UI test plus bookmark read",
+            "summary": "Project and last-lookup match visible at 16px",
+            "status": "pending"
+          },
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "parked_to": 3,
+          "updated_at": "2026-11-26T06:10:22Z",
+          "stage_entered_at": "2026-11-26T06:10:22Z"
         }
       ],
-      "cycle": 16,
-      "status": "closed"
+      "cycle": 16
     },
     "introspect": {
       "result": "Introspect recorded",
@@ -2659,6 +2760,82 @@
       "created_at": "2026-11-26T03:11:19Z",
       "first_seen": {
         "at": "2026-11-26T03:11:19Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-192",
+      "title": "The viewer plan head says 0 lanes while 4 lanes are verified, and much of its text is below 16px",
+      "summary": "On 58771 the round header reads Round 1 · 0 lanes · each installs and verifies when ready beside 4 verified, so a finished round reads as an empty one; labels and chips use 11-13px text.",
+      "impact": "Guru cannot tell done from not started in 30 seconds, and the small text is hard to read on the bookmark.",
+      "done_when": "The plan head names open and settled lanes separately (for example 0 open lanes · 4 verified), and no viewer text renders below 16px at default zoom while browser zoom stays allowed; render tests cover both.",
+      "recommendation": "Count active vs settled groups in render_plan header; raise template font sizes under 1rem to at least 1rem.",
+      "observed": "26 Nov 2026 11:33 IST: curl http://127.0.0.1:58771/ showed Round 1 · 0 lanes · each installs and verifies when ready, then 4 verified. render.py:686 uses len(active_groups); templates/change-list.html has 7x font-size:11px, 6x 11.5px, 6x .75rem.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "batched-change-list",
+      "details": {
+        "kind": "bug",
+        "regression_against_main": "no",
+        "scoreboard": "BCL Visibility path-to-nine item (16px, plan head wording)"
+      },
+      "created_at": "2026-11-26T06:08:53Z",
+      "first_seen": {
+        "at": "2026-11-26T06:08:53Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "CL-2",
+      "title": "Context Ledger does not record its version or mark token counts as not reported for each call",
+      "summary": "Lookup log rows carry tool, caller, query, count, bytes and time, but no ledger version and no token or run field, so Automatic capture cannot tell captured from missing.",
+      "impact": "Ledger Automatic capture stays at 5 and its call overhead cannot join the official token series.",
+      "done_when": "Every find, get and save lookup row records the ledger version and marks tokens as not reported (or stores an official total) on the default path, without growing the compact find reply; a test reads the row back.",
+      "recommendation": "Add version and token columns to the lookup log through an additive migration; fill the version from the package and mark tokens not reported.",
+      "observed": "26 Nov 2026 11:45 IST: store.py access_log schema (line 132) and _log_access (line 1279) have no version or tokens; scoreboard Ledger Automatic capture evidence: no change since baseline.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "context-ledger",
+      "details": {
+        "kind": "missing default",
+        "blocked_on": "verify needs a context-ledger reinstall, which is off-limits until Guru allows it"
+      },
+      "created_at": "2026-11-26T06:08:53Z",
+      "first_seen": {
+        "at": "2026-11-26T06:08:53Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "CL-3",
+      "title": "Context Ledger has no large-text bookmark that shows each decision project and whether the last lookup matched it",
+      "summary": "The ledger viewer uses text below 16px and does not show, per decision, the project scope and whether the last find came from the same project.",
+      "impact": "Wrong-project recalls are invisible from a bookmark, so Ledger Visibility stays at 5.",
+      "done_when": "The ledger page shows each decision project and last-lookup project match, all text at 16px or more with a size control and zoom allowed; a UI test covers it.",
+      "recommendation": "Extend ui-src cards with scope and last-lookup match from access_log; raise --text-xs and --text-dense to 1rem.",
+      "observed": "26 Nov 2026 11:45 IST: ui-src/style.css uses var(--text-xs) and var(--text-dense) for labels; scoreboard Ledger Visibility: no change since baseline.",
+      "priority": "low",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "context-ledger",
+      "details": {
+        "kind": "missing feature",
+        "blocked_on": "verify needs a context-ledger reinstall, which is off-limits until Guru allows it"
+      },
+      "created_at": "2026-11-26T06:08:53Z",
+      "first_seen": {
+        "at": "2026-11-26T06:08:53Z",
         "pr": null,
         "round": 1,
         "source": "created_at"
