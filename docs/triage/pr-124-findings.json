@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-26T06:42:07Z",
-      "now": "2026-11-26T06:42:07Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-26T06:47:36Z",
+      "now": "2026-11-26T06:47:36Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 123,
@@ -456,6 +456,147 @@
         },
         "round": 1,
         "cycle": 16
+      },
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-26T06:47:36Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 6",
+          "Codex write: R1-JOBREC",
+          "Codex review: R1-JOBREC",
+          "Polling and rework review: R1-JOBREC",
+          "Test command: R1-JOBREC: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
+          "Codex write: R1-MERGED",
+          "Codex review: R1-MERGED",
+          "Polling and rework review: R1-MERGED",
+          "Test command: R1-MERGED: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
+          "Codex write: R1-REGISTRY",
+          "Codex review: R1-REGISTRY",
+          "Polling and rework review: R1-REGISTRY",
+          "Test command: R1-REGISTRY: /Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
+          "Codex write: R2-DO1",
+          "Codex review: R2-DO1",
+          "Polling and rework review: R2-DO1",
+          "Test command: R2-DO1: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+          "Codex write: R1-VIEWER",
+          "Codex review: R1-VIEWER",
+          "Polling and rework review: R1-VIEWER",
+          "Test command: R1-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
+          "Codex write: R2-LABEL",
+          "Codex review: R2-LABEL",
+          "Polling and rework review: R2-LABEL",
+          "Test command: R2-LABEL: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh",
+          "Job wall time: R1-VIEWER fbccf9c02eee46f8b9e9cf74edbcb45f 312s",
+          "Job wall time: R2-RACE bf42af0b09ff412ab95f46744e5893ec 262s",
+          "Job wall time: R2-DO1 d4f54a42e34a477c86ba1a60de831c49 241s",
+          "Job tokens: R1-VIEWER fbccf9c02eee46f8b9e9cf74edbcb45f 1918645 tokens",
+          "Job tokens: R2-RACE bf42af0b09ff412ab95f46744e5893ec 1845045 tokens",
+          "Job tokens: R2-PLANHEAD c46b547e0c944061a38c91ba666aaf24 1463271 tokens",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1",
+          "Repeat: review failures on R2-RACE",
+          "Repeat: review failures on R2-PLANHEAD"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 6",
+          "Codex write: R1-JOBREC",
+          "Codex review: R1-JOBREC",
+          "Polling and rework review: R1-JOBREC",
+          "Test command: R1-JOBREC: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
+          "Codex write: R1-MERGED",
+          "Codex review: R1-MERGED",
+          "Polling and rework review: R1-MERGED",
+          "Test command: R1-MERGED: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
+          "Codex write: R1-REGISTRY",
+          "Codex review: R1-REGISTRY",
+          "Polling and rework review: R1-REGISTRY",
+          "Test command: R1-REGISTRY: /Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
+          "Codex write: R2-DO1",
+          "Codex review: R2-DO1",
+          "Polling and rework review: R2-DO1",
+          "Test command: R2-DO1: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+          "Codex review: R1-VIEWER",
+          "Polling and rework review: R1-VIEWER",
+          "Test command: R1-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
+          "Codex write: R2-LABEL",
+          "Codex review: R2-LABEL",
+          "Test command: R2-LABEL: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh",
+          "Job wall time: R1-VIEWER fbccf9c02eee46f8b9e9cf74edbcb45f 312s",
+          "Job wall time: R2-RACE bf42af0b09ff412ab95f46744e5893ec 262s",
+          "Job wall time: R2-DO1 d4f54a42e34a477c86ba1a60de831c49 241s",
+          "Job tokens: R2-RACE bf42af0b09ff412ab95f46744e5893ec 1845045 tokens",
+          "Job tokens: R2-PLANHEAD c46b547e0c944061a38c91ba666aaf24 1463271 tokens"
+        ],
+        "sections": {
+          "delete": {
+            "items": [
+              {
+                "item": "Polling and rework review: R2-LABEL",
+                "evidence": "Two broken verify checks on R2-LABEL: the row match included the finding title tooltip (contains Paused), and the first rerun ran before the corrected script landed; the one allowed rerun is spent, though the installed render already shows Fix passed · review next.",
+                "outcome": "fixed inline",
+                "proof": "python3 -m unittest test_render.RenderTests.test_passed_fix_waiting_for_review_is_not_paused on installed 0.1.77, then bash verify-r4-label.sh exits 0 (verify-label-direct.log)"
+              }
+            ]
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Repeat: review failures on R2-DO1",
+                "evidence": "R2-DO1 has 2 review failures in failure_history",
+                "outcome": "issue",
+                "issue_id": "PR122-parked-backlog"
+              },
+              {
+                "item": "Repeat: plan reviews on R2-DO1",
+                "evidence": "R2-DO1 has 2 plan reviews in plan_review_history",
+                "outcome": "issue",
+                "issue_id": "PR122-parked-backlog"
+              },
+              {
+                "item": "Repeat: review failures on R2-RACE",
+                "evidence": "R2-RACE has 2 review failures in failure_history; Terra round 2 raised new must-fixes (1.5 s per-request cap, 15 s lock deadline under sustained slow health) after round 1 asked for report-page retry and a lock-proving test.",
+                "outcome": "issue",
+                "issue_id": "BCL-191"
+              },
+              {
+                "item": "Repeat: review failures on R2-PLANHEAD",
+                "evidence": "R2-PLANHEAD has 2 review failures in failure_history; round 2 found an invalid font shorthand on nav buttons and blocked lanes counted as open.",
+                "outcome": "issue",
+                "issue_id": "BCL-192"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Job tokens: R1-VIEWER fbccf9c02eee46f8b9e9cf74edbcb45f 1918645 tokens",
+                "evidence": "1.92M tokens for a 25-line one-file fix at Luna medium; the round recorded 8.36M Codex tokens over 5 jobs.",
+                "outcome": "issue",
+                "issue_id": "PR122-parked-backlog"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Codex write: R1-VIEWER",
+                "evidence": "Presuite failed on skill_shape: test_live_state.py started a server without asserting no leak; found only at presuite (presuite-r4.log).",
+                "outcome": "fixed inline",
+                "proof": "python3 scripts/check.py --jobs 6 --changed-since 4a2c9a7f"
+              }
+            ]
+          }
+        },
+        "round": 2,
+        "cycle": 16
       }
     ],
     "archive": {
@@ -479,7 +620,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T06:42:07Z",
+    "last_written_at": "2026-11-26T06:47:36Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -788,7 +929,8 @@
       "review",
       "plan_fix",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 2,
@@ -2188,7 +2330,7 @@
           "finding_ids": [
             "BCL-187"
           ],
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "depends_on": [],
           "reason": "Status accuracy: _state_is_live trusts a pid alone, so a reused pid makes a dead per-list viewer file look running and reserve its port. Count a viewer live only when its health check answers with its recorded identity; ignore (do not delete) dead per-list files, so #112 state is untouched.",
@@ -2197,10 +2339,11 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
             "method": "Named unit tests plus the installed live_state judging a reused-pid stale viewer file in a temp state folder",
             "summary": "Reused-pid stale viewer file is not counted live",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-26T06:45:00Z"
           },
           "codex": {
             "fix_base_head": "d33125982418ad06340de308425bef93657c86ac",
@@ -2393,10 +2536,10 @@
             "review_status": "passed"
           },
           "parked_to": 2,
-          "stage_entered_at": "2026-11-26T06:42:07Z",
+          "stage_entered_at": "2026-11-26T06:45:00Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:42:07Z",
+          "updated_at": "2026-11-26T06:44:44Z",
           "trail": [
             {
               "step": "failed_first",
@@ -2411,6 +2554,12 @@
               "result": "test_live_state.test_viewer_file_with_matching_health_is_live: cleanup shut the health server down but never asserted the thread stopped",
               "job_id": "e9976de8047740bf9af4a4cb27066008",
               "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T06:45:00Z",
+              "source": "verify",
+              "result": "verify: verify-r4-viewer.sh passed"
             }
           ],
           "presuite": {
@@ -2419,14 +2568,23 @@
             "finished_at": "2026-11-26T06:40:39Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-26T06:41:58Z"
+            "status": "complete",
+            "started_at": "2026-11-26T06:41:58Z",
+            "finished_at": "2026-11-26T06:45:00Z"
           },
           "stage_model": {
             "stage": "verify",
             "model": "grok-bot-executor",
-            "at": "2026-11-26T06:42:07Z"
-          }
+            "at": "2026-11-26T06:44:44Z"
+          },
+          "verify_reruns": [
+            {
+              "round": 2,
+              "reason": "Broken check, not the fix: bash 5 errexit fired inside the EXIT trap when kill hit the already-stopped sleep helper; the check itself printed both assertions passing. Trap fixed with || true.",
+              "at": "2026-11-26T06:44:44Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ]
         },
         {
           "id": "R2-RACE",
@@ -2849,8 +3007,8 @@
           "finding_ids": [
             "BCL-193"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "failed",
+          "phase": "verify",
           "depends_on": [],
           "worktree": "samantha-next-r14",
           "reason": "Status accuracy: render.py lane display falls back to Paused · needs resume for a passed fix waiting for review. Same file as R2-PLANHEAD (render.py) but a different function (lane display vs plan head and template).",
@@ -2861,7 +3019,8 @@
             "status": "pending",
             "fixed": 0,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
           },
           "codex": {
             "fix_base_head": "f76c792f2713a9e587be6df34c809a6bef9e7619",
@@ -2985,8 +3144,8 @@
           },
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:23:07Z",
-          "stage_entered_at": "2026-11-26T06:41:58Z",
+          "updated_at": "2026-11-26T06:45:35Z",
+          "stage_entered_at": "2026-11-26T06:45:35Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -2997,10 +3156,18 @@
             "started_at": "2026-11-26T06:41:58Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "grok-bot-executor",
-            "at": "2026-11-26T06:41:58Z"
-          }
+            "at": "2026-11-26T06:45:34Z"
+          },
+          "verify_reruns": [
+            {
+              "round": 2,
+              "reason": "Broken check, not the fix: the row match included the finding title tooltip, which itself contains the word Paused; the visible lane label already read Fix passed · review next. Check now ignores title attributes.",
+              "at": "2026-11-26T06:45:34Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ]
         },
         {
           "id": "R2-CL-CAPTURE",
@@ -3053,17 +3220,18 @@
           "updated_at": "2026-11-26T06:23:07Z"
         }
       ],
-      "cycle": 16
+      "cycle": 16,
+      "status": "closed"
     },
     "introspect": {
       "result": "Introspect recorded",
-      "at": "2026-11-26T06:03:10Z",
+      "at": "2026-11-26T06:47:36Z",
       "steps": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
-        "Parallel group count: 4",
+        "Parallel group count: 6",
         "Codex write: R1-JOBREC",
         "Codex review: R1-JOBREC",
         "Polling and rework review: R1-JOBREC",
@@ -3080,18 +3248,31 @@
         "Codex review: R2-DO1",
         "Polling and rework review: R2-DO1",
         "Test command: R2-DO1: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+        "Codex write: R1-VIEWER",
+        "Codex review: R1-VIEWER",
+        "Polling and rework review: R1-VIEWER",
+        "Test command: R1-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
+        "Codex write: R2-LABEL",
+        "Codex review: R2-LABEL",
+        "Polling and rework review: R2-LABEL",
+        "Test command: R2-LABEL: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh",
+        "Job wall time: R1-VIEWER fbccf9c02eee46f8b9e9cf74edbcb45f 312s",
+        "Job wall time: R2-RACE bf42af0b09ff412ab95f46744e5893ec 262s",
         "Job wall time: R2-DO1 d4f54a42e34a477c86ba1a60de831c49 241s",
-        "Job wall time: R1-JOBREC 75cd3c1858954c46adeff15bd421da7e 222s",
-        "Job wall time: R1-MERGED 75cd3c1858954c46adeff15bd421da7e 222s",
-        "Job tokens: R1-REGISTRY 167ef112de534f5282ac475d8fc4a9b4 527708 tokens",
+        "Job tokens: R1-VIEWER fbccf9c02eee46f8b9e9cf74edbcb45f 1918645 tokens",
+        "Job tokens: R2-RACE bf42af0b09ff412ab95f46744e5893ec 1845045 tokens",
+        "Job tokens: R2-PLANHEAD c46b547e0c944061a38c91ba666aaf24 1463271 tokens",
         "Repeat: review failures on R2-DO1",
-        "Repeat: plan reviews on R2-DO1"
+        "Repeat: plan reviews on R2-DO1",
+        "Repeat: review failures on R2-RACE",
+        "Repeat: review failures on R2-PLANHEAD"
       ],
       "none": [
         "Stage: Plan & fix",
         "Stage: Review",
         "Stage: Install",
         "Stage: Verify",
+        "Parallel group count: 6",
         "Codex write: R1-JOBREC",
         "Codex review: R1-JOBREC",
         "Polling and rework review: R1-JOBREC",
@@ -3108,35 +3289,62 @@
         "Codex review: R2-DO1",
         "Polling and rework review: R2-DO1",
         "Test command: R2-DO1: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+        "Codex review: R1-VIEWER",
+        "Polling and rework review: R1-VIEWER",
+        "Test command: R1-VIEWER: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
+        "Codex write: R2-LABEL",
+        "Codex review: R2-LABEL",
+        "Test command: R2-LABEL: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh",
+        "Job wall time: R1-VIEWER fbccf9c02eee46f8b9e9cf74edbcb45f 312s",
+        "Job wall time: R2-RACE bf42af0b09ff412ab95f46744e5893ec 262s",
         "Job wall time: R2-DO1 d4f54a42e34a477c86ba1a60de831c49 241s",
-        "Job wall time: R1-JOBREC 75cd3c1858954c46adeff15bd421da7e 222s",
-        "Job wall time: R1-MERGED 75cd3c1858954c46adeff15bd421da7e 222s"
+        "Job tokens: R2-RACE bf42af0b09ff412ab95f46744e5893ec 1845045 tokens",
+        "Job tokens: R2-PLANHEAD c46b547e0c944061a38c91ba666aaf24 1463271 tokens"
       ],
       "sections": {
         "delete": {
-          "none": "Reviewed all four lanes: each step (write, review, presuite, install, verify) produced evidence the gate needs; nothing to drop."
+          "items": [
+            {
+              "item": "Polling and rework review: R2-LABEL",
+              "evidence": "Two broken verify checks on R2-LABEL: the row match included the finding title tooltip (contains Paused), and the first rerun ran before the corrected script landed; the one allowed rerun is spent, though the installed render already shows Fix passed · review next.",
+              "outcome": "fixed inline",
+              "proof": "python3 -m unittest test_render.RenderTests.test_passed_fix_waiting_for_review_is_not_paused on installed 0.1.77, then bash verify-r4-label.sh exits 0 (verify-label-direct.log)"
+            }
+          ]
         },
         "simplify": {
           "items": [
             {
               "item": "Repeat: review failures on R2-DO1",
-              "evidence": "R2-DO1 has 2 review failures in failure_history; DO-1 needed two plan reviews because the first brief missed empty-commit and quoted-path cases (failure_history attempts 3c9e094c, da6ebb99).",
+              "evidence": "R2-DO1 has 2 review failures in failure_history",
               "outcome": "issue",
               "issue_id": "PR122-parked-backlog"
             },
             {
               "item": "Repeat: plan reviews on R2-DO1",
-              "evidence": "R2-DO1 has 2 plan reviews in plan_review_history; DO-1 needed two plan reviews because the first brief missed empty-commit and quoted-path cases (failure_history attempts 3c9e094c, da6ebb99).",
+              "evidence": "R2-DO1 has 2 plan reviews in plan_review_history",
               "outcome": "issue",
               "issue_id": "PR122-parked-backlog"
+            },
+            {
+              "item": "Repeat: review failures on R2-RACE",
+              "evidence": "R2-RACE has 2 review failures in failure_history; Terra round 2 raised new must-fixes (1.5 s per-request cap, 15 s lock deadline under sustained slow health) after round 1 asked for report-page retry and a lock-proving test.",
+              "outcome": "issue",
+              "issue_id": "BCL-191"
+            },
+            {
+              "item": "Repeat: review failures on R2-PLANHEAD",
+              "evidence": "R2-PLANHEAD has 2 review failures in failure_history; round 2 found an invalid font shorthand on nav buttons and blocked lanes counted as open.",
+              "outcome": "issue",
+              "issue_id": "BCL-192"
             }
           ]
         },
         "optimize": {
           "items": [
             {
-              "item": "Job tokens: R1-REGISTRY 167ef112de534f5282ac475d8fc4a9b4 527708 tokens",
-              "evidence": "Only R1-REGISTRY reported tokens (527708); 28 Grok Bot/OpenCode jobs have no token source, so the round total is not comparable.",
+              "item": "Job tokens: R1-VIEWER fbccf9c02eee46f8b9e9cf74edbcb45f 1918645 tokens",
+              "evidence": "1.92M tokens for a 25-line one-file fix at Luna medium; the round recorded 8.36M Codex tokens over 5 jobs.",
               "outcome": "issue",
               "issue_id": "PR122-parked-backlog"
             }
@@ -3145,15 +3353,15 @@
         "automate": {
           "items": [
             {
-              "item": "Parallel group count: 4",
-              "evidence": "08:35 IST three bcl job starts 3 s apart: R1-REGISTRY crashed in live_state.ensure_viewer (cannot verify viewer ownership on 58771); log ~/.agents/artifacts/bcl-124/fix-registry-attempt1.log.",
-              "outcome": "issue",
-              "issue_id": "BCL-191"
+              "item": "Codex write: R1-VIEWER",
+              "evidence": "Presuite failed on skill_shape: test_live_state.py started a server without asserting no leak; found only at presuite (presuite-r4.log).",
+              "outcome": "fixed inline",
+              "proof": "python3 scripts/check.py --jobs 6 --changed-since 4a2c9a7f"
             }
           ]
         }
       },
-      "round": 1,
+      "round": 2,
       "cycle": 16
     }
   },
@@ -3433,7 +3641,7 @@
       "observed": "25 Nov 2026 (IST), BCL-185 plan review (OpenCode deepseek-v4.1-flash-free, R2-PORT): ~/.agents/state/batched-change-list/viewers still holds ingpoc--agent-plugins--107/110/111/112/113/114/115/121.json with dead pids beside the per-repo files; live_state._state_is_live uses _pid_is_running (os.kill(pid, 0)), so a recycled pid makes such a file reserve its port during a fresh pick.",
       "recommendation": "Check liveness through the recorded port's /__bcl_health instance, and prune dead per-list viewer files when the per-repo file exists.",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "low",
       "area": "batched-change-list",
       "details": {
@@ -3452,12 +3660,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T06:45:00Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh"
     },
     {
       "id": "BCL-190",
