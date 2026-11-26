@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-26T03:32:25Z",
-      "now": "2026-11-26T03:32:25Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-26T03:36:15Z",
+      "now": "2026-11-26T03:36:15Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -372,7 +372,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T03:32:26Z",
+    "last_written_at": "2026-11-26T03:36:15Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -680,26 +680,26 @@
             "BCL-179",
             "BCL-181"
           ],
-          "status": "running",
+          "status": "review",
           "reason": "Both are lane job records in the same code (bin/bcl job flow, manage_findings job transitions, check_install_sessions): failed-first/root-cause/fix-verified steps are not kept per lane, and review insists on a Codex implementer session. One lane avoids two writers on the same functions.",
-          "worktree": "bcl124-r1-jobrec",
+          "worktree": "samantha-next-r14",
           "codex": {
-            "fix_base_head": "a503ef08061aca0aec0bf83c9951b6ee3d44c3f8",
-            "fix_status": "running",
+            "fix_base_head": "2c09858fada99ba24a6b1e1d3ef28c061a869ba8",
+            "fix_status": "passed",
             "job": {
-              "id": "4c1733d0c04b49659a169a985b0c453a",
-              "phase": "fix",
-              "started_at": "2026-11-26T03:32:25Z",
-              "command": "lane-commit.sh",
-              "heartbeat_at": "2026-11-26T03:32:25Z",
-              "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
+              "id": "c323524e77dc4ddab9993a77525f6d12",
+              "phase": "review",
+              "started_at": "2026-11-26T03:36:15Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-26T03:36:15Z",
+              "plan_sha256": "f1d8a266995bb38124f24ed628cd596c8a14fe817cb5e45f5e722a5d112cafb2",
               "finding_ids": [
                 "BCL-179",
                 "BCL-181"
               ],
-              "worktree": "bcl124-r1-jobrec",
+              "worktree": "samantha-next-r14",
               "model": "grok-bot-executor",
-              "lane_sha256": "1407a1942c524aabf0accb2241ceaeb48247763286d0b0844f72e479596e2d33",
+              "lane_sha256": "e593b9d5136f53b42cc30d20ab0867432393b0d1999ff4bd87b2675b30145b2a",
               "cycle": 16,
               "round": 1
             },
@@ -857,10 +857,56 @@
                 "wall_time_s": 1,
                 "session": "grok-bot-executor",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "4c1733d0c04b49659a169a985b0c453a",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:32:25Z",
+                "command": "lane-commit.sh",
+                "heartbeat_at": "2026-11-26T03:32:29Z",
+                "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
+                "finding_ids": [
+                  "BCL-179",
+                  "BCL-181"
+                ],
+                "worktree": "bcl124-r1-jobrec",
+                "model": "grok-bot-executor",
+                "lane_sha256": "1407a1942c524aabf0accb2241ceaeb48247763286d0b0844f72e479596e2d33",
+                "cycle": 16,
+                "round": 1,
+                "pid": 59941,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-26T03:32:26Z",
+                    "result": "BCL_JOB_ID=abc python3 -m unittest test_bcl...test_report_step_after_double_dash_records_the_lane_trail_and_event fails: report-step refused (outer job id leaks in)"
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-26T03:32:26Z",
+                    "result": "test_bcl setUp copies os.environ into self.env and call_job_without_viewer re-applies self.env over the test BCL_JOB_ID patch"
+                  }
+                ],
+                "latest_step": {
+                  "step": "root_cause",
+                  "at": "2026-11-26T03:32:26Z",
+                  "result": "test_bcl setUp copies os.environ into self.env and call_job_without_viewer re-applies self.env over the test BCL_JOB_ID patch"
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-26T03:32:29Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/4c1733d0c04b49659a169a985b0c453a.log",
+                "output_retained": true,
+                "commit": "2c09858fada99ba24a6b1e1d3ef28c061a869ba8",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 4,
+                "session": "grok-bot-executor",
+                "finished_phase_status": "passed"
               }
             ],
             "reviewer_model": "grok-bot-executor",
-            "must_fix_note": "1. test_bcl.BclTests.test_report_step_after_double_dash_records_the_lane_trail_and_event fails whenever the suite runs inside a bcl job (presuite or fix job), so the pre-push suite would fail."
+            "must_fix_note": "1. test_bcl.BclTests.test_report_step_after_double_dash_records_the_lane_trail_and_event fails whenever the suite runs inside a bcl job (presuite or fix job), so the pre-push suite would fail.",
+            "review_status": "running"
           },
           "depends_on": [],
           "verify": {
@@ -904,8 +950,24 @@
             }
           ],
           "updated_at": "2026-11-26T02:56:45Z",
-          "stage_entered_at": "2026-11-26T03:32:25Z",
-          "phase": "fix"
+          "stage_entered_at": "2026-11-26T03:32:29Z",
+          "phase": "review",
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T03:32:26Z",
+              "result": "BCL_JOB_ID=abc python3 -m unittest test_bcl...test_report_step_after_double_dash_records_the_lane_trail_and_event fails: report-step refused (outer job id leaks in)",
+              "job_id": "4c1733d0c04b49659a169a985b0c453a",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T03:32:26Z",
+              "result": "test_bcl setUp copies os.environ into self.env and call_job_without_viewer re-applies self.env over the test BCL_JOB_ID patch",
+              "job_id": "4c1733d0c04b49659a169a985b0c453a",
+              "phase": "fix"
+            }
+          ]
         },
         {
           "id": "R1-MERGED",
