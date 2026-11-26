@@ -45,6 +45,21 @@ class RenderTests(unittest.TestCase):
             'review_status':'passed','job':{'phase':'review'}}}, 1)
         self.assertTrue(interrupted['label'].startswith('Interrupted · resume at'))
 
+    def test_passed_fix_waiting_for_review_is_not_paused(self):
+        group = {'id':'A','status':'review','phase':'review',
+                 'codex':{'fix_status':'passed'}}
+        display = renderer.lane_display(group, 1)
+        self.assertEqual(display['label'], 'Fix passed · review next')
+        self.assertIn(display['kind'], ('ok', 'neutral'))
+        self.assertEqual(display['status'], 'review')
+
+    def test_real_pause_still_reads_paused(self):
+        group = {'id':'A','status':'review','phase':'review',
+                 'codex':{'fix_status':'passed'}}
+        display = renderer.lane_display(group, 1, {'reason':'round paused'})
+        self.assertEqual(display['label'], 'Paused · round paused')
+        self.assertEqual(display['status'], 'paused')
+
     def test_updated_prefers_last_write_with_legacy_fallback(self):
         data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
         data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-14T07:00:00Z'},

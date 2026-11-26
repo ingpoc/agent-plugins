@@ -501,6 +501,10 @@ def lane_display(group, round_number, paused=None):
     if status in LANE_GROUPS["job_driven"]:
         if codex.get("review_status") == "passed":
             return display(f"Review passed · {group_id}", "ok", "review", "Review passed")
+        if (status == "review" and plan_phase(group) == "review"
+                and codex.get("fix_status") == "passed" and not codex.get("review_status")):
+            return display(f"Fix passed · review next · {group_id}", "ok", "review",
+                           "Fix passed · review next")
         return display(f"Paused · needs resume · {group_id}", "warn", "paused",
                        "Paused · needs resume")
 
