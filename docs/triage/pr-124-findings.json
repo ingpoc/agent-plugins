@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-26T06:37:08Z",
-      "now": "2026-11-26T06:37:08Z — Review started"
+      "stage": "install",
+      "updated_at": "2026-11-26T06:41:58Z",
+      "now": "2026-11-26T06:41:58Z — Install in progress"
     },
     "rollover": {
       "source_pr": 123,
@@ -479,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T06:37:08Z",
+    "last_written_at": "2026-11-26T06:41:58Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -786,7 +786,8 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix"
+      "plan_fix",
+      "install"
     ],
     "plan": {
       "round": 2,
@@ -2186,11 +2187,11 @@
           "finding_ids": [
             "BCL-187"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "depends_on": [],
           "reason": "Status accuracy: _state_is_live trusts a pid alone, so a reused pid makes a dead per-list viewer file look running and reserve its port. Count a viewer live only when its health check answers with its recorded identity; ignore (do not delete) dead per-list files, so #112 state is untouched.",
-          "worktree": "bcl124-r4-viewer",
+          "worktree": "samantha-next-r14",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
             "method": "Named unit tests plus the installed live_state judging a reused-pid stale viewer file in a temp state folder",
@@ -2203,20 +2204,31 @@
           "codex": {
             "fix_base_head": "d33125982418ad06340de308425bef93657c86ac",
             "job": {
-              "id": "f4010e7fd5134014bbde3d1f23de5b67",
-              "phase": "review",
-              "started_at": "2026-11-26T06:37:08Z",
-              "command": "cat",
-              "heartbeat_at": "2026-11-26T06:37:08Z",
+              "id": "244120d0da4a4b298d2ab05b97678596",
+              "phase": "presuite",
+              "started_at": "2026-11-26T06:37:17Z",
+              "command": "python3",
+              "heartbeat_at": "2026-11-26T06:40:39Z",
               "plan_sha256": "f66a5b74102810f4d77504d4cec33c4edcf7c5fa0ad95674d8626fca1273a597",
               "finding_ids": [
-                "BCL-187"
+                "BCL-187",
+                "BCL-193"
               ],
-              "worktree": "bcl124-r4-viewer",
+              "worktree": "samantha-next-r14",
               "model": "grok-bot-executor",
               "lane_sha256": "8bf54fd5eeb83657db2ecaf260fc34e1502ec3d8569688bfcbaf9c76ceec4f2a",
               "cycle": 16,
-              "round": 2
+              "round": 2,
+              "pid": 80240,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T06:40:39Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/244120d0da4a4b298d2ab05b97678596.log",
+              "output_retained": true,
+              "tokens_source": "not_reported",
+              "tokens": null,
+              "wall_time_s": 202,
+              "session": "grok-bot-executor",
+              "finished_phase_status": "passed"
             },
             "jobs": [
               {
@@ -2346,15 +2358,41 @@
                 "wall_time_s": 16,
                 "session": "gpt-6-luna",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "f4010e7fd5134014bbde3d1f23de5b67",
+                "phase": "review",
+                "started_at": "2026-11-26T06:37:08Z",
+                "command": "cat",
+                "heartbeat_at": "2026-11-26T06:37:08Z",
+                "plan_sha256": "f66a5b74102810f4d77504d4cec33c4edcf7c5fa0ad95674d8626fca1273a597",
+                "finding_ids": [
+                  "BCL-187"
+                ],
+                "worktree": "bcl124-r4-viewer",
+                "model": "grok-bot-executor",
+                "lane_sha256": "8bf54fd5eeb83657db2ecaf260fc34e1502ec3d8569688bfcbaf9c76ceec4f2a",
+                "cycle": 16,
+                "round": 2,
+                "pid": 78943,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T06:37:08Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/f4010e7fd5134014bbde3d1f23de5b67.log",
+                "output_retained": true,
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "grok-bot-executor",
+                "finished_phase_status": "passed"
               }
             ],
             "fix_status": "passed",
             "reviewer_model": "grok-bot-executor",
             "tool_fault_streak": 0,
-            "review_status": "running"
+            "review_status": "passed"
           },
           "parked_to": 2,
-          "stage_entered_at": "2026-11-26T06:36:58Z",
+          "stage_entered_at": "2026-11-26T06:41:58Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-26T06:23:07Z",
@@ -2373,14 +2411,28 @@
               "job_id": "e9976de8047740bf9af4a4cb27066008",
               "phase": "fix"
             }
-          ]
+          ],
+          "presuite": {
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-26T06:40:39Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-26T06:41:58Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "grok-bot-executor",
+            "at": "2026-11-26T06:41:58Z"
+          }
         },
         {
           "id": "R2-RACE",
           "finding_ids": [
             "BCL-191"
           ],
-          "status": "blocked",
+          "status": "parked",
           "phase": "fix",
           "depends_on": [],
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
@@ -2547,7 +2599,7 @@
             "tool_fault_streak": 0,
             "review_status": "blocked"
           },
-          "stage_entered_at": "2026-11-26T06:31:13Z",
+          "stage_entered_at": "2026-11-26T06:41:42Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -2578,16 +2630,17 @@
               "at": "2026-11-26T06:23:52Z"
             }
           ],
-          "updated_at": "2026-11-26T06:23:07Z",
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers."
+          "updated_at": "2026-11-26T06:41:42Z",
+          "blocked_reason": "Two review failures; awaiting Guru unblock",
+          "failure_block_reason": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers.",
+          "parked_to": 3
         },
         {
           "id": "R2-PLANHEAD",
           "finding_ids": [
             "BCL-192"
           ],
-          "status": "blocked",
+          "status": "parked",
           "phase": "fix",
           "depends_on": [],
           "reason": "Visibility and status wording in render.py plan head and the change-list.html template; no file shared with R2-VIEWER.",
@@ -2754,7 +2807,7 @@
             "tool_fault_streak": 0,
             "review_status": "blocked"
           },
-          "stage_entered_at": "2026-11-26T06:30:01Z",
+          "stage_entered_at": "2026-11-26T06:41:42Z",
           "failure_history": [
             {
               "attempt_id": "ef5c5024f4124b5385fc004d515bc76d",
@@ -2785,17 +2838,18 @@
               "at": "2026-11-26T06:24:02Z"
             }
           ],
-          "updated_at": "2026-11-26T06:23:07Z",
-          "blocked_reason": "Second failure",
-          "failure_block_reason": "1. **The navigation buttons can still render below 16px.** In [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:185), `font: 600 1rem/1.3 inherit` is invalid: `inherit` cannot be used as a font family inside that shorthand. The browser discards the declaration, leaving the buttons subject to the browser’s smaller default control font. Set a valid inherited or explicit font and verify computed sizes.\n\n2. **The head does not consistently count settled lanes.** [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:604) defines open lanes using `closed`, while the workflow definition separately classifies blocked and failed lanes as settled. Thus a blocked lane is reported as open and receives “each installs and verifies when ready,” despite the round-close copy saying blocked lanes can close the round. Use consistent state semantics and report open and settled counts for mixed states too."
+          "updated_at": "2026-11-26T06:41:42Z",
+          "blocked_reason": "Two review failures; awaiting Guru unblock",
+          "failure_block_reason": "1. **The navigation buttons can still render below 16px.** In [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:185), `font: 600 1rem/1.3 inherit` is invalid: `inherit` cannot be used as a font family inside that shorthand. The browser discards the declaration, leaving the buttons subject to the browser’s smaller default control font. Set a valid inherited or explicit font and verify computed sizes.\n\n2. **The head does not consistently count settled lanes.** [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:604) defines open lanes using `closed`, while the workflow definition separately classifies blocked and failed lanes as settled. Thus a blocked lane is reported as open and receives “each installs and verifies when ready,” despite the round-close copy saying blocked lanes can close the round. Use consistent state semantics and report open and settled counts for mixed states too.",
+          "parked_to": 3
         },
         {
           "id": "R2-LABEL",
           "finding_ids": [
             "BCL-193"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "depends_on": [],
           "worktree": "samantha-next-r14",
           "reason": "Status accuracy: render.py lane display falls back to Paused · needs resume for a passed fix waiting for review. Same file as R2-PLANHEAD (render.py) but a different function (lane display vs plan head and template).",
@@ -2812,12 +2866,12 @@
             "fix_base_head": "f76c792f2713a9e587be6df34c809a6bef9e7619",
             "fix_status": "passed",
             "job": {
-              "id": "16535adbe3eb41de85fe5a0345fd6ce5",
+              "id": "244120d0da4a4b298d2ab05b97678596",
               "phase": "presuite",
-              "started_at": "2026-11-26T06:33:59Z",
+              "started_at": "2026-11-26T06:37:17Z",
               "command": "python3",
-              "heartbeat_at": "2026-11-26T06:34:00Z",
-              "plan_sha256": "f24658ae49f8783af123673d14f8d0702a1e6fc03ec30d5662b9ecc61c053072",
+              "heartbeat_at": "2026-11-26T06:40:39Z",
+              "plan_sha256": "f66a5b74102810f4d77504d4cec33c4edcf7c5fa0ad95674d8626fca1273a597",
               "finding_ids": [
                 "BCL-187",
                 "BCL-193"
@@ -2827,17 +2881,16 @@
               "lane_sha256": "7a60c84c18376c67905432740d8dbddf63033ef8fdf0a7901462a545e808b8ed",
               "cycle": 16,
               "round": 2,
-              "pid": 69693,
-              "exit_code": 1,
-              "finished_at": "2026-11-26T06:34:00Z",
-              "first_error_line": "validate plugins/agent-computer-use",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/16535adbe3eb41de85fe5a0345fd6ce5.log",
+              "pid": 80240,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T06:40:39Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/244120d0da4a4b298d2ab05b97678596.log",
               "output_retained": true,
               "tokens_source": "not_reported",
               "tokens": null,
-              "wall_time_s": 1,
-              "session": "gpt-6-luna",
-              "finished_phase_status": "failed"
+              "wall_time_s": 202,
+              "session": "grok-bot-executor",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -2896,6 +2949,34 @@
                 "wall_time_s": 1,
                 "session": "gpt-6-luna",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "16535adbe3eb41de85fe5a0345fd6ce5",
+                "phase": "presuite",
+                "started_at": "2026-11-26T06:33:59Z",
+                "command": "python3",
+                "heartbeat_at": "2026-11-26T06:34:00Z",
+                "plan_sha256": "f24658ae49f8783af123673d14f8d0702a1e6fc03ec30d5662b9ecc61c053072",
+                "finding_ids": [
+                  "BCL-187",
+                  "BCL-193"
+                ],
+                "worktree": "samantha-next-r14",
+                "model": "grok-bot-executor",
+                "lane_sha256": "7a60c84c18376c67905432740d8dbddf63033ef8fdf0a7901462a545e808b8ed",
+                "cycle": 16,
+                "round": 2,
+                "pid": 69693,
+                "exit_code": 1,
+                "finished_at": "2026-11-26T06:34:00Z",
+                "first_error_line": "validate plugins/agent-computer-use",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/16535adbe3eb41de85fe5a0345fd6ce5.log",
+                "output_retained": true,
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "gpt-6-luna",
+                "finished_phase_status": "failed"
               }
             ],
             "review_status": "passed",
@@ -2904,11 +2985,20 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-26T06:23:07Z",
-          "stage_entered_at": "2026-11-26T06:25:28Z",
+          "stage_entered_at": "2026-11-26T06:41:58Z",
           "presuite": {
-            "status": "failed",
-            "exit_code": 1,
-            "finished_at": "2026-11-26T06:34:00Z"
+            "status": "passed",
+            "exit_code": 0,
+            "finished_at": "2026-11-26T06:40:39Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-26T06:41:58Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "grok-bot-executor",
+            "at": "2026-11-26T06:41:58Z"
           }
         },
         {
@@ -3342,7 +3432,7 @@
       "observed": "25 Nov 2026 (IST), BCL-185 plan review (OpenCode deepseek-v4.1-flash-free, R2-PORT): ~/.agents/state/batched-change-list/viewers still holds ingpoc--agent-plugins--107/110/111/112/113/114/115/121.json with dead pids beside the per-repo files; live_state._state_is_live uses _pid_is_running (os.kill(pid, 0)), so a recycled pid makes such a file reserve its port during a fresh pick.",
       "recommendation": "Check liveness through the recorded port's /__bcl_health instance, and prune dead per-list viewer files when the per-repo file exists.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "low",
       "area": "batched-change-list",
       "details": {
@@ -3355,7 +3445,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-26T06:41:58Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
@@ -3544,7 +3641,7 @@
       "observed": "26 Nov 2026 11:48 IST: bcl status on #124 showed R1-VIEWER, R2-RACE and R2-PLANHEAD as Paused · needs resume right after their fix jobs exited 0 (fix_status passed, phase review, no pause recorded). Code: render.py lane display step 4 falls back to Paused for any job-driven lane without a running job unless review passed.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -3557,7 +3654,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [
+        {
+          "at": "2026-11-26T06:41:58Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ]
     }
   ]
 }
