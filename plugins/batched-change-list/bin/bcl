@@ -1694,10 +1694,10 @@ def main():
             print("Shared checks passed once for this install")
             return
         if record.get("rollover_pending") and begins_collect:
-            records = live_state.registry()
-            current = records[key]
-            current.pop("rollover_pending", None)
-            live_state.save_registry(records)
+            def clear_pending(records):
+                records[key].pop("rollover_pending", None)
+                return dict(records[key])
+            current = live_state.update_registry(clear_pending)
             _ensure_viewer(parser, key, current, live, plugin_version, stage)
         if stage == "verify":
             plan_claim = tracker_lock.exclusive_lock(tracker_lock.plan_lock_path(live))

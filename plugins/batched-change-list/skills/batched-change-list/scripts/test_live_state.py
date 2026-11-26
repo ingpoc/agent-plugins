@@ -493,6 +493,75 @@ class LiveStateGuardTests(unittest.TestCase):
         self.assertTrue(live_state.is_live_state_path(live_state.default_live_root() / "registry.json"))
 
 
+class RegistryConcurrencyTests(unittest.TestCase):
+    """BCL-186: concurrent registry updates must never lose a change."""
+
+    def _add_key_process(self, state, key, sleep=0.3):
+        helper = "\n".join((
+            "import sys, time",
+            "sys.path.insert(0, sys.argv[1])",
+            "import live_state",
+            "def add(records):",
+            "    time.sleep(float(sys.argv[3]))",
+            "    records[sys.argv[2]] = {'live': sys.argv[2]}",
+            "live_state.update_registry(add)",
+        ))
+        env = {**os.environ, "BCL_STATE_DIR": str(state)}
+        return subprocess.Popen([sys.executable, "-c", helper, str(Path(__file__).resolve().parent),
+                                 key, str(sleep)], env=env, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True)
+
+    def test_two_processes_keep_both_added_keys(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state = Path(temp) / "state"
+            processes = [self._add_key_process(state, "owner/project/one"),
+                         self._add_key_process(state, "owner/project/two")]
+            for process in processes:
+                out, err = process.communicate(timeout=30)
+                self.assertEqual(process.returncode, 0, err or out)
+            saved = json.loads((state / "registry.json").read_text())
+            self.assertEqual(set(saved), {"owner/project/one", "owner/project/two"})
+
+    def test_rollover_clear_keeps_a_key_added_concurrently(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state = Path(temp) / "state"
+            state.mkdir(parents=True)
+            record = {"live": str(state / "a.json"), "rollover_pending": True}
+            (state / "registry.json").write_text(json.dumps({"owner/project/A": record}))
+            process = self._add_key_process(state, "owner/project/B")
+
+            def clear(records):
+                time.sleep(0.3)
+                records["owner/project/A"].pop("rollover_pending", None)
+
+            with patch.object(live_state, "STATE", state):
+                live_state.update_registry(clear)
+            out, err = process.communicate(timeout=30)
+            self.assertEqual(process.returncode, 0, err or out)
+            saved = json.loads((state / "registry.json").read_text())
+            self.assertIn("owner/project/B", saved)
+            self.assertNotIn("rollover_pending", saved["owner/project/A"])
+
+    def test_only_update_registry_calls_save_registry(self):
+        import ast
+
+        callers = set()
+        for node in ast.walk(ast.parse(Path(live_state.__file__).read_text())):
+            if isinstance(node, ast.FunctionDef):
+                for inner in ast.walk(node):
+                    if (isinstance(inner, ast.Call) and isinstance(inner.func, ast.Name)
+                            and inner.func.id == "save_registry"):
+                        callers.add(node.name)
+        self.assertEqual(callers, {"update_registry"})
+        plugin = Path(__file__).resolve().parents[3]
+        sources = (plugin / "bin/bcl", plugin / "bin/bcl-hook",
+                   *sorted((Path(__file__).resolve().parent).glob("*.py")))
+        for path in sources:
+            if path.name == "live_state.py" or path.name.startswith("test_"):
+                continue
+            self.assertNotIn("save_registry", path.read_text(), f"{path} still writes the registry directly")
+
+
 class RepoViewerPortTests(unittest.TestCase):
     """BCL-185: one bookmarkable viewer port per repo, chosen once and never moved."""
 

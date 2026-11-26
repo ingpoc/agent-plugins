@@ -31,6 +31,10 @@ def plan_lock_path(path):
     return _lock_path(path, 'plan')
 
 
+def registry_lock_path(path):
+    return _lock_path(path, 'registry')
+
+
 def verify_lock_path(path):
     return _lock_path(path, 'verify')
 

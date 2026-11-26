@@ -37,6 +37,16 @@ class TrackerLockTests(unittest.TestCase):
             with tracker_lock.exclusive_lock(lock_path, blocking=False):
                 pass
 
+    def test_registry_lock_path_is_a_distinct_lock(self):
+        with tempfile.TemporaryDirectory() as root:
+            registry = Path(root) / 'registry.json'
+            lock = tracker_lock.registry_lock_path(registry)
+            self.assertNotEqual(lock, tracker_lock.tracker_lock_path(registry))
+            self.assertNotEqual(lock, tracker_lock.plan_lock_path(registry))
+            self.assertNotEqual(lock, tracker_lock.verify_lock_path(registry))
+            with tracker_lock.exclusive_lock(lock, blocking=False):
+                pass
+
     def test_windows_retries_contention_then_unlocks(self):
         api = Mock(LK_NBLCK=1, LK_UNLCK=2)
         api.locking.side_effect = [OSError(errno.EACCES, 'busy'), None, None]

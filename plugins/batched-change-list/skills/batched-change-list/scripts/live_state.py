@@ -1,5 +1,5 @@
 """Live tracker registry and per-list viewer lifecycle."""
-import errno, hashlib, json, os, re, socket, subprocess, sys, time, urllib.error, urllib.request, uuid
+import errno, hashlib, json, os, re, socket, subprocess, sys, tempfile, time, urllib.error, urllib.request, uuid
 import tracker_lock
 from datetime import datetime
 from pathlib import Path
@@ -126,10 +126,32 @@ def registry():
     return json.loads(path.read_text()) if path.exists() else {}
 
 def save_registry(value):
+    """Atomic whole-file write; callers go through update_registry so the read-modify-write is locked."""
     path = STATE / "registry.json"
     guard_live_state_write(path)
     STATE.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp"); tmp.write_text(json.dumps(value, indent=2) + "\n"); tmp.replace(path)
+    handle, tmp = tempfile.mkstemp(dir=STATE, prefix=".registry.", suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w") as output:
+            output.write(json.dumps(value, indent=2) + "\n")
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def update_registry(mutator):
+    """BCL-186: read, change and write registry.json under one exclusive lock so concurrent commands keep every change."""
+    path = STATE / "registry.json"
+    guard_live_state_write(path)
+    STATE.mkdir(parents=True, exist_ok=True)
+    with tracker_lock.exclusive_lock(tracker_lock.registry_lock_path(path)):
+        records = registry()
+        result = mutator(records)
+        save_registry(records)
+        return result
 
 def _same_path(left, right):
     left, right = Path(left), Path(right)
@@ -210,12 +232,11 @@ def _project_port(repo, records=None):
     raise RuntimeError(f"no free viewer port for {repo} in {low}-{high - 1}")
 
 def _save_project_port(key, port):
-    records = registry()
-    record = records.get(key)
-    if record is None or record.get("viewer_port"):
-        return
-    record["viewer_port"] = port
-    save_registry(records)
+    def save_port(records):
+        record = records.get(key)
+        if record is not None and not record.get("viewer_port"):
+            record["viewer_port"] = port
+    update_registry(save_port)
 
 def report_paths(record, live):
     home = Path(record["home"])
@@ -292,8 +313,11 @@ def register_rollover(record, live, document, worktree):
         with target.open("xb") as output:
             created = True
             output.write((json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
-        records[new_key] = new_record
-        save_registry(records)
+        def add_record(current):
+            if new_key in current:
+                raise ValueError(f"new list is already adopted: {new_key}")
+            current[new_key] = new_record
+        update_registry(add_record)
     except BaseException:
         if created:
             target.unlink(missing_ok=True)
@@ -338,12 +362,14 @@ def locate(path, adopt=False, render_path=None):
         html_path = Path(render_path).resolve() if render_path else path.with_suffix(".html")
         snapshot = root / path.relative_to(root)
         _guard_output(html_path, (("tracker", path), ("snapshot", snapshot)))
-        records[key] = {"live": str(live), "snapshot": str(path.relative_to(root)),
-                        "html": str(html_path.relative_to(root)), "home": str(root), "repo": repo, "id": ident,
-                        "viewer_port": _project_port(repo, records)}
         with live.open("xb") as output:
             output.write(path.read_bytes())
-        save_registry(records)
+        def adopt_record(current):
+            current[key] = {"live": str(live), "snapshot": str(path.relative_to(root)),
+                            "html": str(html_path.relative_to(root)), "home": str(root), "repo": repo, "id": ident,
+                            "viewer_port": _project_port(repo, current)}
+        update_registry(adopt_record)
+        records = registry()
     record = records.get(key)
     if not record: return key, None, None
     return key, record, Path(record["live"]).resolve()
