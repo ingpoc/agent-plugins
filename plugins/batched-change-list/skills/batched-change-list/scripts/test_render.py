@@ -32,11 +32,23 @@ class RenderTests(unittest.TestCase):
     def test_minimum_text_is_16px(self):
         data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
         page = renderer.render(data, Path(__file__).parent.parent)
-        sizes = re.findall(r'(?:font-size\s*:\s*|font\s*:\s*[^;{}]*?)(\d+(?:\.\d+)?)(px|rem)\b', page)
+        sizes = re.findall(r'(?:font-size\s*:\s*|font\s*:\s*[^;{}]*?)(\d*\.?\d+)(px|rem)\b', page)
         self.assertTrue(sizes, 'rendered page should contain typography declarations')
         too_small = [(value, unit) for value, unit in sizes
                      if float(value) < (16 if unit == 'px' else 1)]
         self.assertEqual(too_small, [], f'text sizes below 16px/1rem: {too_small}')
+        self.assertIn('<small> · Pre-push suite</small>', page)
+        css = re.search(r'<style>(.*?)</style>', page, re.S).group(1)
+        rules = re.findall(r'([^{}]+)\{([^{}]*)\}', css)
+        for tag in ('small', 'sub', 'sup'):
+            with self.subTest(tag=tag):
+                declarations = [body for selectors, body in rules
+                                if tag in [selector.strip() for selector in selectors.split(',')]]
+                self.assertTrue(any(re.search(r'font-size\s*:\s*(?:1(?:\.0+)?rem|16(?:\.0+)?px)\s*(?:;|$)', body)
+                                    for body in declarations), f'{tag} needs a global minimum font size')
+        self.assertTrue(any('.wf-label small' in [selector.strip() for selector in selectors.split(',')]
+                            and re.search(r'font-size\s*:\s*(?:1(?:\.0+)?rem|16(?:\.0+)?px)\s*(?:;|$)', body)
+                            for selectors, body in rules), 'Pre-push suite needs an explicit minimum font size')
 
     def test_viewport_does_not_block_zoom(self):
         data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())

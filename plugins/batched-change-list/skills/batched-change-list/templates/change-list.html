@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{TITLE}}</title>
 <style>
+small,sub,sup{font-size:1rem}
 :root{color-scheme:light;--ink:#202921;--muted:#637066;--line:#dfe5db;--panel:#fff;--accent:#315b49;--green:#236b4c;--red:#a64037;--page:#f4f5ef;--sage-50:#f0f5ed;--sage-100:#e8f0e8;--sage-line:#cad8ca;--dot-idle:#9bad9f;--active:#218447;--halo:#d4eedb;--amber:#c98a1b;--amber-track:#efe4cb;--amber-ink:#674500;--amber-bg:#fff2d6;--ok-bg:#e4f2e8;--ok-ink:#185b37;--bad-bg:#fbe9e7;--bad-ink:#8b1c13;--idle-bg:#eef0ed;--idle-ink:#465249;--run-ink:#234e39;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font: 16px/1.5 ui-sans-serif,system-ui,-apple-system,sans-serif}
 a{color:var(--accent)}a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -44,7 +45,7 @@ main{max-width:none;padding:0;margin:0}.issue{background:#fff;border:1px solid v
 .wf-step{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
 .wf-dot{position:relative;z-index:1;height:22px;display:grid;place-items:center}
 .wf-dot i{display:block;width:10px;height:10px;border-radius:50%;background:var(--panel);border:1.5px solid var(--dot-idle);box-shadow:0 0 0 3px var(--bg,var(--panel))}
-.wf-label{margin-top:4px;height:32px;font-size: 16px;line-height:16px;color:var(--muted);padding:0 4px;overflow-wrap:anywhere}.wf-label small{display:block}
+.wf-label{margin-top:4px;height:32px;font-size: 16px;line-height:16px;color:var(--muted);padding:0 4px;overflow-wrap:anywhere}.wf-label small{display:block;font-size:1rem}
 /* connector halves */
 .wf-step::before,.wf-step::after{content:"";position:absolute;top:10.25px;height:1.5px;background:var(--sage-line)}
 .wf-step::before{left:0;right:50%}.wf-step::after{left:50%;right:0}
