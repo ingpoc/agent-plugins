@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-26T06:23:13Z",
-      "now": "2026-11-26T06:23:13Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-26T06:23:52Z",
+      "now": "2026-11-26T06:23:52Z — Plan Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -479,7 +479,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T06:23:14Z",
+    "last_written_at": "2026-11-26T06:23:52Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2273,8 +2273,8 @@
           "finding_ids": [
             "BCL-191"
           ],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "plan_review",
           "depends_on": [],
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
           "worktree": "bcl124-r4-race",
@@ -2282,39 +2282,28 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh",
             "method": "Named unit tests plus 6 concurrent installed bcl status runs under CPU load against the live viewer 58771",
             "summary": "Six concurrent starts pass; viewer pid unchanged",
-            "status": "pending"
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
             "job": {
-              "id": "1fba226f7fc8422780f9ecbc20974093",
-              "phase": "review",
-              "started_at": "2026-11-26T06:18:08Z",
-              "command": "codex",
-              "heartbeat_at": "2026-11-26T06:19:25Z",
-              "plan_sha256": "cd1c0ee011ce8c19ef10b5c947fc3e119e522e9289ea3defda4baa0d93434cb2",
+              "id": "d40833fcb28545fc8ecfa6f20d54a063",
+              "phase": "plan_review",
+              "started_at": "2026-11-26T06:23:52Z",
+              "command": "cat",
+              "heartbeat_at": "2026-11-26T06:23:52Z",
+              "plan_sha256": "f7a8c5279083481fc7c0f98b23f12706f9f084df348bf17403c340af0d0689f4",
               "finding_ids": [
                 "BCL-191"
               ],
               "worktree": "bcl124-r4-race",
-              "model": "gpt-6.1-terra",
-              "lane_sha256": "a39f4a80b24fcc3c054d750220b4650808225dfca2fc7931bf5c1ed8e1b6d8de",
+              "model": "grok-bot-executor",
+              "lane_sha256": "3442ff017b1682b7fcd1549b404de85b7eb69ba06e3233241c994a3200e486b3",
               "cycle": 16,
-              "round": 2,
-              "pid": 28186,
-              "exit_code": 0,
-              "finished_at": "2026-11-26T06:19:25Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/1fba226f7fc8422780f9ecbc20974093.log",
-              "output_retained": true,
-              "tokens_source": "official",
-              "tokens": {
-                "total": 371101,
-                "output": 2216
-              },
-              "wall_time_s": 77,
-              "session": "rollout-2026-11-26T11-48-09-01a21681-1983-72b1-b8e6-4ae26743d0f2.jsonl",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "- [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:584) still performs the report-page probe only once with a one-second timeout. A healthy but delayed response can therefore still produce “cannot verify viewer ownership.” Retry the complete ownership check within a bounded deadline.\n- [test_live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py:81) does not prove the new lock fixes concurrent startup: the fixture writes an existing viewer state before the threads run. The health retry alone could make this test pass even if the lock were removed. Add a deterministic concurrent-start test that fails without the lock and proves only one viewer is started."
+              "round": 2
             },
             "jobs": [
               {
@@ -2346,6 +2335,36 @@
                 "wall_time_s": 262,
                 "session": "rollout-2026-11-26T11-42-36-01a2167c-0497-7d31-9761-41c381bad8b0.jsonl",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "1fba226f7fc8422780f9ecbc20974093",
+                "phase": "review",
+                "started_at": "2026-11-26T06:18:08Z",
+                "command": "codex",
+                "heartbeat_at": "2026-11-26T06:19:25Z",
+                "plan_sha256": "cd1c0ee011ce8c19ef10b5c947fc3e119e522e9289ea3defda4baa0d93434cb2",
+                "finding_ids": [
+                  "BCL-191"
+                ],
+                "worktree": "bcl124-r4-race",
+                "model": "gpt-6.1-terra",
+                "lane_sha256": "a39f4a80b24fcc3c054d750220b4650808225dfca2fc7931bf5c1ed8e1b6d8de",
+                "cycle": 16,
+                "round": 2,
+                "pid": 28186,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T06:19:25Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/1fba226f7fc8422780f9ecbc20974093.log",
+                "output_retained": true,
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 371101,
+                  "output": 2216
+                },
+                "wall_time_s": 77,
+                "session": "rollout-2026-11-26T11-48-09-01a21681-1983-72b1-b8e6-4ae26743d0f2.jsonl",
+                "finished_phase_status": "changes_requested",
+                "must_fix": "- [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:584) still performs the report-page probe only once with a one-second timeout. A healthy but delayed response can therefore still produce “cannot verify viewer ownership.” Retry the complete ownership check within a bounded deadline.\n- [test_live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py:81) does not prove the new lock fixes concurrent startup: the fixture writes an existing viewer state before the threads run. The health retry alone could make this test pass even if the lock were removed. Add a deterministic concurrent-start test that fails without the lock and proves only one viewer is started."
               }
             ],
             "fix_status": "passed",
@@ -2354,7 +2373,7 @@
             "must_fix_note": "- [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:584) still performs the report-page probe only once with a one-second timeout. A healthy but delayed response can therefore still produce “cannot verify viewer ownership.” Retry the complete ownership check within a bounded deadline.\n- [test_live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py:81) does not prove the new lock fixes concurrent startup: the fixture writes an existing viewer state before the threads run. The health retry alone could make this test pass even if the lock were removed. Add a deterministic concurrent-start test that fails without the lock and proves only one viewer is started.",
             "tool_fault_streak": 0
           },
-          "stage_entered_at": "2026-11-26T06:19:25Z",
+          "stage_entered_at": "2026-11-26T06:23:52Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -2497,7 +2516,7 @@
               "phase": "fix",
               "started_at": "2026-11-26T06:23:13Z",
               "command": "codex",
-              "heartbeat_at": "2026-11-26T06:23:13Z",
+              "heartbeat_at": "2026-11-26T06:23:14Z",
               "plan_sha256": "f7a8c5279083481fc7c0f98b23f12706f9f084df348bf17403c340af0d0689f4",
               "finding_ids": [
                 "BCL-193"
@@ -2506,7 +2525,8 @@
               "model": "gpt-6-luna",
               "lane_sha256": "a303f6d5541510589593495492adebc5738b4b1bd6b10cd25efcc7109d7c0cd7",
               "cycle": 16,
-              "round": 2
+              "round": 2,
+              "pid": 39943
             }
           },
           "failure_history": [],
