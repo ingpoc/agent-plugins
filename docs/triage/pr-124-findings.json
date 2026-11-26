@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-26T04:01:31Z",
-      "now": "2026-11-26T04:01:31Z — Verify in progress"
+      "stage": "introspect",
+      "updated_at": "2026-11-26T06:03:10Z",
+      "now": "2026-11-26T06:03:10Z — Introspection recorded"
     },
     "rollover": {
       "source_pr": 123,
@@ -350,7 +350,109 @@
         "ended_at": "2026-11-25T16:16:22Z"
       }
     ],
-    "introspect_history": [],
+    "introspect_history": [
+      {
+        "result": "Introspect recorded",
+        "at": "2026-11-26T06:03:10Z",
+        "steps": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Parallel group count: 4",
+          "Codex write: R1-JOBREC",
+          "Codex review: R1-JOBREC",
+          "Polling and rework review: R1-JOBREC",
+          "Test command: R1-JOBREC: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
+          "Codex write: R1-MERGED",
+          "Codex review: R1-MERGED",
+          "Polling and rework review: R1-MERGED",
+          "Test command: R1-MERGED: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
+          "Codex write: R1-REGISTRY",
+          "Codex review: R1-REGISTRY",
+          "Polling and rework review: R1-REGISTRY",
+          "Test command: R1-REGISTRY: /Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
+          "Codex write: R2-DO1",
+          "Codex review: R2-DO1",
+          "Polling and rework review: R2-DO1",
+          "Test command: R2-DO1: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+          "Job wall time: R2-DO1 d4f54a42e34a477c86ba1a60de831c49 241s",
+          "Job wall time: R1-JOBREC 75cd3c1858954c46adeff15bd421da7e 222s",
+          "Job wall time: R1-MERGED 75cd3c1858954c46adeff15bd421da7e 222s",
+          "Job tokens: R1-REGISTRY 167ef112de534f5282ac475d8fc4a9b4 527708 tokens",
+          "Repeat: review failures on R2-DO1",
+          "Repeat: plan reviews on R2-DO1"
+        ],
+        "none": [
+          "Stage: Plan & fix",
+          "Stage: Review",
+          "Stage: Install",
+          "Stage: Verify",
+          "Codex write: R1-JOBREC",
+          "Codex review: R1-JOBREC",
+          "Polling and rework review: R1-JOBREC",
+          "Test command: R1-JOBREC: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
+          "Codex write: R1-MERGED",
+          "Codex review: R1-MERGED",
+          "Polling and rework review: R1-MERGED",
+          "Test command: R1-MERGED: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
+          "Codex write: R1-REGISTRY",
+          "Codex review: R1-REGISTRY",
+          "Polling and rework review: R1-REGISTRY",
+          "Test command: R1-REGISTRY: /Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
+          "Codex write: R2-DO1",
+          "Codex review: R2-DO1",
+          "Polling and rework review: R2-DO1",
+          "Test command: R2-DO1: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+          "Job wall time: R2-DO1 d4f54a42e34a477c86ba1a60de831c49 241s",
+          "Job wall time: R1-JOBREC 75cd3c1858954c46adeff15bd421da7e 222s",
+          "Job wall time: R1-MERGED 75cd3c1858954c46adeff15bd421da7e 222s"
+        ],
+        "sections": {
+          "delete": {
+            "none": "Reviewed all four lanes: each step (write, review, presuite, install, verify) produced evidence the gate needs; nothing to drop."
+          },
+          "simplify": {
+            "items": [
+              {
+                "item": "Repeat: review failures on R2-DO1",
+                "evidence": "R2-DO1 has 2 review failures in failure_history; DO-1 needed two plan reviews because the first brief missed empty-commit and quoted-path cases (failure_history attempts 3c9e094c, da6ebb99).",
+                "outcome": "issue",
+                "issue_id": "PR122-parked-backlog"
+              },
+              {
+                "item": "Repeat: plan reviews on R2-DO1",
+                "evidence": "R2-DO1 has 2 plan reviews in plan_review_history; DO-1 needed two plan reviews because the first brief missed empty-commit and quoted-path cases (failure_history attempts 3c9e094c, da6ebb99).",
+                "outcome": "issue",
+                "issue_id": "PR122-parked-backlog"
+              }
+            ]
+          },
+          "optimize": {
+            "items": [
+              {
+                "item": "Job tokens: R1-REGISTRY 167ef112de534f5282ac475d8fc4a9b4 527708 tokens",
+                "evidence": "Only R1-REGISTRY reported tokens (527708); 28 Grok Bot/OpenCode jobs have no token source, so the round total is not comparable.",
+                "outcome": "issue",
+                "issue_id": "PR122-parked-backlog"
+              }
+            ]
+          },
+          "automate": {
+            "items": [
+              {
+                "item": "Parallel group count: 4",
+                "evidence": "08:35 IST three bcl job starts 3 s apart: R1-REGISTRY crashed in live_state.ensure_viewer (cannot verify viewer ownership on 58771); log ~/.agents/artifacts/bcl-124/fix-registry-attempt1.log.",
+                "outcome": "issue",
+                "issue_id": "BCL-191"
+              }
+            ]
+          }
+        },
+        "round": 1,
+        "cycle": 16
+      }
+    ],
     "archive": {
       "path": "/Users/gurusharan/.agents/state/batched-change-list/ingpoc--agent-plugins/archive.json",
       "count": 402
@@ -372,7 +474,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T04:01:31Z",
+    "last_written_at": "2026-11-26T06:03:10Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -671,7 +773,8 @@
       "plan_fix",
       "review",
       "install",
-      "verify"
+      "verify",
+      "introspect"
     ],
     "plan": {
       "round": 1,
@@ -682,7 +785,7 @@
             "BCL-179",
             "BCL-181"
           ],
-          "status": "installing",
+          "status": "verified",
           "reason": "Both are lane job records in the same code (bin/bcl job flow, manage_findings job transitions, check_install_sessions): failed-first/root-cause/fix-verified steps are not kept per lane, and review insists on a Codex implementer session. One lane avoids two writers on the same functions.",
           "worktree": "samantha-next-r14",
           "codex": {
@@ -987,10 +1090,11 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
-            "total": 2
+            "total": 2,
+            "finished_at": "2026-11-26T04:05:13Z"
           },
           "failure_history": [
             {
@@ -1024,9 +1128,9 @@
               "at": "2026-11-26T03:32:25Z"
             }
           ],
-          "updated_at": "2026-11-26T02:56:45Z",
-          "stage_entered_at": "2026-11-26T04:01:23Z",
-          "phase": "install",
+          "updated_at": "2026-11-26T04:05:11Z",
+          "stage_entered_at": "2026-11-26T04:05:13Z",
+          "phase": "verify",
           "trail": [
             {
               "step": "failed_first",
@@ -1041,6 +1145,12 @@
               "result": "test_bcl setUp copies os.environ into self.env and call_job_without_viewer re-applies self.env over the test BCL_JOB_ID patch",
               "job_id": "4c1733d0c04b49659a169a985b0c453a",
               "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T04:05:13Z",
+              "source": "verify",
+              "result": "verify: verify-jobrec.sh passed"
             }
           ],
           "presuite": {
@@ -1049,13 +1159,14 @@
             "finished_at": "2026-11-26T04:00:43Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-26T04:01:23Z"
+            "status": "complete",
+            "started_at": "2026-11-26T04:01:23Z",
+            "finished_at": "2026-11-26T04:05:13Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "grok-bot-executor",
-            "at": "2026-11-26T04:01:23Z"
+            "at": "2026-11-26T04:05:11Z"
           }
         },
         {
@@ -1064,7 +1175,7 @@
             "BCL-184",
             "BCL-190"
           ],
-          "status": "installing",
+          "status": "verified",
           "reason": "Both are merged-list lifecycle in bin/bcl merged: a list started before its PR cannot record its merge (BCL-184), and an already-merged list cannot clear leftover install.running and active verification runs (BCL-190). Same code path, one lane, no dependency on other lanes.",
           "worktree": "samantha-next-r14",
           "codex": {
@@ -1241,12 +1352,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 2,
             "failed": 0,
-            "total": 2
+            "total": 2,
+            "finished_at": "2026-11-26T04:08:38Z"
           },
-          "stage_entered_at": "2026-11-26T04:01:23Z",
+          "stage_entered_at": "2026-11-26T04:08:38Z",
           "failure_history": [
             {
               "attempt_id": "942e0a13873f417dac099f87ccf28ec8",
@@ -1261,8 +1373,8 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T03:02:49Z",
-          "phase": "install",
+          "updated_at": "2026-11-26T04:05:29Z",
+          "phase": "verify",
           "trail": [
             {
               "step": "failed_first",
@@ -1277,6 +1389,12 @@
               "result": "bin/bcl: tracking.pull_request was only ever written by rollover, so a list adopted before its PR could never record its merge; the only caller of clear_finished_running_state on merged lists is set-stage merged, which also retargets stacked PRs and stops the repo viewer, so lists merged before BCL-189 could not be repaired",
               "job_id": "a3049faadf3b45799ec2e538ec379dd3",
               "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T04:08:38Z",
+              "source": "verify",
+              "result": "verify: verify-merged.sh passed"
             }
           ],
           "presuite": {
@@ -1285,21 +1403,30 @@
             "finished_at": "2026-11-26T04:00:43Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-26T04:01:23Z"
+            "status": "complete",
+            "started_at": "2026-11-26T04:01:23Z",
+            "finished_at": "2026-11-26T04:08:38Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "grok-bot-executor",
-            "at": "2026-11-26T04:01:23Z"
-          }
+            "at": "2026-11-26T04:05:29Z"
+          },
+          "verify_reruns": [
+            {
+              "round": 1,
+              "reason": "check fault: grep -q under pipefail SIGPIPEd bcl --help; the fix was not at fault",
+              "at": "2026-11-26T04:05:29Z",
+              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            }
+          ]
         },
         {
           "id": "R1-REGISTRY",
           "finding_ids": [
             "BCL-186"
           ],
-          "status": "installing",
+          "status": "verified",
           "reason": "Registry updates can overwrite each other when two change-list commands run at once.",
           "worktree": "samantha-next-r14",
           "codex": {
@@ -1644,12 +1771,13 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-26T04:01:53Z"
           },
-          "stage_entered_at": "2026-11-26T04:01:23Z",
+          "stage_entered_at": "2026-11-26T04:01:53Z",
           "failure_history": [
             {
               "attempt_id": "306a3d6bde884cbb964c1053fd3dd2fc",
@@ -1682,8 +1810,8 @@
               "at": "2026-11-26T03:49:41Z"
             }
           ],
-          "updated_at": "2026-11-26T02:56:45Z",
-          "phase": "install",
+          "updated_at": "2026-11-26T04:01:38Z",
+          "phase": "verify",
           "trail": [
             {
               "step": "failed_first",
@@ -1726,6 +1854,12 @@
               "result": "adoption wrote the live file before the registry transaction without rollback; tests used sleeps, not ready-file synchronization",
               "job_id": "430472853acb48f79e2e38a2480c2103",
               "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T04:01:53Z",
+              "source": "verify",
+              "result": "verify: verify-registry.sh passed"
             }
           ],
           "presuite": {
@@ -1734,13 +1868,14 @@
             "finished_at": "2026-11-26T04:00:43Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-26T04:01:23Z"
+            "status": "complete",
+            "started_at": "2026-11-26T04:01:23Z",
+            "finished_at": "2026-11-26T04:01:53Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "grok-bot-executor",
-            "at": "2026-11-26T04:01:23Z"
+            "at": "2026-11-26T04:01:38Z"
           }
         },
         {
@@ -1899,19 +2034,20 @@
             "review_status": "passed",
             "reviewer_model": "grok-bot-executor"
           },
-          "status": "verifying",
+          "status": "verified",
           "worktree": "samantha-next-r14",
           "depends_on": [],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-26T04:01:37Z"
           },
           "parked_to": 2,
-          "stage_entered_at": "2026-11-26T04:01:31Z",
+          "stage_entered_at": "2026-11-26T04:01:37Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -1993,14 +2129,23 @@
             "finished_at": "2026-11-26T04:00:43Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-26T04:01:23Z"
+            "status": "complete",
+            "started_at": "2026-11-26T04:01:23Z",
+            "finished_at": "2026-11-26T04:01:37Z"
           },
           "stage_model": {
             "stage": "verify",
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:01:31Z"
-          }
+          },
+          "trail": [
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T04:01:37Z",
+              "source": "verify",
+              "result": "verify: verify-do1.sh passed"
+            }
+          ]
         },
         {
           "id": "R1-VIEWER",
@@ -2047,6 +2192,108 @@
           }
         }
       ],
+      "cycle": 16,
+      "status": "closed"
+    },
+    "introspect": {
+      "result": "Introspect recorded",
+      "at": "2026-11-26T06:03:10Z",
+      "steps": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Parallel group count: 4",
+        "Codex write: R1-JOBREC",
+        "Codex review: R1-JOBREC",
+        "Polling and rework review: R1-JOBREC",
+        "Test command: R1-JOBREC: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
+        "Codex write: R1-MERGED",
+        "Codex review: R1-MERGED",
+        "Polling and rework review: R1-MERGED",
+        "Test command: R1-MERGED: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
+        "Codex write: R1-REGISTRY",
+        "Codex review: R1-REGISTRY",
+        "Polling and rework review: R1-REGISTRY",
+        "Test command: R1-REGISTRY: /Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
+        "Codex write: R2-DO1",
+        "Codex review: R2-DO1",
+        "Polling and rework review: R2-DO1",
+        "Test command: R2-DO1: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+        "Job wall time: R2-DO1 d4f54a42e34a477c86ba1a60de831c49 241s",
+        "Job wall time: R1-JOBREC 75cd3c1858954c46adeff15bd421da7e 222s",
+        "Job wall time: R1-MERGED 75cd3c1858954c46adeff15bd421da7e 222s",
+        "Job tokens: R1-REGISTRY 167ef112de534f5282ac475d8fc4a9b4 527708 tokens",
+        "Repeat: review failures on R2-DO1",
+        "Repeat: plan reviews on R2-DO1"
+      ],
+      "none": [
+        "Stage: Plan & fix",
+        "Stage: Review",
+        "Stage: Install",
+        "Stage: Verify",
+        "Codex write: R1-JOBREC",
+        "Codex review: R1-JOBREC",
+        "Polling and rework review: R1-JOBREC",
+        "Test command: R1-JOBREC: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
+        "Codex write: R1-MERGED",
+        "Codex review: R1-MERGED",
+        "Polling and rework review: R1-MERGED",
+        "Test command: R1-MERGED: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
+        "Codex write: R1-REGISTRY",
+        "Codex review: R1-REGISTRY",
+        "Polling and rework review: R1-REGISTRY",
+        "Test command: R1-REGISTRY: /Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
+        "Codex write: R2-DO1",
+        "Codex review: R2-DO1",
+        "Polling and rework review: R2-DO1",
+        "Test command: R2-DO1: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+        "Job wall time: R2-DO1 d4f54a42e34a477c86ba1a60de831c49 241s",
+        "Job wall time: R1-JOBREC 75cd3c1858954c46adeff15bd421da7e 222s",
+        "Job wall time: R1-MERGED 75cd3c1858954c46adeff15bd421da7e 222s"
+      ],
+      "sections": {
+        "delete": {
+          "none": "Reviewed all four lanes: each step (write, review, presuite, install, verify) produced evidence the gate needs; nothing to drop."
+        },
+        "simplify": {
+          "items": [
+            {
+              "item": "Repeat: review failures on R2-DO1",
+              "evidence": "R2-DO1 has 2 review failures in failure_history; DO-1 needed two plan reviews because the first brief missed empty-commit and quoted-path cases (failure_history attempts 3c9e094c, da6ebb99).",
+              "outcome": "issue",
+              "issue_id": "PR122-parked-backlog"
+            },
+            {
+              "item": "Repeat: plan reviews on R2-DO1",
+              "evidence": "R2-DO1 has 2 plan reviews in plan_review_history; DO-1 needed two plan reviews because the first brief missed empty-commit and quoted-path cases (failure_history attempts 3c9e094c, da6ebb99).",
+              "outcome": "issue",
+              "issue_id": "PR122-parked-backlog"
+            }
+          ]
+        },
+        "optimize": {
+          "items": [
+            {
+              "item": "Job tokens: R1-REGISTRY 167ef112de534f5282ac475d8fc4a9b4 527708 tokens",
+              "evidence": "Only R1-REGISTRY reported tokens (527708); 28 Grok Bot/OpenCode jobs have no token source, so the round total is not comparable.",
+              "outcome": "issue",
+              "issue_id": "PR122-parked-backlog"
+            }
+          ]
+        },
+        "automate": {
+          "items": [
+            {
+              "item": "Parallel group count: 4",
+              "evidence": "08:35 IST three bcl job starts 3 s apart: R1-REGISTRY crashed in live_state.ensure_viewer (cannot verify viewer ownership on 58771); log ~/.agents/artifacts/bcl-124/fix-registry-attempt1.log.",
+              "outcome": "issue",
+              "issue_id": "BCL-191"
+            }
+          ]
+        }
+      },
+      "round": 1,
       "cycle": 16
     }
   },
@@ -2061,7 +2308,7 @@
       "observed": "22 Nov 2026 19:08 IST, round 1 introspect of PR 120",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "details": {
         "finding_key": "col-8394fc3bec1b1387",
         "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json",
@@ -2080,12 +2327,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T04:01:37Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-26T03:08:53Z",
         "source": "lane_failure"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh"
     },
     {
       "id": "PR122-parked-backlog",
@@ -2135,7 +2392,7 @@
       "observed": "2026-11-25 09:22 IST: bcl 0.1.70 scripts/events.py only supports job events start/finish/failed_start/incomplete and stage_start/stage_finish; grep for issue_failed_first, root_cause_identified, fix_verified across the plugin and developer-observability found nothing.",
       "recommendation": "Owned by the batched-change-list plugin: add trail events per lane; pass to the plugin owner.",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "area": "batched-change-list",
       "details": {
@@ -2154,12 +2411,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T04:05:13Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-26T03:31:02Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh"
     },
     {
       "id": "BCL-181",
@@ -2170,7 +2437,7 @@
       "observed": "2026-11-25 09:31 IST: bcl job --phase review refused all three lanes: 'review requires codex.implementer_session'. Set it to a Grok Bot executor label via update-plan-group.",
       "recommendation": "Owned by the batched-change-list plugin: rename to implementer_session and accept non-Codex implementers.",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "area": "batched-change-list",
       "details": {
@@ -2190,12 +2457,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T04:05:13Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-26T03:31:02Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh"
     },
     {
       "id": "BCL-184",
@@ -2206,7 +2483,7 @@
       "observed": "25 Nov 2026 (IST), Likeminded test: after PR #19 merged as 73ced46, bcl merged refused with 'bcl merged requires tracking.pull_request.url'. bcl-r1.json tracking has no pull_request key. bin/bcl 0.1.70 _merged_details raises at line 704; the only writer of tracking.pull_request in bin/bcl is rollover (line 1164), and KNOWN_STAGES has no stage to set it. tracker.md only says to provide the url where applicable.",
       "recommendation": "Let bcl merged take the pull request url (or add a stage that records label and url on a live list), and validate it against the provider before recording the merge.",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "medium",
       "area": "batched-change-list",
       "details": {
@@ -2225,12 +2502,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T04:08:38Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-26T03:08:51Z",
         "source": "lane_failure"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh"
     },
     {
       "id": "BCL-186",
@@ -2241,7 +2528,7 @@
       "observed": "25 Nov 2026 (IST), BCL-185 review (OpenCode deepseek-v4.1-flash-free, R2-PORT): live_state.save_registry and its callers (locate adopt, register_rollover, the rollover_pending clear in bin/bcl, and the new first-start port save) do read-modify-write of registry.json without tracker_lock; only the per-tracker file is locked.",
       "recommendation": "Hold an exclusive lock on the registry across read, change and write (tracker_lock), and re-read inside the lock.",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "priority": "low",
       "area": "batched-change-list",
       "details": {
@@ -2260,12 +2547,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T04:01:53Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-26T03:44:26Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh"
     },
     {
       "id": "BCL-187",
@@ -2305,7 +2602,7 @@
       "observed": "26 Nov 2026 08:30 IST Asia/Calcutta. PR #121 (merged 24 Nov 2026 20:50 IST, commit a16fb535f1d6, stage merged) still has 5 leftover tracking.plan.groups[].install.status=running on lanes R2-STATUS, R2-TRACKER, R2-DOVIEW, R2-DO4 and R3-CLI, plus verification_run r3-2d1e049c-121 status=active. PR #122 (merged 25 Nov 2026 00:27 IST, commit 94a08a8b464c, stage merged) still has 12 leftover install.running marks and verification_run pr122-r5-acb790bb status=active. 121.json last write matches the merge time, so the original merge did not clear them. BCL-189 later added clear_finished_running_state on verify and merge; PR #123 is clean after its merge, but 121 and 122 were already merged and stay dirty. Re-running bcl merged would call that cleanup, but also retarget stacked pull requests and stop the per-repo viewer (currently #124 on port 58771). bcl stop-verify does not clear install.running, and any other bcl command on #121 or #122 would start the repo viewer on that old list and take over port 58771. install, job finish and job cancel are refused because merged is terminal. No tracker JSON was hand-edited.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "plugin": "batched-change-list",
       "area": "merge-reconcile",
       "details": {
@@ -2326,12 +2623,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T04:08:38Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-26T03:08:51Z",
         "source": "lane_failure"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh"
     },
     {
       "id": "BCL-191",
