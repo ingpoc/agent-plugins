@@ -26,7 +26,7 @@ def tearDownModule():
 
 
 class ViewerLivenessTests(unittest.TestCase):
-    def _slow_health_viewer(self, root, delay, identity_override=None):
+    def _slow_health_viewer(self, root, delay, identity_override=None, page_delay=0):
         previous_state = live_state.STATE
         live_state.STATE = root / 'state'
         self.addCleanup(setattr, live_state, 'STATE', previous_state)
@@ -35,6 +35,7 @@ class ViewerLivenessTests(unittest.TestCase):
         page = root / 'page.html'
         page.write_text('<html>viewer</html>')
         hits = []
+        page_hits = []
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
                 if self.path == '/__bcl_health':
@@ -48,11 +49,14 @@ class ViewerLivenessTests(unittest.TestCase):
                     try: self.wfile.write(body)
                     except (BrokenPipeError, ConnectionResetError): pass
                 else:
+                    page_hits.append(time.monotonic())
+                    if len(page_hits) == 1: time.sleep(page_delay)
                     body = b'viewer'
                     self.send_response(200)
                     self.send_header('Content-Length', str(len(body)))
                     self.end_headers()
-                    self.wfile.write(body)
+                    try: self.wfile.write(body)
+                    except (BrokenPipeError, ConnectionResetError): pass
             def log_message(self, *_args): pass
         server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         port = server.server_address[1]
@@ -77,11 +81,11 @@ class ViewerLivenessTests(unittest.TestCase):
         ]
         for item in patches: item.start()
         self.addCleanup(lambda: [item.stop() for item in reversed(patches)])
-        return record, live, state, hits
+        return record, live, state, hits, page_hits
 
     def test_concurrent_ensure_viewer_never_raises(self):
         with tempfile.TemporaryDirectory() as temp:
-            record, live, _state, _hits = self._slow_health_viewer(Path(temp), 0.8)
+            record, live, _state, _hits, _pages = self._slow_health_viewer(Path(temp), 0.8)
             results, errors = [], []
             start = threading.Barrier(4)
             def call():
@@ -99,17 +103,71 @@ class ViewerLivenessTests(unittest.TestCase):
 
     def test_slow_health_answer_is_retried(self):
         with tempfile.TemporaryDirectory() as temp:
-            record, live, _state, hits = self._slow_health_viewer(Path(temp), 1.7)
+            record, live, _state, hits, _pages = self._slow_health_viewer(Path(temp), 1.7)
             value = live_state.ensure_viewer('owner/project', record, live, 'same-version')
             self.assertEqual(value['pid'], 4242)
             self.assertGreaterEqual(len(hits), 2)
 
     def test_wrong_identity_still_raises(self):
         with tempfile.TemporaryDirectory() as temp:
-            record, live, _state, _hits = self._slow_health_viewer(
+            record, live, _state, _hits, _pages = self._slow_health_viewer(
                 Path(temp), 0, {'pid': 9999, 'path': str(Path(temp, 'live.json').resolve()), 'instance': 'wrong-instance'})
             with self.assertRaisesRegex(RuntimeError, 'cannot verify viewer ownership'):
                 live_state.ensure_viewer('owner/project', record, live, 'same-version')
+
+    def test_slow_report_answer_is_retried(self):
+        with tempfile.TemporaryDirectory() as temp:
+            record, live, _state, _hits, pages = self._slow_health_viewer(Path(temp), 0, page_delay=1.2)
+            value = live_state.ensure_viewer('owner/project', record, live, 'same-version')
+            self.assertEqual(value['pid'], 4242)
+            self.assertGreaterEqual(len(pages), 2)
+
+    def test_concurrent_start_starts_one_viewer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            live = root / 'live.json'; live.write_text('{}')
+            page = root / 'page.html'; page.write_text('viewer')
+            state = root / 'state'
+            starts = []
+            class Handler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    metadata = json.loads((state / 'viewers' / 'owner--project.viewer.json').read_text())
+                    body = (json.dumps({'pid': os.getpid(), 'path': str(live.resolve()),
+                                        'instance': metadata['instance']}).encode()
+                            if self.path == '/__bcl_health' else b'viewer')
+                    self.send_response(200); self.end_headers(); self.wfile.write(body)
+                def log_message(self, *_args): pass
+            server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+            server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+            server_thread.start()
+            self.addCleanup(server.server_close)
+            self.addCleanup(server_thread.join, 2)
+            self.addCleanup(server.shutdown)
+            record = {'repo': 'owner/project', 'viewer_port': server.server_address[1]}
+            def start_viewer(*_args, **_kwargs):
+                starts.append(1)
+                time.sleep(0.3)
+                return SimpleNamespace(pid=os.getpid(), poll=lambda: None)
+            barrier = threading.Barrier(4)
+            results, errors = [], []
+            def call():
+                try:
+                    barrier.wait()
+                    results.append(live_state.ensure_viewer('owner/project', record, live, 'v1'))
+                except Exception as error: errors.append(error)
+            with patch.object(live_state, 'STATE', state), \
+                 patch.object(live_state, 'registry', return_value={}), \
+                 patch.object(live_state, '_port_is_free', return_value=True), \
+                 patch.object(live_state, 'report_paths', return_value=(page, root)), \
+                 patch.object(live_state, 'scripts_identity', return_value='same-scripts'), \
+                 patch.object(live_state.subprocess, 'Popen', side_effect=start_viewer):
+                threads = [threading.Thread(target=call) for _ in range(4)]
+                for thread in threads: thread.start()
+                for thread in threads: thread.join(8)
+            self.assertTrue(all(not thread.is_alive() for thread in threads))
+            self.assertEqual(len(starts), 1)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(results), 4)
 
     def _viewer_fixture(self, root):
         state, live, home = root / 'state', root / 'live.json', root / 'home'

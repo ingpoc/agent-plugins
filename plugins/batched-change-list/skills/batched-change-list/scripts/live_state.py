@@ -571,27 +571,30 @@ def _wait_for_pid(pid):
 def _viewer_responds(port, expected):
     deadline = time.monotonic() + 3
     identity = {"pid": expected["pid"], "path": str(Path(expected["data"]).resolve()), "instance": expected["instance"]}
-    healthy = False
     while time.monotonic() < deadline:
         timeout = min(1.5, max(0.05, deadline - time.monotonic()))
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=timeout) as response:
                 if response.status == 200 and json.load(response) != identity:
                     return False
-                healthy = response.status == 200
-            if healthy:
-                break
-        except (OSError, urllib.error.URLError, ValueError, KeyError):
+                if response.status != 200:
+                    return False
+            timeout = min(1, max(0.001, deadline - time.monotonic()))
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=timeout) as response:
+                if response.status == 200 and response.read(1):
+                    return True
+        except urllib.error.HTTPError:
+            return False
+        except urllib.error.URLError as error:
+            if isinstance(error.reason, ConnectionRefusedError):
+                return False
+        except ConnectionRefusedError:
+            return False
+        except (OSError, ValueError, KeyError):
             pass
         if time.monotonic() < deadline:
             time.sleep(min(0.05, deadline - time.monotonic()))
-    if not healthy:
-        return False
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=1) as response:
-            return response.status == 200 and bool(response.read(1))
-    except (OSError, urllib.error.URLError):
-        return False
+    return False
 
 def _viewer_ready(proc, port, expected):
     deadline = time.monotonic() + 3
