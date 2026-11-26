@@ -21,8 +21,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-25T16:19:42Z",
-      "now": "2026-11-25T16:19:42Z — Plan recorded"
+      "updated_at": "2026-11-26T03:28:07Z",
+      "now": "2026-11-26T03:28:07Z — Fix started"
     },
     "rollover": {
       "source_pr": 123,
@@ -372,7 +372,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-25T16:19:42Z",
+    "last_written_at": "2026-11-26T03:28:11Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -674,94 +674,314 @@
       "round": 1,
       "groups": [
         {
-          "id": "R1-STEPS",
+          "id": "R1-JOBREC",
           "finding_ids": [
-            "BCL-179"
-          ],
-          "status": "planned",
-          "reason": "The change-list tool still records no failed-first, root-cause, or fix-verified steps.",
-          "worktree": "samantha-next-r14",
-          "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
-          },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-25T16:19:42Z",
-          "stage_entered_at": "2026-11-25T16:19:42Z"
-        },
-        {
-          "id": "R1-REVIEW",
-          "finding_ids": [
+            "BCL-179",
             "BCL-181"
           ],
-          "status": "planned",
-          "reason": "Review still needs a Codex session id even when no Codex was used.",
-          "worktree": "samantha-next-r14",
+          "status": "review",
+          "reason": "Both are lane job records in the same code (bin/bcl job flow, manage_findings job transitions, check_install_sessions): failed-first/root-cause/fix-verified steps are not kept per lane, and review insists on a Codex implementer session. One lane avoids two writers on the same functions.",
+          "worktree": "bcl124-r1-jobrec",
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+            "fix_base_head": "a503ef08061aca0aec0bf83c9951b6ee3d44c3f8",
+            "fix_status": "passed",
+            "job": {
+              "id": "fe61874620b54aa094655bd09480db44",
+              "phase": "fix",
+              "started_at": "2026-11-26T03:28:07Z",
+              "command": "lane-commit.sh",
+              "heartbeat_at": "2026-11-26T03:28:10Z",
+              "plan_sha256": "1cf66db5c41fcff5b73751fccbc14498ad14bde217697a2d580e2dbcd171e594",
+              "finding_ids": [
+                "BCL-179",
+                "BCL-181"
+              ],
+              "worktree": "bcl124-r1-jobrec",
+              "model": "grok-bot-executor",
+              "lane_sha256": "2fbafa7c227913dadc6bd69c3aab381447ae65d7511059b5e112cd6bc6e3bbf9",
+              "cycle": 16,
+              "round": 1,
+              "pid": 46068,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T03:28:10Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/fe61874620b54aa094655bd09480db44.log",
+              "output_retained": true,
+              "commit": "a503ef08061aca0aec0bf83c9951b6ee3d44c3f8",
+              "tokens_source": "not_reported",
+              "tokens": null,
+              "wall_time_s": 3,
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "f503acb38fcf4bab9d4885b8c985592a",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:05:22Z",
+                "command": "perl",
+                "heartbeat_at": "2026-11-26T03:08:49Z",
+                "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+                "finding_ids": [
+                  "BCL-179",
+                  "BCL-181"
+                ],
+                "worktree": "bcl124-r1-jobrec",
+                "model": "opencode/deepseek-v4.1-flash-free",
+                "lane_sha256": "2fbafa7c227913dadc6bd69c3aab381447ae65d7511059b5e112cd6bc6e3bbf9",
+                "cycle": 16,
+                "round": 1,
+                "pid": 88052,
+                "exit_code": 1,
+                "finished_at": "2026-11-26T03:08:49Z",
+                "first_error_line": "fix job made no commit",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/f503acb38fcf4bab9d4885b8c985592a.log",
+                "output_retained": true,
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 207,
+                "finished_phase_status": "failed"
+              }
+            ]
           },
-          "failure_history": [],
+          "depends_on": [],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
+            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "failure_history": [
+            {
+              "attempt_id": "f503acb38fcf4bab9d4885b8c985592a",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:08:49Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
+            }
+          ],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T16:19:42Z",
-          "stage_entered_at": "2026-11-25T16:19:42Z"
+          "updated_at": "2026-11-26T02:56:45Z",
+          "stage_entered_at": "2026-11-26T03:28:10Z",
+          "phase": "review"
         },
         {
           "id": "R1-MERGED",
           "finding_ids": [
-            "BCL-184"
+            "BCL-184",
+            "BCL-190"
           ],
-          "status": "planned",
-          "reason": "The merged command refuses a list that was started before its pull request existed.",
-          "worktree": "samantha-next-r14",
+          "status": "failed",
+          "reason": "Both are merged-list lifecycle in bin/bcl merged: a list started before its PR cannot record its merge (BCL-184), and an already-merged list cannot clear leftover install.running and active verification runs (BCL-190). Same code path, one lane, no dependency on other lanes.",
+          "worktree": "bcl124-r1-merged",
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
+            "fix_status": "failed",
+            "job": {
+              "id": "942e0a13873f417dac099f87ccf28ec8",
+              "phase": "fix",
+              "started_at": "2026-11-26T03:05:25Z",
+              "command": "perl",
+              "heartbeat_at": "2026-11-26T03:08:50Z",
+              "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+              "finding_ids": [
+                "BCL-184",
+                "BCL-190"
+              ],
+              "worktree": "bcl124-r1-merged",
+              "model": "opencode/deepseek-v4.1-flash-free",
+              "lane_sha256": "63a4c6d5cd1c97ec2a738fb4984dbfc6381617686a6e6110865544d325c82272",
+              "cycle": 16,
+              "round": 1,
+              "pid": 88446,
+              "exit_code": 1,
+              "finished_at": "2026-11-26T03:08:50Z",
+              "first_error_line": "fix job made no commit",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/942e0a13873f417dac099f87ccf28ec8.log",
+              "output_retained": true,
+              "tokens_source": "not_reported",
+              "tokens": null,
+              "wall_time_s": 205,
+              "finished_phase_status": "failed"
+            },
+            "tool_fault_streak": 1
           },
-          "failure_history": [],
+          "depends_on": [],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
+            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 2
+          },
+          "stage_entered_at": "2026-11-26T03:08:50Z",
+          "failure_history": [
+            {
+              "attempt_id": "942e0a13873f417dac099f87ccf28ec8",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:08:51Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
+            }
+          ],
           "plan_review_history": [],
-          "updated_at": "2026-11-25T16:19:42Z",
-          "stage_entered_at": "2026-11-25T16:19:42Z"
+          "updated_at": "2026-11-26T03:02:49Z",
+          "phase": "fix"
         },
         {
           "id": "R1-REGISTRY",
           "finding_ids": [
             "BCL-186"
           ],
-          "status": "planned",
+          "status": "failed",
           "reason": "Registry updates can overwrite each other when two change-list commands run at once.",
-          "worktree": "samantha-next-r14",
+          "worktree": "bcl124-r1-registry",
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
+            "fix_status": "failed",
+            "job": {
+              "id": "306a3d6bde884cbb964c1053fd3dd2fc",
+              "phase": "fix",
+              "started_at": "2026-11-26T03:06:13Z",
+              "command": "perl",
+              "heartbeat_at": "2026-11-26T03:08:53Z",
+              "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+              "finding_ids": [
+                "BCL-186"
+              ],
+              "worktree": "bcl124-r1-registry",
+              "model": "opencode/deepseek-v4.1-flash-free",
+              "lane_sha256": "1f134074d7de991464e26b0c55b0620a9a69e50a173e904c1c6f9407b1779f52",
+              "cycle": 16,
+              "round": 1,
+              "pid": 89695,
+              "exit_code": 1,
+              "finished_at": "2026-11-26T03:08:53Z",
+              "first_error_line": "fix job made no commit",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/306a3d6bde884cbb964c1053fd3dd2fc.log",
+              "output_retained": true,
+              "tokens_source": "not_reported",
+              "tokens": null,
+              "wall_time_s": 160,
+              "finished_phase_status": "failed"
+            },
+            "tool_fault_streak": 1
           },
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-25T16:19:42Z",
-          "stage_entered_at": "2026-11-25T16:19:42Z"
-        },
-        {
-          "id": "R1-VIEWER",
-          "finding_ids": [
-            "BCL-187"
+          "depends_on": [],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
+            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "stage_entered_at": "2026-11-26T03:08:53Z",
+          "failure_history": [
+            {
+              "attempt_id": "306a3d6bde884cbb964c1053fd3dd2fc",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:08:53Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
+            }
           ],
-          "status": "parked",
-          "reason": "Over the four-lane cap this round. Old per-list viewer files and reused process ids stay deferred.",
-          "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
-          },
-          "failure_history": [],
           "plan_review_history": [],
-          "parked_to": 2,
-          "updated_at": "2026-11-25T16:19:42Z",
-          "stage_entered_at": "2026-11-25T16:19:42Z"
+          "updated_at": "2026-11-26T02:56:45Z",
+          "phase": "fix"
         },
         {
           "id": "R2-DO1",
           "finding_ids": [
             "DO-1"
           ],
-          "reason": "Still needs the owner. Snapshot commits showing as unpushed-commit failures stay parked.",
+          "reason": "Guru asked to start DO-1 on 26 Nov 2026 08:22 IST. The NUL-delimited path fix (fb07a2ca) is on main; the lane needs review, presuite and live verify.",
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+            "fix_base_head": "bee7ef071e1afcbcbe5713d328b6c7329e29807f",
+            "fix_status": "passed",
+            "job": {
+              "id": "bffd6c4b51194cdeac7196e88e8e49f9",
+              "phase": "fix",
+              "started_at": "2026-11-26T03:15:04Z",
+              "command": "lane-commit.sh",
+              "heartbeat_at": "2026-11-26T03:15:10Z",
+              "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+              "finding_ids": [
+                "DO-1"
+              ],
+              "worktree": "bcl124-r1-do1",
+              "model": "grok-bot-executor",
+              "lane_sha256": "6d731d73599aa58239560b07bf6e676dafccfc12caf2f075dd517663cdd192a6",
+              "cycle": 16,
+              "round": 1,
+              "pid": 1088,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T03:15:10Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/bffd6c4b51194cdeac7196e88e8e49f9.log",
+              "output_retained": true,
+              "commit": "bee7ef071e1afcbcbe5713d328b6c7329e29807f",
+              "tokens_source": "not_reported",
+              "tokens": null,
+              "wall_time_s": 6,
+              "finished_phase_status": "passed"
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "d4f54a42e34a477c86ba1a60de831c49",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:04:52Z",
+                "command": "perl",
+                "heartbeat_at": "2026-11-26T03:08:53Z",
+                "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+                "finding_ids": [
+                  "DO-1"
+                ],
+                "worktree": "bcl124-r1-do1",
+                "model": "opencode/deepseek-v4.1-flash-free",
+                "lane_sha256": "6d731d73599aa58239560b07bf6e676dafccfc12caf2f075dd517663cdd192a6",
+                "cycle": 16,
+                "round": 1,
+                "pid": 87556,
+                "exit_code": 1,
+                "finished_at": "2026-11-26T03:08:53Z",
+                "first_error_line": "fix job made no commit",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/d4f54a42e34a477c86ba1a60de831c49.log",
+                "output_retained": true,
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 241,
+                "finished_phase_status": "failed"
+              }
+            ]
           },
+          "status": "review",
+          "worktree": "bcl124-r1-do1",
+          "depends_on": [],
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
+            "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "parked_to": 2,
+          "stage_entered_at": "2026-11-26T03:15:10Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -789,6 +1009,17 @@
               "cycle": 12,
               "round": 2,
               "at": "2026-11-22T13:56:04Z"
+            },
+            {
+              "attempt_id": "d4f54a42e34a477c86ba1a60de831c49",
+              "source": "fix",
+              "reason": "Fix job exited 1",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:08:53Z",
+              "tool_fault": true,
+              "fault_kind": "fix_job_exit",
+              "tool_fault_reason": "failed fix job, not a review finding"
             }
           ],
           "plan_review_history": [
@@ -824,10 +1055,30 @@
               "owner_override": true
             }
           ],
+          "updated_at": "2026-11-26T03:02:49Z",
+          "phase": "review"
+        },
+        {
+          "id": "R1-VIEWER",
+          "finding_ids": [
+            "BCL-187"
+          ],
           "status": "parked",
+          "reason": "Over the four-lane cap this round. Old per-list viewer files and reused process ids stay deferred.",
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+          },
           "parked_to": 2,
-          "updated_at": "2026-11-25T16:19:42Z",
-          "stage_entered_at": "2026-11-25T16:19:42Z"
+          "stage_entered_at": "2026-11-25T16:19:42Z",
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-26T02:56:45Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
         },
         {
           "id": "R1-BACKLOG",
@@ -839,11 +1090,17 @@
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
+          "parked_to": 2,
+          "stage_entered_at": "2026-11-25T16:19:42Z",
           "failure_history": [],
           "plan_review_history": [],
-          "parked_to": 2,
-          "updated_at": "2026-11-25T16:19:42Z",
-          "stage_entered_at": "2026-11-25T16:19:42Z"
+          "updated_at": "2026-11-26T02:56:45Z",
+          "verify": {
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          }
         }
       ],
       "cycle": 16
@@ -875,8 +1132,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:53:13Z",
-        "source": "verification_check"
+        "at": "2026-11-26T03:08:53Z",
+        "source": "lane_failure"
       }
     },
     {
@@ -942,8 +1199,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:53:13Z",
-        "source": "verification_check"
+        "at": "2026-11-26T03:08:49Z",
+        "source": "lane_failure"
       }
     },
     {
@@ -971,8 +1228,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:53:13Z",
-        "source": "verification_check"
+        "at": "2026-11-26T03:08:49Z",
+        "source": "lane_failure"
       }
     },
     {
@@ -999,8 +1256,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:53:13Z",
-        "source": "verification_check"
+        "at": "2026-11-26T03:08:51Z",
+        "source": "lane_failure"
       }
     },
     {
@@ -1027,8 +1284,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-25T15:53:13Z",
-        "source": "verification_check"
+        "at": "2026-11-26T03:08:53Z",
+        "source": "lane_failure"
       }
     },
     {
@@ -1058,6 +1315,62 @@
         "at": "2026-11-25T15:53:13Z",
         "source": "verification_check"
       }
+    },
+    {
+      "id": "BCL-190",
+      "title": "Already-merged lists have no official way to clear leftover running marks",
+      "summary": "A pull request can be merged and still show lanes as installing, or a verification run as still active, and no official change-list command can clear only those leftover marks on a list that is already merged.",
+      "impact": "A finished merged list still looks as if work is running, so a correctness check treats the list as unfinished.",
+      "done_when": "An official change-list command can clear leftover install-running marks and a leftover active verification run on an already-merged list without retargeting other pull requests or moving the repo viewer, and a test covers that repair.",
+      "recommendation": "Add an official repair command, or make a merge reconcile safe to rerun on an already-merged list so it only clears leftover running state and does not retarget stacked pull requests or stop the current repo viewer.",
+      "observed": "26 Nov 2026 08:30 IST Asia/Calcutta. PR #121 (merged 24 Nov 2026 20:50 IST, commit a16fb535f1d6, stage merged) still has 5 leftover tracking.plan.groups[].install.status=running on lanes R2-STATUS, R2-TRACKER, R2-DOVIEW, R2-DO4 and R3-CLI, plus verification_run r3-2d1e049c-121 status=active. PR #122 (merged 25 Nov 2026 00:27 IST, commit 94a08a8b464c, stage merged) still has 12 leftover install.running marks and verification_run pr122-r5-acb790bb status=active. 121.json last write matches the merge time, so the original merge did not clear them. BCL-189 later added clear_finished_running_state on verify and merge; PR #123 is clean after its merge, but 121 and 122 were already merged and stay dirty. Re-running bcl merged would call that cleanup, but also retarget stacked pull requests and stop the per-repo viewer (currently #124 on port 58771). bcl stop-verify does not clear install.running, and any other bcl command on #121 or #122 would start the repo viewer on that old list and take over port 58771. install, job finish and job cancel are refused because merged is terminal. No tracker JSON was hand-edited.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "plugin": "batched-change-list",
+      "area": "merge-reconcile",
+      "details": {
+        "related": "Regression gap after BCL-189, which is verified_fixed on #123: new verify and merge clear leftover running state, but already-merged lists 121 and 122 were cited in BCL-189 and were never repaired, and no official post-merge cleanup command exists for them.",
+        "kind": "regression",
+        "counts": "121.json: 5 install.running, verification_run active; 122.json: 12 install.running, verification_run active."
+      },
+      "created_at": "2026-11-26T03:01:16Z",
+      "first_seen": {
+        "at": "2026-11-26T03:01:16Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-26T03:08:51Z",
+        "source": "lane_failure"
+      }
+    },
+    {
+      "id": "BCL-191",
+      "title": "Starting several change-list jobs at once can crash on the viewer ownership check",
+      "summary": "When three bcl job commands start within a few seconds, one can stop with a traceback saying it cannot verify the viewer on port 58771, although the viewer is running and answering.",
+      "impact": "A lane job fails to start for no real reason, so parallel lanes need a manual retry.",
+      "done_when": "Starting several bcl commands at the same moment never fails the viewer ownership check while the viewer is healthy; a test starts them concurrently.",
+      "recommendation": "Make the viewer state read and ownership probe tolerate a concurrent writer (lock the viewer state file across read and write, and retry the probe once) instead of raising.",
+      "observed": "26 Nov 2026 08:35 IST: run-fix.sh started bcl job for R1-JOBREC, R1-MERGED and R1-REGISTRY 3 s apart on #124. R1-REGISTRY exited 1 before recording a job: live_state.ensure_viewer line 379 RuntimeError cannot verify viewer ownership on port 58771. The viewer (pid 66760) was listening and returned HTTP 200 right after; a retry 1 minute later started fine. Log ~/.agents/artifacts/bcl-124/fix-registry-attempt1.log.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "batched-change-list",
+      "details": {
+        "kind": "bug",
+        "related": "BCL-186 (registry read-modify-write without a lock) and BCL-187 (viewer files); separate code path: viewers/*.json state and _viewer_responds."
+      },
+      "created_at": "2026-11-26T03:11:19Z",
+      "first_seen": {
+        "at": "2026-11-26T03:11:19Z",
+        "pr": null,
+        "round": 1,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
