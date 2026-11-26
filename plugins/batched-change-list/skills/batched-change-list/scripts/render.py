@@ -605,7 +605,8 @@ def render_plan(data, tracking, plan, round_number, now, displays=None):
     lanes = lane_status_by_finding(data, groups, round_number, displays)
     findings = {item.get("id"): item for item in data.get("findings", []) if isinstance(item, dict)}
     states = {group.get("id"): displays[group.get("id")]["status"] for group in groups}
-    active_groups = [group for group in groups if states[group.get("id")] not in LANE_GROUPS["closed"]]
+    settled_count = sum(states[group.get("id")] in LANE_GROUPS["settled"] for group in groups)
+    open_count = len(groups) - settled_count
     counts = {state: sum(states[group.get("id")] == state for group in groups) for state, _, _ in LANE["tally"]}
     tally = []
     for state, label, kind in LANE["tally"]:
@@ -687,9 +688,10 @@ def render_plan(data, tracking, plan, round_number, now, displays=None):
     parked = "".join(f'<p class="parked-line"><span>Parked for Round {target}</span>'
                       + "".join(f'<span class="pill parked">{html.escape(str(group.get("id", "?")))} · {len(group.get("finding_ids", []))}</span>' for group in target_groups)
                       + '<span>· not running</span></p>' for target, target_groups in sorted(parked_by_round.items()))
-    open_count = len(active_groups)
-    lane_head = (f'{open_count} open lane{"" if open_count == 1 else "s"} · each installs and verifies when ready'
-                 if open_count else f'0 open lanes · {len(groups)} settled')
+    lane_head = f'{open_count} open lane{"" if open_count == 1 else "s"}'
+    if open_count:
+        lane_head += ' (each installs and verifies when ready)'
+    lane_head += f' · {settled_count} settled'
     header = (f'<span><strong>Round {round_number}</strong> · {lane_head}</span>'
               + (f'<span class="t">{" · ".join(tally)}</span>' if tally else ""))
     return (f'<div class="plan" aria-label="Fix plan, round {round_number}"><div class="plan-head">{header}</div>'

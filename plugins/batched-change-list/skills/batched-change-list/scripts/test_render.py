@@ -18,6 +18,50 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_font_shorthands_are_valid(self):
+        css = re.search(r'<style>(.*?)</style>', renderer.TEMPLATE.read_text(), re.S).group(1)
+        for shorthand in re.findall(r'(?<![-\w])font\s*:\s*([^;{}]+)', css):
+            with self.subTest(shorthand=shorthand):
+                tokens = shorthand.split()
+                css_wide = {'inherit', 'initial', 'unset', 'revert', 'revert-layer'}
+                if shorthand.strip().lower() in css_wide:
+                    continue
+                self.assertFalse(any(token.lower() in css_wide for token in tokens),
+                                 'CSS-wide keywords cannot appear inside font shorthand')
+                family = re.search(r'\b(?:\d+(?:\.\d+)?(?:px|rem|em|%))(?:\s*/\s*[^\s]+)?\s+(.+)$', shorthand)
+                self.assertIsNotNone(family, 'font shorthand must include a size and family')
+                self.assertTrue(family.group(1).strip(), 'font shorthand family must not be empty')
+
+    def test_controls_have_explicit_font_size(self):
+        css = re.search(r'<style>(.*?)</style>', renderer.TEMPLATE.read_text(), re.S).group(1)
+        rules = re.findall(r'([^{}]+)\{([^{}]*)\}', css)
+        for tag in ('button', 'input', 'select', 'textarea'):
+            with self.subTest(tag=tag):
+                bodies = [body for selectors, body in rules
+                          if any(re.search(rf'(^|\s|,){tag}(?:\b|[.#:\[])', selector.strip())
+                                 for selector in selectors.split(','))]
+                self.assertTrue(any(re.search(r'font-size\s*:\s*(?:1(?:\.0+)?rem|(?:16|[1-9]\d+(?:\.\d+)?)px)\s*(?:;|$)', body)
+                                    for body in bodies), f'{tag} needs explicit font-size >= 16px')
+
+    def test_plan_head_counts_mixed_states(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        states = ('running', 'review', 'verified', 'parked', 'blocked', 'failed')
+        data['tracking'] = {'plan': {'round': 1, 'groups': [
+            {'id': state, 'finding_ids': ['ISSUE-01'], 'status': state} for state in states
+        ]}}
+        page = renderer.render(data, Path(__file__).parent.parent)
+        plan_head = page.split('<div class="plan-head">', 1)[1].split('</div>', 1)[0]
+        self.assertIn('2 open lanes (each installs and verifies when ready) · 4 settled', plan_head)
+        self.assertNotIn('4 open lanes', plan_head)
+        data['tracking']['plan']['groups'] = [
+            {'id': state, 'finding_ids': ['ISSUE-01'], 'status': state}
+            for state in ('blocked', 'failed', 'parked', 'verified')
+        ]
+        settled_page = renderer.render(data, Path(__file__).parent.parent)
+        settled_head = settled_page.split('<div class="plan-head">', 1)[1].split('</div>', 1)[0]
+        self.assertIn('0 open lanes · 4 settled', settled_head)
+        self.assertNotIn('each installs and verifies when ready', settled_head)
+
     def test_plan_head_counts_open_and_settled_lanes(self):
         data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
         data['tracking'] = {'plan': {'round': 1, 'groups': [
@@ -595,7 +639,7 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertEqual(page, renderer.render(self.data, self.base))
         for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp paused"', 'class="grp planned"', 'after A', 'href="#ISSUE-01"', 'title="'):
             self.assertIn(marker, page)
-        self.assertIn('<strong>Round 1</strong> · 2 open lanes · each installs and verifies when ready', page)
+        self.assertIn('<strong>Round 1</strong> · 2 open lanes (each installs and verifies when ready) · 0 settled', page)
         self.assertIn('<b>1</b> paused', page)
         self.assertLess(page.index('class="plan-head"'), page.index('class="plan-rows"'))
         self.assertNotIn('class="tail"', page)
@@ -630,7 +674,7 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertIn('13 min ago', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
         self.assertIn('data-stale-active="false"', page)
-        self.assertIn('2 open lanes · each installs and verifies when ready', page)
+        self.assertIn('1 open lane (each installs and verifies when ready) · 2 settled', page)
         self.assertIn('<b>1</b> installing', page)
         self.assertIn('<b>1</b> blocked', page)
         self.assertIn('Parked for Round 2', page)
@@ -1680,7 +1724,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         page = renderer.render(data, self.base)
         self.assertIn('Round 2', page)
         plan_head = page.split('<div class="plan-head">', 1)[1].split('</div>', 1)[0]
-        self.assertIn('<strong>Round 2</strong> · 1 open lane · each installs and verifies when ready', plan_head)
+        self.assertIn('<strong>Round 2</strong> · 1 open lane (each installs and verifies when ready) · 1 settled', plan_head)
         self.assertIn('<b>1</b> verifying', plan_head)
         self.assertIn('class="grp verifying"', page)
         self.assertIn('Verifying', page)
