@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-26T03:30:58Z",
-      "now": "2026-11-26T03:30:58Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-26T03:32:25Z",
+      "now": "2026-11-26T03:32:25Z — Fix started"
     },
     "rollover": {
       "source_pr": 123,
@@ -372,7 +372,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T03:30:58Z",
+    "last_written_at": "2026-11-26T03:32:26Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -680,38 +680,28 @@
             "BCL-179",
             "BCL-181"
           ],
-          "status": "review",
+          "status": "running",
           "reason": "Both are lane job records in the same code (bin/bcl job flow, manage_findings job transitions, check_install_sessions): failed-first/root-cause/fix-verified steps are not kept per lane, and review insists on a Codex implementer session. One lane avoids two writers on the same functions.",
           "worktree": "bcl124-r1-jobrec",
           "codex": {
             "fix_base_head": "a503ef08061aca0aec0bf83c9951b6ee3d44c3f8",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "fe61874620b54aa094655bd09480db44",
+              "id": "4c1733d0c04b49659a169a985b0c453a",
               "phase": "fix",
-              "started_at": "2026-11-26T03:28:07Z",
+              "started_at": "2026-11-26T03:32:25Z",
               "command": "lane-commit.sh",
-              "heartbeat_at": "2026-11-26T03:28:10Z",
-              "plan_sha256": "1cf66db5c41fcff5b73751fccbc14498ad14bde217697a2d580e2dbcd171e594",
+              "heartbeat_at": "2026-11-26T03:32:25Z",
+              "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
               "finding_ids": [
                 "BCL-179",
                 "BCL-181"
               ],
               "worktree": "bcl124-r1-jobrec",
               "model": "grok-bot-executor",
-              "lane_sha256": "2fbafa7c227913dadc6bd69c3aab381447ae65d7511059b5e112cd6bc6e3bbf9",
+              "lane_sha256": "1407a1942c524aabf0accb2241ceaeb48247763286d0b0844f72e479596e2d33",
               "cycle": 16,
-              "round": 1,
-              "pid": 46068,
-              "exit_code": 0,
-              "finished_at": "2026-11-26T03:28:10Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/fe61874620b54aa094655bd09480db44.log",
-              "output_retained": true,
-              "commit": "a503ef08061aca0aec0bf83c9951b6ee3d44c3f8",
-              "tokens_source": "not_reported",
-              "tokens": null,
-              "wall_time_s": 3,
-              "finished_phase_status": "passed"
+              "round": 1
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -741,8 +731,136 @@
                 "tokens": null,
                 "wall_time_s": 207,
                 "finished_phase_status": "failed"
+              },
+              {
+                "id": "fe61874620b54aa094655bd09480db44",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:28:07Z",
+                "command": "lane-commit.sh",
+                "heartbeat_at": "2026-11-26T03:28:10Z",
+                "plan_sha256": "1cf66db5c41fcff5b73751fccbc14498ad14bde217697a2d580e2dbcd171e594",
+                "finding_ids": [
+                  "BCL-179",
+                  "BCL-181"
+                ],
+                "worktree": "bcl124-r1-jobrec",
+                "model": "grok-bot-executor",
+                "lane_sha256": "2fbafa7c227913dadc6bd69c3aab381447ae65d7511059b5e112cd6bc6e3bbf9",
+                "cycle": 16,
+                "round": 1,
+                "pid": 46068,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T03:28:10Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/fe61874620b54aa094655bd09480db44.log",
+                "output_retained": true,
+                "commit": "a503ef08061aca0aec0bf83c9951b6ee3d44c3f8",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 3,
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "1f47a4dcbda34df5b797e06f6078d231",
+                "phase": "review",
+                "started_at": "2026-11-26T03:31:02Z",
+                "command": "bash",
+                "heartbeat_at": "2026-11-26T03:31:02Z",
+                "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
+                "finding_ids": [
+                  "BCL-179",
+                  "BCL-181"
+                ],
+                "worktree": "samantha-next-r14",
+                "model": "grok-bot-executor",
+                "lane_sha256": "1407a1942c524aabf0accb2241ceaeb48247763286d0b0844f72e479596e2d33",
+                "cycle": 16,
+                "round": 1,
+                "pid": 54709,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T03:31:02Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/1f47a4dcbda34df5b797e06f6078d231.log",
+                "output_retained": true,
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 0,
+                "session": "grok-bot-executor",
+                "finished_phase_status": "changes_requested",
+                "must_fix": "1. test_bcl.BclTests.test_report_step_after_double_dash_records_the_lane_trail_and_event fails whenever the suite runs inside a bcl job (presuite or fix job), so the pre-push suite would fail."
+              },
+              {
+                "id": "ffaf5de04e6e40788993b4e22b260b9b",
+                "phase": "plan_review",
+                "started_at": "2026-11-26T03:31:40Z",
+                "command": "bash",
+                "heartbeat_at": "2026-11-26T03:32:11Z",
+                "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
+                "finding_ids": [
+                  "BCL-179",
+                  "BCL-181"
+                ],
+                "worktree": "samantha-next-r14",
+                "model": "grok-bot-executor",
+                "lane_sha256": "1407a1942c524aabf0accb2241ceaeb48247763286d0b0844f72e479596e2d33",
+                "cycle": 16,
+                "round": 1,
+                "pid": 55707,
+                "exit_code": -1,
+                "finished_at": "2026-11-26T03:32:11Z",
+                "finished_phase_status": "interrupted",
+                "first_error_line": "Job runner is gone"
+              },
+              {
+                "id": "56f1af9fe4a14623957637902681b283",
+                "phase": "plan_review",
+                "started_at": "2026-11-26T03:32:11Z",
+                "command": "bash",
+                "heartbeat_at": "2026-11-26T03:32:24Z",
+                "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
+                "finding_ids": [
+                  "BCL-179",
+                  "BCL-181"
+                ],
+                "worktree": "samantha-next-r14",
+                "model": "grok-bot-executor",
+                "lane_sha256": "1407a1942c524aabf0accb2241ceaeb48247763286d0b0844f72e479596e2d33",
+                "cycle": 16,
+                "round": 1,
+                "pid": 58290,
+                "exit_code": -1,
+                "finished_at": "2026-11-26T03:32:24Z",
+                "finished_phase_status": "interrupted",
+                "first_error_line": "Job runner is gone"
+              },
+              {
+                "id": "a05da5ba9e944c1286da9651fd50142a",
+                "phase": "plan_review",
+                "started_at": "2026-11-26T03:32:24Z",
+                "command": "bash",
+                "heartbeat_at": "2026-11-26T03:32:25Z",
+                "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
+                "finding_ids": [
+                  "BCL-179",
+                  "BCL-181"
+                ],
+                "worktree": "samantha-next-r14",
+                "model": "grok-bot-executor",
+                "lane_sha256": "1407a1942c524aabf0accb2241ceaeb48247763286d0b0844f72e479596e2d33",
+                "cycle": 16,
+                "round": 1,
+                "pid": 59735,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T03:32:25Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/a05da5ba9e944c1286da9651fd50142a.log",
+                "output_retained": true,
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 1,
+                "session": "grok-bot-executor",
+                "finished_phase_status": "passed"
               }
-            ]
+            ],
+            "reviewer_model": "grok-bot-executor",
+            "must_fix_note": "1. test_bcl.BclTests.test_report_step_after_double_dash_records_the_lane_trail_and_event fails whenever the suite runs inside a bcl job (presuite or fix job), so the pre-push suite would fail."
           },
           "depends_on": [],
           "verify": {
@@ -764,12 +882,30 @@
               "tool_fault": true,
               "fault_kind": "fix_job_exit",
               "tool_fault_reason": "failed fix job, not a review finding"
+            },
+            {
+              "attempt_id": "1f47a4dcbda34df5b797e06f6078d231",
+              "source": "review",
+              "reason": "1. test_bcl.BclTests.test_report_step_after_double_dash_records_the_lane_trail_and_event fails whenever the suite runs inside a bcl job (presuite or fix job), so the pre-push suite would fail.",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:31:02Z",
+              "plan_answered": true
             }
           ],
-          "plan_review_history": [],
+          "plan_review_history": [
+            {
+              "job_id": "a05da5ba9e944c1286da9651fd50142a",
+              "after_failure": "1f47a4dcbda34df5b797e06f6078d231",
+              "status": "passed",
+              "cycle": 16,
+              "round": 1,
+              "at": "2026-11-26T03:32:25Z"
+            }
+          ],
           "updated_at": "2026-11-26T02:56:45Z",
-          "stage_entered_at": "2026-11-26T03:28:10Z",
-          "phase": "review"
+          "stage_entered_at": "2026-11-26T03:32:25Z",
+          "phase": "fix"
         },
         {
           "id": "R1-MERGED",
@@ -798,7 +934,17 @@
               "model": "grok-bot-executor",
               "lane_sha256": "d3065fa617972fef413b7b2588f8f24fd7fc075caa9fe454b691b8650ac32800",
               "cycle": 16,
-              "round": 1
+              "round": 1,
+              "pid": 54373,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T03:30:58Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/107de2e1e5b346a896994ede37545143.log",
+              "output_retained": true,
+              "tokens_source": "not_reported",
+              "tokens": null,
+              "wall_time_s": 0,
+              "session": "grok-bot-executor",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -874,7 +1020,7 @@
                 "finished_phase_status": "passed"
               }
             ],
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "grok-bot-executor"
           },
           "depends_on": [],
@@ -927,51 +1073,34 @@
           ],
           "status": "review",
           "reason": "Registry updates can overwrite each other when two change-list commands run at once.",
-          "worktree": "bcl124-r1-registry",
+          "worktree": "samantha-next-r14",
           "codex": {
             "fix_base_head": "864671f5059fb8736daa3f21464d2350082f1230",
             "fix_status": "passed",
             "job": {
-              "id": "ed58cba52e6040c3a546ece19dd66bed",
-              "phase": "fix",
-              "started_at": "2026-11-26T03:29:07Z",
-              "command": "lane-commit.sh",
-              "heartbeat_at": "2026-11-26T03:29:22Z",
-              "plan_sha256": "36eefee0b6b05a7733f092d90f85a763dcdf0e58ab97be23346c55361a65fdd7",
+              "id": "99e5d65b17dd4efcb1106c8d3649fce9",
+              "phase": "review",
+              "started_at": "2026-11-26T03:30:59Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-26T03:31:00Z",
+              "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
               "finding_ids": [
                 "BCL-186"
               ],
-              "worktree": "bcl124-r1-registry",
+              "worktree": "samantha-next-r14",
               "model": "grok-bot-executor",
-              "lane_sha256": "1f134074d7de991464e26b0c55b0620a9a69e50a173e904c1c6f9407b1779f52",
+              "lane_sha256": "48a58f2deda9115bc253cf55544f7a781828702987865ee1ee21b667fce0157d",
               "cycle": 16,
               "round": 1,
-              "pid": 50014,
-              "steps": [
-                {
-                  "step": "failed_first",
-                  "at": "2026-11-26T03:29:07Z",
-                  "result": "test_two_processes_keep_both_added_keys and test_rollover_clear_keeps_a_key_added_concurrently fail before fix (no locked update path); source check finds save_registry called from locate, _save_project_port, register_rollover and bin/bcl"
-                },
-                {
-                  "step": "root_cause",
-                  "at": "2026-11-26T03:29:08Z",
-                  "result": "live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other"
-                }
-              ],
-              "latest_step": {
-                "step": "root_cause",
-                "at": "2026-11-26T03:29:08Z",
-                "result": "live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other"
-              },
+              "pid": 54489,
               "exit_code": 0,
-              "finished_at": "2026-11-26T03:29:22Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/ed58cba52e6040c3a546ece19dd66bed.log",
+              "finished_at": "2026-11-26T03:31:00Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/99e5d65b17dd4efcb1106c8d3649fce9.log",
               "output_retained": true,
-              "commit": "864671f5059fb8736daa3f21464d2350082f1230",
               "tokens_source": "not_reported",
               "tokens": null,
-              "wall_time_s": 15,
+              "wall_time_s": 1,
+              "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -1001,8 +1130,53 @@
                 "tokens": null,
                 "wall_time_s": 160,
                 "finished_phase_status": "failed"
+              },
+              {
+                "id": "ed58cba52e6040c3a546ece19dd66bed",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:29:07Z",
+                "command": "lane-commit.sh",
+                "heartbeat_at": "2026-11-26T03:29:22Z",
+                "plan_sha256": "36eefee0b6b05a7733f092d90f85a763dcdf0e58ab97be23346c55361a65fdd7",
+                "finding_ids": [
+                  "BCL-186"
+                ],
+                "worktree": "bcl124-r1-registry",
+                "model": "grok-bot-executor",
+                "lane_sha256": "1f134074d7de991464e26b0c55b0620a9a69e50a173e904c1c6f9407b1779f52",
+                "cycle": 16,
+                "round": 1,
+                "pid": 50014,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-26T03:29:07Z",
+                    "result": "test_two_processes_keep_both_added_keys and test_rollover_clear_keeps_a_key_added_concurrently fail before fix (no locked update path); source check finds save_registry called from locate, _save_project_port, register_rollover and bin/bcl"
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-26T03:29:08Z",
+                    "result": "live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other"
+                  }
+                ],
+                "latest_step": {
+                  "step": "root_cause",
+                  "at": "2026-11-26T03:29:08Z",
+                  "result": "live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other"
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-26T03:29:22Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/ed58cba52e6040c3a546ece19dd66bed.log",
+                "output_retained": true,
+                "commit": "864671f5059fb8736daa3f21464d2350082f1230",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 15,
+                "finished_phase_status": "passed"
               }
-            ]
+            ],
+            "review_status": "passed",
+            "reviewer_model": "grok-bot-executor"
           },
           "depends_on": [],
           "verify": {
@@ -1057,29 +1231,29 @@
             "fix_base_head": "bee7ef071e1afcbcbe5713d328b6c7329e29807f",
             "fix_status": "passed",
             "job": {
-              "id": "bffd6c4b51194cdeac7196e88e8e49f9",
-              "phase": "fix",
-              "started_at": "2026-11-26T03:15:04Z",
-              "command": "lane-commit.sh",
-              "heartbeat_at": "2026-11-26T03:15:10Z",
-              "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+              "id": "e58ec0715ce647a6bfe39fbac937a5db",
+              "phase": "review",
+              "started_at": "2026-11-26T03:31:00Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-26T03:31:01Z",
+              "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
               "finding_ids": [
                 "DO-1"
               ],
-              "worktree": "bcl124-r1-do1",
+              "worktree": "samantha-next-r14",
               "model": "grok-bot-executor",
-              "lane_sha256": "6d731d73599aa58239560b07bf6e676dafccfc12caf2f075dd517663cdd192a6",
+              "lane_sha256": "742da6f1ba127def3008abd06d40014c549f941e7ea706596f8d5272bbdf66f9",
               "cycle": 16,
               "round": 1,
-              "pid": 1088,
+              "pid": 54597,
               "exit_code": 0,
-              "finished_at": "2026-11-26T03:15:10Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/bffd6c4b51194cdeac7196e88e8e49f9.log",
+              "finished_at": "2026-11-26T03:31:01Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/e58ec0715ce647a6bfe39fbac937a5db.log",
               "output_retained": true,
-              "commit": "bee7ef071e1afcbcbe5713d328b6c7329e29807f",
               "tokens_source": "not_reported",
               "tokens": null,
-              "wall_time_s": 6,
+              "wall_time_s": 1,
+              "session": "grok-bot-executor",
               "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
@@ -1109,11 +1283,39 @@
                 "tokens": null,
                 "wall_time_s": 241,
                 "finished_phase_status": "failed"
+              },
+              {
+                "id": "bffd6c4b51194cdeac7196e88e8e49f9",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:15:04Z",
+                "command": "lane-commit.sh",
+                "heartbeat_at": "2026-11-26T03:15:10Z",
+                "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+                "finding_ids": [
+                  "DO-1"
+                ],
+                "worktree": "bcl124-r1-do1",
+                "model": "grok-bot-executor",
+                "lane_sha256": "6d731d73599aa58239560b07bf6e676dafccfc12caf2f075dd517663cdd192a6",
+                "cycle": 16,
+                "round": 1,
+                "pid": 1088,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T03:15:10Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/bffd6c4b51194cdeac7196e88e8e49f9.log",
+                "output_retained": true,
+                "commit": "bee7ef071e1afcbcbe5713d328b6c7329e29807f",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 6,
+                "finished_phase_status": "passed"
               }
-            ]
+            ],
+            "review_status": "passed",
+            "reviewer_model": "grok-bot-executor"
           },
           "status": "review",
-          "worktree": "bcl124-r1-do1",
+          "worktree": "samantha-next-r14",
           "depends_on": [],
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
@@ -1342,8 +1544,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-26T03:08:49Z",
-        "source": "lane_failure"
+        "at": "2026-11-26T03:31:02Z",
+        "source": "review"
       }
     },
     {
@@ -1371,8 +1573,8 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-26T03:08:49Z",
-        "source": "lane_failure"
+        "at": "2026-11-26T03:31:02Z",
+        "source": "review"
       }
     },
     {
