@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-26T03:29:08Z",
-      "now": "2026-11-26T03:29:08Z — root_cause: live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other"
+      "stage": "review",
+      "updated_at": "2026-11-26T03:30:58Z",
+      "now": "2026-11-26T03:30:58Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -372,7 +372,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T03:29:22Z",
+    "last_written_at": "2026-11-26T03:30:58Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -668,7 +668,8 @@
     },
     "stages_reached": [
       "collect",
-      "plan_fix"
+      "plan_fix",
+      "review"
     ],
     "plan": {
       "round": 1,
@@ -778,53 +779,26 @@
           ],
           "status": "review",
           "reason": "Both are merged-list lifecycle in bin/bcl merged: a list started before its PR cannot record its merge (BCL-184), and an already-merged list cannot clear leftover install.running and active verification runs (BCL-190). Same code path, one lane, no dependency on other lanes.",
-          "worktree": "bcl124-r1-merged",
+          "worktree": "samantha-next-r14",
           "codex": {
             "fix_base_head": "559767a280495c8447e37bd4942b8a3fe4ab3ab7",
             "fix_status": "passed",
             "job": {
-              "id": "a3049faadf3b45799ec2e538ec379dd3",
-              "phase": "fix",
-              "started_at": "2026-11-26T03:29:01Z",
-              "command": "lane-commit.sh",
-              "heartbeat_at": "2026-11-26T03:29:06Z",
-              "plan_sha256": "d3bbcc6d933c636376182d27635421ccdab9f074a125fa44c9fd98b614eab001",
+              "id": "107de2e1e5b346a896994ede37545143",
+              "phase": "review",
+              "started_at": "2026-11-26T03:30:58Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-26T03:30:58Z",
+              "plan_sha256": "fd283c1518bfeec1c89811592ea06ff2ed85bc3ed40b95dccb7dac1eab79b2e3",
               "finding_ids": [
                 "BCL-184",
                 "BCL-190"
               ],
-              "worktree": "bcl124-r1-merged",
+              "worktree": "samantha-next-r14",
               "model": "grok-bot-executor",
-              "lane_sha256": "63a4c6d5cd1c97ec2a738fb4984dbfc6381617686a6e6110865544d325c82272",
+              "lane_sha256": "d3065fa617972fef413b7b2588f8f24fd7fc075caa9fe454b691b8650ac32800",
               "cycle": 16,
-              "round": 1,
-              "pid": 49590,
-              "steps": [
-                {
-                  "step": "failed_first",
-                  "at": "2026-11-26T03:29:01Z",
-                  "result": "new tests fail before fix: link-pr and repair-merged are unknown stages; bcl merged on a list without a PR link exits \"bcl merged requires tracking.pull_request.url\" with no way to add it"
-                },
-                {
-                  "step": "root_cause",
-                  "at": "2026-11-26T03:29:02Z",
-                  "result": "bin/bcl: tracking.pull_request was only ever written by rollover, so a list adopted before its PR could never record its merge; the only caller of clear_finished_running_state on merged lists is set-stage merged, which also retargets stacked PRs and stops the repo viewer, so lists merged before BCL-189 could not be repaired"
-                }
-              ],
-              "latest_step": {
-                "step": "root_cause",
-                "at": "2026-11-26T03:29:02Z",
-                "result": "bin/bcl: tracking.pull_request was only ever written by rollover, so a list adopted before its PR could never record its merge; the only caller of clear_finished_running_state on merged lists is set-stage merged, which also retargets stacked PRs and stops the repo viewer, so lists merged before BCL-189 could not be repaired"
-              },
-              "exit_code": 0,
-              "finished_at": "2026-11-26T03:29:06Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/a3049faadf3b45799ec2e538ec379dd3.log",
-              "output_retained": true,
-              "commit": "559767a280495c8447e37bd4942b8a3fe4ab3ab7",
-              "tokens_source": "not_reported",
-              "tokens": null,
-              "wall_time_s": 5,
-              "finished_phase_status": "passed"
+              "round": 1
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -854,8 +828,54 @@
                 "tokens": null,
                 "wall_time_s": 205,
                 "finished_phase_status": "failed"
+              },
+              {
+                "id": "a3049faadf3b45799ec2e538ec379dd3",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:29:01Z",
+                "command": "lane-commit.sh",
+                "heartbeat_at": "2026-11-26T03:29:06Z",
+                "plan_sha256": "d3bbcc6d933c636376182d27635421ccdab9f074a125fa44c9fd98b614eab001",
+                "finding_ids": [
+                  "BCL-184",
+                  "BCL-190"
+                ],
+                "worktree": "bcl124-r1-merged",
+                "model": "grok-bot-executor",
+                "lane_sha256": "63a4c6d5cd1c97ec2a738fb4984dbfc6381617686a6e6110865544d325c82272",
+                "cycle": 16,
+                "round": 1,
+                "pid": 49590,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-26T03:29:01Z",
+                    "result": "new tests fail before fix: link-pr and repair-merged are unknown stages; bcl merged on a list without a PR link exits \"bcl merged requires tracking.pull_request.url\" with no way to add it"
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-26T03:29:02Z",
+                    "result": "bin/bcl: tracking.pull_request was only ever written by rollover, so a list adopted before its PR could never record its merge; the only caller of clear_finished_running_state on merged lists is set-stage merged, which also retargets stacked PRs and stops the repo viewer, so lists merged before BCL-189 could not be repaired"
+                  }
+                ],
+                "latest_step": {
+                  "step": "root_cause",
+                  "at": "2026-11-26T03:29:02Z",
+                  "result": "bin/bcl: tracking.pull_request was only ever written by rollover, so a list adopted before its PR could never record its merge; the only caller of clear_finished_running_state on merged lists is set-stage merged, which also retargets stacked PRs and stops the repo viewer, so lists merged before BCL-189 could not be repaired"
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-26T03:29:06Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/a3049faadf3b45799ec2e538ec379dd3.log",
+                "output_retained": true,
+                "commit": "559767a280495c8447e37bd4942b8a3fe4ab3ab7",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 5,
+                "finished_phase_status": "passed"
               }
-            ]
+            ],
+            "review_status": "running",
+            "reviewer_model": "grok-bot-executor"
           },
           "depends_on": [],
           "verify": {
