@@ -630,7 +630,10 @@ class RepoViewerPortTests(unittest.TestCase):
         server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        self.addCleanup(thread.join); self.addCleanup(server.server_close); self.addCleanup(server.shutdown)
+        def assert_no_leak():
+            server.shutdown(); server.server_close(); thread.join(5)
+            self.assertFalse(thread.is_alive(), 'leaked_child: health server thread still running after cleanup')
+        self.addCleanup(assert_no_leak)
         with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
                 patch.object(live_state, 'PORT_RANGE', (server.server_address[1], server.server_address[1] + 1)), \
                 patch.object(live_state, '_port_is_free', return_value=True):
