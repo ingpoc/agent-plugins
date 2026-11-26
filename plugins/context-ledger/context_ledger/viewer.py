@@ -113,7 +113,24 @@ class LedgerView:
                 fixed_by[r["dst"]] = {"id": r["src"], "kind": r["kind"], "context": r["context"]}
         return cites, cited, fixes, fixed_by
 
-    def _card(self, rec: dict[str, Any], links: tuple, tiers: dict[str, str]) -> dict[str, Any]:
+    def _last_lookups(self, conn: sqlite3.Connection, visible: set[str]) -> dict[str, dict[str, Any]]:
+        """Latest find/get row per decision, with the project it ran under (CL-2 column).
+        A row that touched a hidden record is skipped whole, as in the activity feed."""
+        cols = {r["name"] for r in conn.execute("pragma table_info(access_log)")}
+        if "project" not in cols:
+            return {}
+        last: dict[str, dict[str, Any]] = {}
+        for r in conn.execute("select ts, ids, project from access_log where tool in ('find', 'get') "
+                              "and caller != 'ledger-internal' order by seq"):
+            raw = parse_json(r["ids"])
+            if any(i not in visible for i in raw):
+                continue
+            for i in raw:
+                last[i] = {"t": r["ts"], "project": r["project"]}
+        return last
+
+    def _card(self, rec: dict[str, Any], links: tuple, tiers: dict[str, str],
+              last: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
         cites, cited, fixes, fixed_by = links
         body = rec["body"]
         trace = body.get("trace") or {}
@@ -137,7 +154,14 @@ class LedgerView:
                 "n": conf.get("sample_count", 0),
             },
             "tier": tiers.get(did, "hint"),
+            "scope": body.get("scope"),
+            "project": Store._lookup_project(body.get("scope")),
         }
+        hit = (last or {}).get(did)
+        if hit:
+            # match is None for a fleet or tool decision: it applies to every project.
+            card["last_lookup"] = {"t": hit["t"], "project": hit["project"],
+                                   "match": (hit["project"] == card["project"]) if card["project"] else None}
         for key in ("rule", "exception", "override_by", "approver", "context", "state"):
             if trace.get(key):
                 card[key] = trace[key]
@@ -164,6 +188,7 @@ class LedgerView:
             recs = self._records(conn)
             links = self._links(conn, set(recs))
             tiers = self.tiers(conn, recs)
+            last = self._last_lookups(conn, set(recs))
         finally:
             conn.close()
         if q:
@@ -174,7 +199,7 @@ class LedgerView:
         size = 0
         pos = cursor
         while pos < len(ordered) and len(items) < limit:
-            card = self._card(recs[ordered[pos]], links, tiers)
+            card = self._card(recs[ordered[pos]], links, tiers, last)
             n = len(canonical_json(card).encode("utf-8")) + 1
             if items and size + n > REPLY_CAP - 256:
                 break

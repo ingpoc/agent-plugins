@@ -55,11 +55,16 @@ const TIER={trusted:{label:"trusted (self-reported)",badge:"ok",title:"3+ distin
 let DECISIONS=[], EVENTS=[], RAW=[], AGENTS=[], STATS=null, ENTS=[], LOADED=false;
 const byId={};
 const WEEKS=8, wkStart=i=>NOW-(WEEKS-i)*7*DAY;
+function projText(x){ return x.project?"project "+x.project:(x.scope==="fleet"?"fleet · every project":x.scope); }
+function lookupText(x){ if(!x.last) return "no lookup yet"; const p=x.last.project||"no project";
+  if(x.last.match===true) return "last lookup matched "+p; if(x.last.match===false) return "last lookup from "+p+" · not this project";
+  return "last lookup from "+p; }
 function ingest(cards,raw,stats){
   NOW=Date.now(); STATS=stats; DECISIONS=cards.map(c=>({id:c.id,sid:sid(c.id),d:c.d,why:c.why||"",type:c.type,entity:(c.entities||[])[0]||"",entities:c.entities||[],
     rule:c.rule||null,override:c.exception||null,overrideBy:c.override_by||null,approver:c.approver||null,approval:c.approval,by:c.by||"unknown",at:c.at,t:Date.parse(c.at),
     prec:c.cites||[],citedByIds:c.cited_by||[],crit:c.crit||null,context:c.context||null,state:c.state||null,tier:c.tier||"hint",lifecycle:c.lifecycle,
-    confScore:c.conf.score,succ:c.conf.ok,nConf:c.conf.n,failConf:c.conf.fail,fixes:c.fixes||null,fixedBy:c.fixed_by||null,replacedBy:c.replaced_by||null}));
+    confScore:c.conf.score,succ:c.conf.ok,nConf:c.conf.n,failConf:c.conf.fail,fixes:c.fixes||null,fixedBy:c.fixed_by||null,replacedBy:c.replaced_by||null,
+    project:c.project||null,scope:c.scope||"fleet",last:c.last_lookup||null}));
   for(const k in byId) delete byId[k];
   DECISIONS.forEach(x=>{ byId[x.id]=x; });
   DECISIONS.forEach(x=>{ x.prec=x.prec.filter(id=>byId[id]); x.citedBy=x.citedByIds.filter(id=>byId[id]);
@@ -178,7 +183,7 @@ function renderList(){
       h("span",{class:"dtext"},highlight(x.d,st.q)),
       h("span",{class:"cit",title:x.marked?`${x.mix.helped} of ${x.marked} marked outcomes helped`:"No helpful marks yet"},citator(x),h("span",{text:x.marked?pct(x.helpful):"n/a"})),
       h("span",{class:"why"},h("i",{text:"why"}),highlight(x.why,st.q)),
-      h("span",{class:"meta"},h("span",{class:"id",text:x.sid}),x.entity?h("span",{text:x.entity}):null,h("span",{text:dayStr(x.t)}),h("span",{text:x.conf!=null?"conf "+x.conf.toFixed(2)+" n"+x.nConf:"no outcomes yet"}),x.tier!=="hint"?h("span",{class:"badge "+TIER[x.tier].badge,title:TIER[x.tier].title,text:TIER[x.tier].label}):null,...badges));
+      h("span",{class:"meta"},h("span",{class:"id",text:x.sid}),h("span",{class:"proj",text:projText(x)}),h("span",{class:"lk"+(x.last&&x.last.match===false?" miss":""),text:lookupText(x)}),x.entity?h("span",{text:x.entity}):null,h("span",{text:dayStr(x.t)}),h("span",{text:x.conf!=null?"conf "+x.conf.toFixed(2)+" n"+x.nConf:"no outcomes yet"}),x.tier!=="hint"?h("span",{class:"badge "+TIER[x.tier].badge,title:TIER[x.tier].title,text:TIER[x.tier].label}):null,...badges));
     ul.append(h("li",null,b));
   });
 }
@@ -298,6 +303,8 @@ function renderDetail(){
       x.next?h("dt",{text:"Superseded by"}):null, x.next?h("dd",null,plink(x.next.id)):null,
       h("dt",{text:"Override by"}),h("dd",null,x.overrideBy||none("none")),
       h("dt",{text:"Approved by"}),h("dd",null,x.approver||none(one?"not recorded":"not approved · agent conclusion")),
+      h("dt",{text:"Project"}),h("dd",{text:projText(x)}),
+      h("dt",{text:"Last lookup"}),h("dd",{text:lookupText(x)+(x.last&&x.last.t?" · "+stamp(Date.parse(x.last.t)):"")}),
       h("dt",{text:"Recorded by"}),h("dd",{text:x.by}),
       h("dt",{text:"Entity"}),h("dd",null,x.entities.length?h("span",{class:"mono",text:x.entities.join(", ")}):none("none")),
       x.crit?h("dt",{text:"Criticality"}):null, x.crit?h("dd",{class:"mono",text:x.crit+" of 5"}):null,
@@ -464,6 +471,14 @@ function focusSearch(){ if(st.tab!=="decisions") setTab("decisions"); if(st.open
 $("#t-decisions").parentElement.addEventListener("keydown",e=>{ if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return; const order=["decisions","activity","outcomes"]; let i=order.indexOf(st.tab)+(e.key==="ArrowRight"?1:-1); i=(i+3)%3; setTab(order[i]); $("#t-"+order[i]).focus(); });
 ["decisions","activity","outcomes"].forEach(k=>$("#t-"+k).addEventListener("click",()=>setTab(k)));
 $("#themeBtn").addEventListener("click",()=>setTheme(themes[(themes.indexOf(st.theme)+1)%3]));
+const SIZES=[100,112.5,125,150]; let sizeIx=0;
+function setSize(i){ sizeIx=Math.max(0,Math.min(SIZES.length-1,i|0)); document.documentElement.style.fontSize=SIZES[sizeIx]+"%";
+  $("#sizeLabel").textContent=SIZES[sizeIx]+"%"; $("#sizeDown").disabled=sizeIx===0; $("#sizeUp").disabled=sizeIx===SIZES.length-1;
+  try{ localStorage.setItem("ledger-text-size",String(sizeIx)); }catch(e){} }
+let savedSize=0; try{ savedSize=parseInt(localStorage.getItem("ledger-text-size")||"0",10)||0; }catch(e){}
+setSize(savedSize);
+$("#sizeDown").addEventListener("click",()=>setSize(sizeIx-1));
+$("#sizeUp").addEventListener("click",()=>setSize(sizeIx+1));
 $("#backBtn").addEventListener("click",back);
 $("#filterToggle").addEventListener("click",()=>{ const f=$("#filters"); const on=!f.classList.contains("show"); f.classList.toggle("show",on); $("#filterToggle").setAttribute("aria-expanded",on); });
 let qTimer=0, qGen=0;

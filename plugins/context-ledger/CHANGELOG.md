@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.43
+
+- The ledger page shows each decision's project and whether the last lookup came from that project. All text is 16px or more, with a text-size control; zoom stays allowed.
+
 ## 0.1.42
 
 - Each lookup row (find, get, save) records the ledger version, tokens as not reported, and the caller project through an additive access_log migration; save rows stay out of lookup counts and the activity feed (CL-2).

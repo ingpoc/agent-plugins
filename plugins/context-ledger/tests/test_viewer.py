@@ -7,6 +7,7 @@ import hashlib
 import http.client
 import io
 import json
+import re
 import os
 import sqlite3
 import subprocess
@@ -302,6 +303,74 @@ class BundleTests(unittest.TestCase):
             self.assertIn(tool, app)
         self.assertNotIn("ledger_record", app)
         self.assertIn('"Geist",ui-sans-serif,system-ui', page)
+
+
+class ProjectAndLookupTests(ViewerBase):
+    """CL-3: each card names its project and whether the last lookup came from that project."""
+
+    def _project_decision(self, project: str) -> str:
+        return self.store.save({"request_id": _u(), "type": "user_decision", "actor": "efficient",
+                                "decision": f"Use the {project} release checklist", "why": "Project policy",
+                                "entities": ["release"], "scope": f"project:{project}"}, mcp=True)["decision_id"]
+
+    def _card(self, did: str) -> dict:
+        return next(c for c in self.view.query({"q": did[:8]})["items"] if c["id"] == did)
+
+    def test_card_shows_project_and_whether_last_lookup_matched(self) -> None:
+        did = self._project_decision("viewer-test")
+        self.assertEqual(self._card(did)["project"], "viewer-test")
+        self.assertNotIn("last_lookup", self._card(did))
+        self.store.get({"decision_id": did, "actor": "grok-bot"}, mcp=True)
+        hit = self._card(did)["last_lookup"]
+        self.assertEqual((hit["project"], hit["match"]), ("viewer-test", True))
+        conn = sqlite3.connect(self.store.db_path)
+        conn.execute("insert into access_log(ts,tool,caller,n,bytes,ids,ms,project) "
+                     "values ('2999-01-01T00:00:00Z','find','other-bot',1,0,?,0,'other-project')", (json.dumps([did]),))
+        conn.commit()
+        conn.close()
+        hit = self._card(did)["last_lookup"]
+        self.assertEqual((hit["project"], hit["match"]), ("other-project", False))
+
+    def test_fleet_decision_lookup_makes_no_project_claim(self) -> None:
+        self.store.get({"decision_id": self.kite, "actor": "grok-bot"}, mcp=True)
+        card = self._card(self.kite)
+        self.assertIsNone(card["project"])
+        self.assertEqual(card["scope"], "fleet")
+        self.assertIsNone(card["last_lookup"]["match"])
+
+    def test_access_log_without_project_column_still_renders(self) -> None:
+        self.store.close()
+        conn = sqlite3.connect(self.store.db_path)
+        conn.execute("alter table access_log drop column project")
+        conn.commit()
+        conn.close()
+        card = LedgerView(self.data).query({"q": self.kite[:8]})["items"][0]
+        self.assertEqual(card["id"], self.kite)
+        self.assertNotIn("last_lookup", card)
+
+
+class TextSizeTests(unittest.TestCase):
+    """CL-3: ledger page text is 16px or more, has a text-size control, and allows zoom."""
+
+    def test_ledger_page_text_is_at_least_16px_with_size_control_and_zoom(self) -> None:
+        css = (ROOT / "ui-src/style.css").read_text(encoding="utf-8")
+        tokens = dict(re.findall(r"--(text-[a-z0-9]+):\s*([^;]+);", css))
+        self.assertGreaterEqual(len(tokens), 9)
+        for name, value in tokens.items():
+            m = re.fullmatch(r"([0-9.]+)(px|rem)", value.strip())
+            self.assertIsNotNone(m, f"{name}: {value}")
+            self.assertGreaterEqual(float(m.group(1)) * (16 if m.group(2) == "rem" else 1), 16, name)
+        for m in re.finditer(r"font-size:\s*([0-9.]+)(px|rem|em)", css):
+            self.assertGreaterEqual(float(m.group(1)) * (1 if m.group(2) == "px" else 16), 16, m.group(0))
+        for m in re.finditer(r"font:[^;}]*?([0-9.]+)px", css):
+            self.assertGreaterEqual(float(m.group(1)), 16, m.group(0))
+        page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
+        for needle in ('id="sizeDown"', 'id="sizeUp"', 'aria-label="Text size"', "last lookup matched",
+                       '"Last lookup"', '"Project"'):
+            self.assertIn(needle, page)
+        viewport = re.search(r'name="viewport" content="([^"]+)"', page).group(1)
+        self.assertNotIn("maximum-scale", viewport)
+        self.assertNotIn("user-scalable=no", viewport)
 
 
 if __name__ == "__main__":
