@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-26T07:39:06Z",
-      "now": "2026-11-26T07:39:06Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-26T07:49:27Z",
+      "now": "2026-11-26T07:49:27Z — Fix started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T07:39:07Z",
+    "last_written_at": "2026-11-26T07:49:27Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2680,8 +2680,8 @@
           "finding_ids": [
             "BCL-193"
           ],
-          "status": "failed",
-          "phase": "verify",
+          "status": "running",
+          "phase": "fix",
           "depends_on": [],
           "worktree": "samantha-next-r14",
           "reason": "Status accuracy: render.py lane display falls back to Paused · needs resume for a passed fix waiting for review. Same file as R2-PLANHEAD (render.py) but a different function (lane display vs plan head and template).",
@@ -2689,12 +2689,32 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh",
             "method": "Named render tests plus the installed bcl status on a temp copy of the live list",
             "summary": "Passed fix waiting for review is not shown paused",
-            "status": "pending"
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
+            "fix_status": "running",
+            "job": {
+              "id": "159693b06dcf47b2ab395867dfd6d251",
+              "phase": "fix",
+              "started_at": "2026-11-26T07:49:27Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-26T07:49:27Z",
+              "plan_sha256": "829494e47df10f97db2d1111b30780171c6de67f24d6301ff1a79b50dfb14b40",
+              "finding_ids": [
+                "BCL-193"
+              ],
+              "worktree": "samantha-next-r14",
+              "model": "grok-bot-executor",
+              "lane_sha256": "c04eff2ddd177f0a0f1ae5632ec17262a8ff8216deb4bc491fe911bfecc63fdb",
+              "cycle": 16,
+              "round": 3
+            }
           },
-          "stage_entered_at": "2026-11-26T06:45:35Z",
+          "stage_entered_at": "2026-11-26T07:49:27Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-26T06:57:57Z"
@@ -2909,11 +2929,9 @@
           "finding_ids": [
             "CL-3"
           ],
-          "status": "review",
-          "depends_on": [
-            "R2-CL-CAPTURE"
-          ],
-          "reason": "Runs after R2-CL-CAPTURE lands in the same worktree (uses its lookup-row fields); ledger page shows project and last-lookup match at 16px.",
+          "status": "parked",
+          "depends_on": [],
+          "reason": "Ships in the same worktree and install as R2-CL-CAPTURE, on top of its commits; the page tolerates a log without the project column. Verified after CL-2.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh",
             "method": "UI tests plus the installed ledger page HTML on its local viewer",
@@ -2928,56 +2946,177 @@
             "fix_base_head": "a386dad7e1533d25a7d8138c7c993dafc8fe6d5e",
             "fix_status": "passed",
             "job": {
-              "id": "5351c3f224d545c2aca142f32ae0f4c3",
-              "phase": "fix",
-              "started_at": "2026-11-26T07:34:55Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-26T07:36:18Z",
-              "plan_sha256": "4f38d93d1b1210f07eaeb0d89ff802157ff19485a54acf3cee009fe23a250779",
+              "id": "226ef312f9d64b5cbb420b3f3cf35882",
+              "phase": "plan_review",
+              "started_at": "2026-11-26T07:48:06Z",
+              "command": "codex",
+              "heartbeat_at": "2026-11-26T07:48:22Z",
+              "plan_sha256": "5817f1ec7ec2bdd59783b931a787cd09428405fb60248ce4ab372b204e6ac133",
               "finding_ids": [
                 "CL-3"
               ],
               "worktree": "bcl124-r5-ledger",
-              "model": "grok-bot-executor",
-              "lane_sha256": "0ee15f16b71ba51c2b8de9aeea8cc858ad3088066d3643d5c8a8ade41b4abbdc",
+              "model": "gpt-6-luna",
+              "lane_sha256": "14075db0eef5160f5a98d9f2c25bc4480005bb1e14cbf9f23c5f76c93147d1c7",
               "cycle": 16,
               "round": 3,
-              "pid": 91601,
-              "steps": [
-                {
-                  "step": "failed_first",
-                  "at": "2026-11-26T07:34:58Z",
-                  "result": "test_card_shows_project_and_whether_last_lookup_matched and test_ledger_page_text_is_at_least_16px fail: cards have no project or last lookup, text tokens are 11-15px"
-                },
-                {
+              "pid": 29335,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T07:48:22Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/226ef312f9d64b5cbb420b3f3cf35882.log",
+              "output_retained": true,
+              "tokens_source": "official",
+              "tokens": {
+                "total": 30824,
+                "output": 313
+              },
+              "wall_time_s": 16,
+              "session": "rollout-2026-11-26T13-18-07-01a216d3-7714-7271-bf97-cc5e135e5eef.jsonl",
+              "finished_phase_status": "incomplete",
+              "must_fix": "Changes requested; Must-fix section missing"
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "5351c3f224d545c2aca142f32ae0f4c3",
+                "phase": "fix",
+                "started_at": "2026-11-26T07:34:55Z",
+                "command": "bash",
+                "heartbeat_at": "2026-11-26T07:36:18Z",
+                "plan_sha256": "4f38d93d1b1210f07eaeb0d89ff802157ff19485a54acf3cee009fe23a250779",
+                "finding_ids": [
+                  "CL-3"
+                ],
+                "worktree": "bcl124-r5-ledger",
+                "model": "grok-bot-executor",
+                "lane_sha256": "0ee15f16b71ba51c2b8de9aeea8cc858ad3088066d3643d5c8a8ade41b4abbdc",
+                "cycle": 16,
+                "round": 3,
+                "pid": 91601,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-26T07:34:58Z",
+                    "result": "test_card_shows_project_and_whether_last_lookup_matched and test_ledger_page_text_is_at_least_16px fail: cards have no project or last lookup, text tokens are 11-15px"
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-26T07:34:58Z",
+                    "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control"
+                  }
+                ],
+                "latest_step": {
                   "step": "root_cause",
                   "at": "2026-11-26T07:34:58Z",
                   "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control"
-                }
-              ],
-              "latest_step": {
-                "step": "root_cause",
-                "at": "2026-11-26T07:34:58Z",
-                "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control"
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-26T07:36:18Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/5351c3f224d545c2aca142f32ae0f4c3.log",
+                "output_retained": true,
+                "commit": "a386dad7e1533d25a7d8138c7c993dafc8fe6d5e",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 83,
+                "finished_phase_status": "passed"
               },
-              "exit_code": 0,
-              "finished_at": "2026-11-26T07:36:18Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/5351c3f224d545c2aca142f32ae0f4c3.log",
-              "output_retained": true,
-              "commit": "a386dad7e1533d25a7d8138c7c993dafc8fe6d5e",
-              "tokens_source": "not_reported",
-              "tokens": null,
-              "wall_time_s": 83,
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0
+              {
+                "id": "5543f5fdcd7c470eb448f5cd04b3251e",
+                "phase": "review",
+                "started_at": "2026-11-26T07:39:09Z",
+                "command": "codex",
+                "heartbeat_at": "2026-11-26T07:41:06Z",
+                "plan_sha256": "dbca2df3d12760a27ce6b841170dc7e161e50d45c58ae7182300b0569f901502",
+                "finding_ids": [
+                  "CL-3"
+                ],
+                "worktree": "bcl124-r5-ledger",
+                "model": "gpt-6-luna",
+                "lane_sha256": "bf39d3dcd8bbe602c040c9fe374584400a91971c4cfc5a564822e6ccee5430be",
+                "cycle": 16,
+                "round": 3,
+                "pid": 6205,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T07:41:06Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/5543f5fdcd7c470eb448f5cd04b3251e.log",
+                "output_retained": true,
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 534127,
+                  "output": 3257
+                },
+                "wall_time_s": 117,
+                "session": "rollout-2026-11-26T13-09-09-01a216cb-42dc-7523-a5fc-23e47bd7a48f.jsonl",
+                "finished_phase_status": "changes_requested",
+                "must_fix": "- The acceptance requires a UI test, but the added tests in `tests/test_viewer.py` check backend card data and search source files for CSS tokens and markup strings. They do not render the page or verify that each decision visibly shows its project and lookup match, or that the size controls work. Add a test that exercises the rendered UI behavior."
+              },
+              {
+                "id": "6ad32a8476de4edfa532384e800c57e7",
+                "phase": "plan_review",
+                "started_at": "2026-11-26T07:44:21Z",
+                "command": "codex",
+                "heartbeat_at": "2026-11-26T07:44:44Z",
+                "plan_sha256": "dbca2df3d12760a27ce6b841170dc7e161e50d45c58ae7182300b0569f901502",
+                "finding_ids": [
+                  "CL-3"
+                ],
+                "worktree": "bcl124-r5-ledger",
+                "model": "gpt-6-luna",
+                "lane_sha256": "bf39d3dcd8bbe602c040c9fe374584400a91971c4cfc5a564822e6ccee5430be",
+                "cycle": 16,
+                "round": 3,
+                "pid": 20202,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T07:44:44Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/6ad32a8476de4edfa532384e800c57e7.log",
+                "output_retained": true,
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 62159,
+                  "output": 480
+                },
+                "wall_time_s": 23,
+                "session": "rollout-2026-11-26T13-14-22-01a216d0-08b4-79b3-bb66-67e8c213490a.jsonl",
+                "finished_phase_status": "incomplete",
+                "must_fix": "Changes requested; Must-fix section missing"
+              }
+            ],
+            "review_status": "changes_requested",
+            "reviewer_model": "gpt-6-luna",
+            "must_fix_note": "- The acceptance requires a UI test, but the added tests in `tests/test_viewer.py` check backend card data and search source files for CSS tokens and markup strings. They do not render the page or verify that each decision visibly shows its project and lookup match, or that the size controls work. Add a test that exercises the rendered UI behavior.",
+            "plan_review_status": "failed"
           },
-          "parked_to": 3,
-          "stage_entered_at": "2026-11-26T07:36:18Z",
-          "failure_history": [],
-          "plan_review_history": [],
-          "updated_at": "2026-11-26T06:57:57Z",
-          "phase": "review",
+          "parked_to": 4,
+          "stage_entered_at": "2026-11-26T07:48:53Z",
+          "failure_history": [
+            {
+              "attempt_id": "5543f5fdcd7c470eb448f5cd04b3251e",
+              "source": "review",
+              "reason": "- The acceptance requires a UI test, but the added tests in `tests/test_viewer.py` check backend card data and search source files for CSS tokens and markup strings. They do not render the page or verify that each decision visibly shows its project and lookup match, or that the size controls work. Add a test that exercises the rendered UI behavior.",
+              "cycle": 16,
+              "round": 3,
+              "at": "2026-11-26T07:41:06Z",
+              "plan_answered": true
+            }
+          ],
+          "plan_review_history": [
+            {
+              "job_id": "6ad32a8476de4edfa532384e800c57e7",
+              "status": "incomplete",
+              "cycle": 16,
+              "round": 3,
+              "at": "2026-11-26T07:44:44Z"
+            },
+            {
+              "job_id": "226ef312f9d64b5cbb420b3f3cf35882",
+              "status": "incomplete",
+              "cycle": 16,
+              "round": 3,
+              "at": "2026-11-26T07:48:22Z"
+            }
+          ],
+          "updated_at": "2026-11-26T07:48:53Z",
+          "phase": "plan_review",
           "trail": [
             {
               "step": "failed_first",
@@ -3022,7 +3161,7 @@
               "phase": "review",
               "started_at": "2026-11-26T07:39:06Z",
               "command": "codex",
-              "heartbeat_at": "2026-11-26T07:39:06Z",
+              "heartbeat_at": "2026-11-26T07:40:23Z",
               "plan_sha256": "dbca2df3d12760a27ce6b841170dc7e161e50d45c58ae7182300b0569f901502",
               "finding_ids": [
                 "BCL-194"
@@ -3031,7 +3170,20 @@
               "model": "gpt-6-luna",
               "lane_sha256": "bcebd61c6d7a85e841666eec91898f486ca68ac71d307d86543de87869ee1607",
               "cycle": 16,
-              "round": 3
+              "round": 3,
+              "pid": 4973,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T07:40:23Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/b19493d037a946ecb5156aaaa887f355.log",
+              "output_retained": true,
+              "tokens_source": "official",
+              "tokens": {
+                "total": 329348,
+                "output": 1595
+              },
+              "wall_time_s": 77,
+              "session": "rollout-2026-11-26T13-09-07-01a216cb-3a84-7652-95ee-4b8fa214b87c.jsonl",
+              "finished_phase_status": "passed"
             },
             "tool_fault_streak": 0,
             "jobs": [
@@ -3220,7 +3372,7 @@
             ],
             "reviewer_model": "gpt-6-luna",
             "must_fix_note": "Changes requested; Must-fix section missing",
-            "review_status": "running"
+            "review_status": "passed"
           },
           "failure_history": [
             {
@@ -3901,7 +4053,11 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-26T07:41:06Z",
+        "source": "review"
+      }
     },
     {
       "id": "BCL-193",
@@ -3963,6 +4119,56 @@
         "at": "2026-11-26T07:34:21Z",
         "source": "review"
       }
+    },
+    {
+      "id": "BCL-195",
+      "title": "A Codex run that ends on a usage limit crashes the bcl job runner and leaves its job open",
+      "summary": "When Codex stops on a usage limit, its session log has a token-count event with no info, and bcl job crashes reading token usage, so the job is never finished.",
+      "impact": "The lane keeps a running job with a dead process, every plan and finding edit is refused until another job on that lane happens to close it, and the quota-out is not recorded as a tool fault.",
+      "done_when": "A job whose Codex log has a token-count event with null info finishes normally with tokens not reported, the job gets an exit code and the quota-out is recorded as a tool fault; a test covers it.",
+      "recommendation": "In bin/bcl _read_usage treat a missing or null info as no usage, and keep job finish independent of usage parsing.",
+      "observed": "26 Nov 2026 12:52 IST on #124: the R3-UNPARK review job hit the Codex usage limit; bcl crashed in _read_usage with AttributeError NoneType has no attribute get (counts = info.get(total_token_usage)); the lane job stayed open with a dead pid and bcl verify for BCL-193 was refused: plan and finding edits are blocked while a job is running.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "batched-change-list",
+      "details": {
+        "kind": "bug",
+        "regression_against_main": "no"
+      },
+      "created_at": "2026-11-26T07:47:01Z",
+      "first_seen": {
+        "at": "2026-11-26T07:47:01Z",
+        "pr": null,
+        "round": 3,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-196",
+      "title": "A fix job can start on a lane whose dependency is not verified, and then every later list write is refused",
+      "summary": "bcl job starts a fix on a lane that depends on an unverified lane; once that lane reaches review, the plan check refuses every install or verify write on the whole list with must wait for verified dependencies.",
+      "impact": "One dependent lane freezes installs and verifies for all lanes, including unrelated ones, until someone edits the dependency by hand through the plan.",
+      "done_when": "bcl job refuses to start a fix on a lane with unverified dependencies (or the plan check only refuses writes to that lane); a test covers the refusal and an unrelated lane's install still works.",
+      "recommendation": "Run the same dependency check at job start that the plan validation runs later, and scope the later refusal to the dependent lane.",
+      "observed": "26 Nov 2026 13:18 IST on #124: the CL-3 fix job started on R2-CL-VIEW (depends on R2-CL-CAPTURE, not verified); afterwards bcl install --ids BCL-193 failed with R2-CL-VIEW must wait for verified dependencies: R2-CL-CAPTURE, until the dependency was removed with update-plan-group.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "batched-change-list",
+      "details": {
+        "kind": "bug",
+        "regression_against_main": "no"
+      },
+      "created_at": "2026-11-26T07:48:53Z",
+      "first_seen": {
+        "at": "2026-11-26T07:48:53Z",
+        "pr": null,
+        "round": 3,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
