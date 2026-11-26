@@ -1,5 +1,6 @@
 """Live tracker registry and per-list viewer lifecycle."""
 import errno, hashlib, json, os, re, socket, subprocess, sys, tempfile, time, urllib.error, urllib.request, uuid
+from contextlib import contextmanager
 import tracker_lock
 from datetime import datetime
 from pathlib import Path
@@ -383,9 +384,34 @@ def locate(path, adopt=False, render_path=None):
     if not record: return key, None, None
     return key, record, Path(record["live"]).resolve()
 
-def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=False):
+def _viewer_state_path(key, record):
     project = record.get("repo")
-    state = STATE / "viewers" / (safe_component(project.replace("/", "--") if project else key.replace("/", "--")) + ".json")
+    return STATE / "viewers" / (safe_component(project.replace("/", "--") if project else key.replace("/", "--")) + ".json")
+
+@contextmanager
+def _viewer_state_lock(state, timeout=15):
+    lock_path = Path(state).with_suffix(".lock")
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            with tracker_lock.exclusive_lock(lock_path, blocking=False):
+                yield
+                return
+        except tracker_lock.LockBusyError:
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"timed out waiting for viewer state lock: {lock_path}")
+            time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+
+def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=False):
+    state = _viewer_state_path(key, record)
+    guard_live_state_write(state)
+    state.parent.mkdir(parents=True, exist_ok=True)
+    with _viewer_state_lock(state):
+        return _ensure_viewer_locked(key, record, live, plugin_version, reject_unverifiable_pid)
+
+def _ensure_viewer_locked(key, record, live, plugin_version, reject_unverifiable_pid=False):
+    project = record.get("repo")
+    state = _viewer_state_path(key, record)
     guard_live_state_write(state)
     state.parent.mkdir(parents=True, exist_ok=True)
     old_state = state
@@ -543,14 +569,28 @@ def _wait_for_pid(pid):
     return True
 
 def _viewer_responds(port, expected):
+    deadline = time.monotonic() + 3
+    identity = {"pid": expected["pid"], "path": str(Path(expected["data"]).resolve()), "instance": expected["instance"]}
+    healthy = False
+    while time.monotonic() < deadline:
+        timeout = min(1.5, max(0.05, deadline - time.monotonic()))
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=timeout) as response:
+                if response.status == 200 and json.load(response) != identity:
+                    return False
+                healthy = response.status == 200
+            if healthy:
+                break
+        except (OSError, urllib.error.URLError, ValueError, KeyError):
+            pass
+        if time.monotonic() < deadline:
+            time.sleep(min(0.05, deadline - time.monotonic()))
+    if not healthy:
+        return False
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=0.5) as response:
-            if response.status != 200 or json.load(response) != {
-                "pid": expected["pid"], "path": str(Path(expected["data"]).resolve()), "instance": expected["instance"]}:
-                return False
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=1) as response:
             return response.status == 200 and bool(response.read(1))
-    except (OSError, urllib.error.URLError, ValueError, KeyError):
+    except (OSError, urllib.error.URLError):
         return False
 
 def _viewer_ready(proc, port, expected):

@@ -26,6 +26,91 @@ def tearDownModule():
 
 
 class ViewerLivenessTests(unittest.TestCase):
+    def _slow_health_viewer(self, root, delay, identity_override=None):
+        previous_state = live_state.STATE
+        live_state.STATE = root / 'state'
+        self.addCleanup(setattr, live_state, 'STATE', previous_state)
+        live = root / 'live.json'
+        live.write_text('{}')
+        page = root / 'page.html'
+        page.write_text('<html>viewer</html>')
+        hits = []
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/__bcl_health':
+                    hits.append(time.monotonic())
+                    time.sleep(delay if len(hits) == 1 else 0)
+                    identity = identity_override or expected_identity
+                    body = json.dumps(identity).encode()
+                    self.send_response(200)
+                    self.send_header('Content-Length', str(len(body)))
+                    self.end_headers()
+                    try: self.wfile.write(body)
+                    except (BrokenPipeError, ConnectionResetError): pass
+                else:
+                    body = b'viewer'
+                    self.send_response(200)
+                    self.send_header('Content-Length', str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+            def log_message(self, *_args): pass
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        expected_identity = {'pid': 4242, 'path': str(live.resolve()), 'instance': 'recorded-instance'}
+        state = live_state.STATE / 'viewers' / 'owner--project.json'
+        state.parent.mkdir(parents=True)
+        state.write_text(json.dumps({
+            'pid': 4242, 'port': port, 'instance': 'recorded-instance', 'data': str(live.resolve()),
+            'report': str(page.resolve()), 'base': str(root.resolve()), 'scripts': str(live_state.SCRIPTS.resolve()),
+            'scripts_identity': 'same-scripts', 'version': 'same-version'
+        }))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.shutdown)
+        self.addCleanup(server.server_close)
+        self.addCleanup(thread.join, 2)
+        record = {'repo': 'owner/project', 'viewer_port': port}
+        patches = [
+            patch.object(live_state, '_pid_is_running', return_value=True),
+            patch.object(live_state, 'report_paths', return_value=(page, root)),
+            patch.object(live_state, 'scripts_identity', return_value='same-scripts'),
+        ]
+        for item in patches: item.start()
+        self.addCleanup(lambda: [item.stop() for item in reversed(patches)])
+        return record, live, state, hits
+
+    def test_concurrent_ensure_viewer_never_raises(self):
+        with tempfile.TemporaryDirectory() as temp:
+            record, live, _state, _hits = self._slow_health_viewer(Path(temp), 0.8)
+            results, errors = [], []
+            start = threading.Barrier(4)
+            def call():
+                try:
+                    start.wait()
+                    results.append(live_state.ensure_viewer('owner/project', record, live, 'same-version'))
+                except Exception as error: errors.append(error)
+            threads = [threading.Thread(target=call) for _ in range(4)]
+            for thread in threads: thread.start()
+            for thread in threads: thread.join(8)
+            self.assertTrue(all(not thread.is_alive() for thread in threads))
+            self.assertEqual(errors, [])
+            self.assertEqual(len(results), 4)
+            self.assertTrue(all(value['pid'] == 4242 for value in results))
+
+    def test_slow_health_answer_is_retried(self):
+        with tempfile.TemporaryDirectory() as temp:
+            record, live, _state, hits = self._slow_health_viewer(Path(temp), 1.7)
+            value = live_state.ensure_viewer('owner/project', record, live, 'same-version')
+            self.assertEqual(value['pid'], 4242)
+            self.assertGreaterEqual(len(hits), 2)
+
+    def test_wrong_identity_still_raises(self):
+        with tempfile.TemporaryDirectory() as temp:
+            record, live, _state, _hits = self._slow_health_viewer(
+                Path(temp), 0, {'pid': 9999, 'path': str(Path(temp, 'live.json').resolve()), 'instance': 'wrong-instance'})
+            with self.assertRaisesRegex(RuntimeError, 'cannot verify viewer ownership'):
+                live_state.ensure_viewer('owner/project', record, live, 'same-version')
+
     def _viewer_fixture(self, root):
         state, live, home = root / 'state', root / 'live.json', root / 'home'
         scripts = root / 'install' / 'scripts'
