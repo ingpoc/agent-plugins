@@ -388,6 +388,21 @@ def render_job_timeline(group, now=None):
     return f'<ol class="job-timeline" aria-label="Lane job timeline">{"".join(rows)}</ol>'
 
 
+TRAIL_LABELS = {"failed_first": "Failed first", "root_cause": "Root cause", "fix_verified": "Fix verified"}
+
+
+def lane_trail(group):
+    """BCL-179: failed-first, root-cause and fix-verified steps in order, with IST times."""
+    trail = [row for row in (group.get("trail") or []) if isinstance(row, dict) and row.get("step") in TRAIL_LABELS]
+    parts = [" · ".join(filter(None, (TRAIL_LABELS[row["step"]], ist_time(row.get("at")), str(row.get("result") or ""))))
+             for row in trail]
+    if plan_phase(group) in ("review", "install", "verify") or plan_status(group) == "verified":
+        seen = {row["step"] for row in trail}
+        parts += [f"{label}: not recorded" for step, label in TRAIL_LABELS.items()
+                  if step not in seen and step != "fix_verified"]
+    return "; ".join(parts)
+
+
 def lane_model(group, codex):
     """Who works on the lane now: the model recorded for install or verify (else a scripted
     check), the job model for the lane's current stage, then the reviewer while the lane is
@@ -638,7 +653,7 @@ def render_plan(data, tracking, plan, round_number, now, displays=None):
         files = group.get("files", group.get("file_notes", []))
         if not isinstance(files, list):
             files = [str(files)]
-        details = [("Fix", " · ".join(filter(None, (codex.get("job_id"), codex.get("model"), codex.get("effort"), codex.get("service_tier"), codex.get("worktree"), codex.get("status"), times)))),
+        details = [("Trail", lane_trail(group)), ("Fix", " · ".join(filter(None, (codex.get("job_id"), codex.get("model"), codex.get("effort"), codex.get("service_tier"), codex.get("worktree"), codex.get("status"), times)))),
                    ("Verify", verify_info), ("Verify command", verify.get("command", "")),
                    ("Reason", group.get("reason", "")), ("Files", ", ".join(map(str, files)))]
         detail_rows = []

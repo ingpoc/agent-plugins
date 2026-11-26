@@ -52,6 +52,24 @@ def _job_finding_ids(list_path, group_id):
                       and isinstance(group.get("finding_ids"), list)), []))
 
 
+TRAIL_EVENTS = {"failed_first": "issue_failed_first", "root_cause": "root_cause_identified",
+                "fix_verified": "fix_verified"}
+
+
+def trail_event(list_path, step, *, group_id, finding_ids, result, job_id=None, commit=None, state_dir=None) -> None:
+    """Append one lane trail step (failed first, root cause, fix verified) for local collection."""
+    if step not in TRAIL_EVENTS:
+        raise ValueError(f"unsupported trail step: {step}")
+    row = {"event": TRAIL_EVENTS[step], "step": step, "group_id": group_id,
+           "finding_ids": list(dict.fromkeys(str(value) for value in finding_ids if str(value))),
+           "result": result, "at": datetime.now(timezone.utc).isoformat()}
+    if job_id:
+        row["job_id"] = job_id
+    if commit:
+        row["commit"] = commit
+    append(list_path, row, state_dir)
+
+
 def stage_event(list_path: str | Path, stage: str, kind: str, *, state_dir=None, **fields) -> None:
     if kind not in {"start", "finish"}:
         raise ValueError(f"unsupported stage event: {kind}")

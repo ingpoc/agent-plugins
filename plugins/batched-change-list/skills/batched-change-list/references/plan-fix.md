@@ -10,6 +10,8 @@ When debugging, reproduce, trace the first wrong decision or mishandled legitima
 
 Before building, make a compact verification matrix for each issue: ID, current status, owner, acceptance check, installed build, prerequisites, and whether the agent or user can perform it. Check shared prerequisites once (including input devices for voice), group checks by installed session, and perform all accessible checks before requesting user assistance.
 
+Fix briefs call `bcl report-step -- failed_first "TEST fails: ..."` before changing code and `bcl report-step -- root_cause "..."` after tracing; Verify records `fix_verified` itself, and the lane Details show the trail.
+
 Before fixing a group, `bcl fix` (or `set-activity`) marks the affected findings `in_progress` and displays one timestamped `Now` line below the stage bar. If an affected finding is closed, include `"reopen":true` to reopen it explicitly. Move an item off `in_progress` only to `verified_fixed` with evidence, or back to `failing` or `blocked` with the reason.
 
 Regression against main: a finding whose details say `regression_against_main: yes` goes in a lane with `restores_main: true` that puts main's behaviour back first; file any redesign as its own finding (`bcl plan` refuses otherwise).

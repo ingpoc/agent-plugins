@@ -53,6 +53,7 @@
     "special_phases": ["blocked", "deferred"],
     "job_phases": ["plan_review", "fix", "review", "presuite"],
     "review_phases": ["plan_review", "review"],
+    "trail_steps": ["failed_first", "root_cause", "fix_verified"],
     "fix_states": ["pending", "running", "passed", "failed"],
     "review_states": ["pending", "running", "passed", "failed", "changes_requested", "incomplete", "blocked", "skipped_one_file"],
     "presuite_states": ["pending", "running", "passed", "failed"],
@@ -83,7 +84,7 @@
       "fix_refused": ["blocked", "parked", "deferred"],
       "post_fix_job_phases": ["review", "presuite"]
     },
-    "protected_paths": ["stage_entered_at", "codex.job", "codex.jobs", "codex.fix_status", "codex.review_status", "codex.plan_review_status", "codex.reviewer_model", "codex.must_fix_note", "codex.tool_fault_streak", "presuite", "failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason", "install", "verify_reruns", "hotfix", "plan_review_count", "plan_review_passes", "stage_model", "job", "review"],
+    "protected_paths": ["stage_entered_at", "codex.job", "codex.jobs", "codex.fix_status", "codex.review_status", "codex.plan_review_status", "codex.reviewer_model", "codex.must_fix_note", "codex.tool_fault_streak", "presuite", "failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason", "install", "verify_reruns", "hotfix", "plan_review_count", "plan_review_passes", "stage_model", "job", "review", "trail"],
     "plan_fields": ["id", "name", "label", "finding_ids", "status", "phase", "depends_on", "reason", "files", "file_notes", "verify", "codex", "worktree", "verify_summary", "parked_to", "build", "updated_at", "quota_wait_until", "retry_cause", "restores_main", "note", "duration_s"],
     "codex_fields": ["implementer_session", "reviewer_session", "one_file", "model", "effort", "service_tier", "fast", "implementer", "implementer_model", "implementer_effort", "reviewer_effort", "session_id", "worktree", "fix_base_head", "started_at", "ended_at", "duration_s", "status", "commit", "review_note", "reviewer_verdict", "updated_at", "usage", "job_id"],
     "pending_defaults": ["codex.fix_status", "codex.review_status", "codex.plan_review_status"],
@@ -105,7 +106,7 @@
     ],
     "step_chips": ["planned", "running", "review", "installing", "verifying"],
     "gate_paths": ["failure_history", "plan_review_history", "unblock_history", "blocked_reason", "failure_block_reason"],
-    "hash_excluded": ["status", "phase", "stage_entered_at", "worktree", "presuite", "updated_at", "failure_history", "unblock_history", "plan_review_history", "blocked_reason", "failure_block_reason", "verify.status", "verify.fixed", "verify.failed", "verify.total", "verify.failure", "codex.job", "codex.jobs", "codex.fix_status", "codex.review_status", "codex.plan_review_status", "codex.reviewer_model", "codex.must_fix_note", "codex.tool_fault_streak"],
+    "hash_excluded": ["status", "phase", "stage_entered_at", "worktree", "presuite", "updated_at", "failure_history", "unblock_history", "plan_review_history", "blocked_reason", "failure_block_reason", "verify.status", "verify.fixed", "verify.failed", "verify.total", "verify.failure", "codex.job", "codex.jobs", "codex.fix_status", "codex.review_status", "codex.plan_review_status", "codex.reviewer_model", "codex.must_fix_note", "codex.tool_fault_streak", "trail"],
     "moves": {
       "planned": ["running", "review", "installing", "verifying", "verified", "blocked", "failed", "parked"],
       "running": ["planned", "review", "installing", "verifying", "verified", "blocked", "failed", "parked"],

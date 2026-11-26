@@ -27,6 +27,15 @@ class RenderTests(unittest.TestCase):
         later = renderer.stage_duration(group, renderer.datetime.fromisoformat('2026-11-22T10:03:00Z'))
         self.assertEqual((earlier, later), ('1 min', '3 min'))
 
+    def test_lane_trail_shows_steps_in_ist_and_names_missing_steps(self):
+        group = {"id": "A", "status": "review", "phase": "review", "trail": [
+            {"step": "failed_first", "at": "2026-11-26T03:10:00Z", "result": "test_x fails"}]}
+        text = renderer.lane_trail(group)
+        self.assertIn("Failed first · 8:40 AM IST · test_x fails", text)
+        self.assertIn("Root cause: not recorded", text)
+        self.assertNotIn("2026-11-26T03:10:00Z", text)
+        self.assertEqual(renderer.lane_trail({"id": "B", "status": "planned"}), "")
+
     def test_review_passed_copy_precedes_resume_prompt_but_not_pause_or_interrupt(self):
         passed = {'id':'A','status':'review','codex':{'review_status':'passed'}}
         self.assertEqual(renderer.lane_display(passed, 1)['label'], 'Review passed')

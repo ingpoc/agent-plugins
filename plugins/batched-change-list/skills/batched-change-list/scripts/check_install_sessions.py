@@ -20,6 +20,23 @@ def validate_group_codex(group):
         raise ValueError(f"{group.get('id', 'group')}: codex.review_status must be one of {', '.join(REVIEW_STATUSES)}")
 
 
+def implementer_identity(group):
+    """Who implemented the lane fix: a recorded session or name, else the passed fix job's model (BCL-181)."""
+    codex = group.get("codex") if isinstance(group.get("codex"), dict) else {}
+    for name in ("implementer_session", "implementer", "implementer_model"):
+        value = codex.get(name)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    jobs = [job for job in (codex.get("jobs") or []) if isinstance(job, dict)]
+    if isinstance(codex.get("job"), dict):
+        jobs.append(codex["job"])
+    for job in reversed(jobs):
+        model = job.get("model")
+        if job.get("phase") == "fix" and job.get("exit_code") == 0 and isinstance(model, str) and model.strip():
+            return model.strip()
+    return None
+
+
 def install_groups(plan, finding_ids=None):
     groups = plan.get("groups") if isinstance(plan, dict) else None
     if not isinstance(groups, list) or not groups:
@@ -47,8 +64,9 @@ def validate_review_sessions(plan, finding_ids=None):
         validate_group_codex(group)
         codex = group.get("codex", {})
         name = group.get("id", "group")
-        if not isinstance(codex.get("implementer_session"), str) or not codex["implementer_session"].strip():
-            raise ValueError(f"{name}: review requires codex.implementer_session; record the session with bcl plan")
+        if implementer_identity(group) is None:
+            raise ValueError(f"{name}: review requires a recorded implementer "
+                             "(bcl job --phase fix --model NAME, or codex.implementer_session)")
         if codex.get("fix_status") != "passed":
             raise ValueError(f"{name}: review requires codex.fix_status='passed'")
         if codex.get("one_file"):

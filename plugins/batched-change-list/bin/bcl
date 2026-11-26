@@ -19,6 +19,7 @@ import check_introspect
 import job_usage
 import events as bcl_events
 import verify_driver
+import check_install_sessions
 
 def _process_rows():
     """Read only pid/parent/group/comm; never inspect process arguments or environment."""
@@ -747,9 +748,9 @@ def _run_job(record, live, report, base, groups, phase, ids, command_args, resul
         job, _load_harness_usage_rows(job),
         session_usage=usage, session_source=usage_source if usage else None)
     usage, usage_source = attached["tokens"], attached["tokens_source"]
-    implementer = next(((group.get("codex") or {}).get("implementer_session")
+    implementer = next((check_install_sessions.implementer_identity(group)
                         for group in groups if isinstance(group, dict)
-                        and (group.get("codex") or {}).get("implementer_session")), None)
+                        and check_install_sessions.implementer_identity(group)), None)
     model = job.get("model") or event_context.get("model")
     gap = None if model else "no model recorded"
     wall_time_s = None
@@ -1098,7 +1099,8 @@ def main():
         marker = argv.index("--")
         argv, job_command = argv[:marker], argv[marker + 1:]
     args, unknown = parser.parse_known_args(argv)
-    command_args = job_command if args.stage == "job" else unknown
+    # BCL-179: report-step takes its step after "--" like job does; it used to drop it.
+    command_args = job_command if args.stage == "job" or (args.stage == "report-step" and job_command) else unknown
     if args.stage not in KNOWN_STAGES:
         parser.error("unknown stage")
     if args.stage == "install-local":
@@ -1298,6 +1300,10 @@ def main():
                                        payload, "report-step", _utc_now()))
         except (OSError, RuntimeError, ValueError) as error:
             parser.error(str(error))
+        if step.strip() in workflow_definition.LANE["trail_steps"]:
+            bcl_events.trail_event(Path(live).resolve(), step.strip(), group_id=groups[0].get("id"),
+                                   finding_ids=ids, result=(result or "").strip(), job_id=job_id, commit=commit,
+                                   state_dir=os.environ.get("BCL_STATE_DIR"))
         return
     if args.stage == "job":
         if args.phase not in workflow_definition.LANE["job_phases"] or not args.ids or not command_args:
@@ -1698,6 +1704,13 @@ def main():
             if result.returncode:
                 sys.stderr.write(result.stderr or result.stdout)
                 raise SystemExit(result.returncode)
+            for verified_group in json.loads(live.read_text()).get("tracking", {}).get("plan", {}).get("groups", []):
+                trail = verified_group.get("trail") if isinstance(verified_group, dict) else None
+                if (trail and set(ids).intersection(verified_group.get("finding_ids", []))
+                        and trail[-1].get("step") == "fix_verified" and trail[-1].get("at") == finished):
+                    bcl_events.trail_event(Path(live).resolve(), "fix_verified", group_id=verified_group.get("id"),
+                                           finding_ids=verified_group.get("finding_ids", []),
+                                           result=trail[-1].get("result"), state_dir=os.environ.get("BCL_STATE_DIR"))
             live_state.snapshot(record, live)
         elif args.then_command: subprocess.run(args.then_command, shell=True, check=True)
         elif command_args: subprocess.run(command_args, check=True)

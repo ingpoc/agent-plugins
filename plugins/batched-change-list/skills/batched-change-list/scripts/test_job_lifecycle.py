@@ -496,6 +496,46 @@ class JobLifecycleTests(unittest.TestCase):
                                          "cycle": 1, "round": 1, "timestamp": "2026-11-21T00:03:00Z",
                                          "job_id": "job-a", "step": "too late"})
 
+    def test_trail_steps_persist_across_fix_finish_and_a_later_review(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "job-a")
+        for step, result in (("failed_first", "test_guard fails: expected refusal"),
+                             ("root_cause", "manage_findings.py:_lane_groups skipped the check")):
+            manager.job_transition(doc, {"action": "report-step", "phase": "fix", "ids": ["ISSUE-01"],
+                                         "cycle": 1, "round": 1, "timestamp": STAMP,
+                                         "job_id": "job-a", "step": step, "result": result})
+        group = doc["tracking"]["plan"]["groups"][0]
+        self.assertEqual([row["step"] for row in group["trail"]], ["failed_first", "root_cause"])
+        self.assertEqual({row["job_id"] for row in group["trail"]}, {"job-a"})
+        self.assertEqual({row["phase"] for row in group["trail"]}, {"fix"})
+        finish(doc, "fix", "job-a")
+        transition(doc, "start-job", "review", "job-b")
+        self.assertEqual([row["step"] for row in group["trail"]], ["failed_first", "root_cause"])
+        self.assertEqual([row["job_id"] for row in group["trail"]], ["job-a", "job-a"])
+
+    def test_trail_step_requires_a_result(self):
+        doc = document()
+        transition(doc, "start-job", "fix", "job-a")
+        for step in ("failed_first", "root_cause", "fix_verified"):
+            with self.subTest(step=step), self.assertRaisesRegex(ValueError, f"trail step {step} requires a result"):
+                manager.job_transition(doc, {"action": "report-step", "phase": "fix", "ids": ["ISSUE-01"],
+                                             "cycle": 1, "round": 1, "timestamp": STAMP,
+                                             "job_id": "job-a", "step": step})
+        manager.job_transition(doc, {"action": "report-step", "phase": "fix", "ids": ["ISSUE-01"],
+                                     "cycle": 1, "round": 1, "timestamp": STAMP,
+                                     "job_id": "job-a", "step": "Ran the focused test"})
+        self.assertNotIn("trail", doc["tracking"]["plan"]["groups"][0])
+
+    def test_verify_records_fix_verified_on_the_lane_trail(self):
+        import test_status_cleanup
+        doc = test_status_cleanup.fixture()
+        manager.finish_verification(doc, {"ids": ["ISSUE-01"],
+                                          "plan_sha256": manager.plan_candidate_sha256(doc["tracking"]["plan"]),
+                                          "command": "/tmp/verify-demo.sh", "timestamp": "2026-11-26T03:30:00Z"})
+        trail = doc["tracking"]["plan"]["groups"][0]["trail"]
+        self.assertEqual([row["step"] for row in trail], ["fix_verified"])
+        self.assertEqual(trail[0]["result"], "pr123-r2-736a6ccd: verify-demo.sh passed")
+
     def test_finished_jobs_are_kept_for_the_lane_timeline(self):
         doc = document()
         transition(doc, "start-job", "fix", "job-a")

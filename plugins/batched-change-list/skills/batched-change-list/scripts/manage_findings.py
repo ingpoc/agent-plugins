@@ -812,6 +812,11 @@ def carry_plan_runtime_state(groups, previous, same_round):
         if prior and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", [])) and (same_round or gated(prior)):
             eligible_prior[group.get("id")] = prior
     refuse_protected_claims(groups, eligible_prior, existing_by_id=old)
+    for group in groups:
+        prior = old.get(group.get("id"))
+        if (prior and isinstance(prior.get("trail"), list) and "trail" not in group
+                and set(group.get("finding_ids", [])) == set(prior.get("finding_ids", []))):
+            group["trail"] = copy.deepcopy(prior["trail"])
     prior_stages = canonical_lane_stages({"tracking": {"plan": previous}})
     replacement_stages = canonical_lane_stages({"tracking": {"plan": {"groups": groups}}})
     for group in groups:
@@ -1370,6 +1375,9 @@ def job_transition(document, operation):
         commit = operation.get("commit")
         if isinstance(commit, str) and commit.strip():
             entry["commit"] = commit.strip()
+        trail_step = entry["step"] in LANE["trail_steps"]
+        if trail_step and not entry.get("result"):
+            raise ValueError(f"trail step {entry['step']} requires a result")
         for group in groups:
             job = (group.get("codex") or {}).get("job")
             if (not isinstance(job, dict) or job.get("id") != job_id or "exit_code" in job
@@ -1377,6 +1385,9 @@ def job_transition(document, operation):
                 continue
             job.setdefault("steps", []).append(entry)
             job["latest_step"] = entry
+            if trail_step:
+                # BCL-179: the trail lives on the lane, so later jobs and rounds keep it.
+                group.setdefault("trail", []).append({**entry, "job_id": job_id, "phase": phase})
             job["heartbeat_at"] = stamp
             matched = True
         if not matched:
@@ -2605,6 +2616,10 @@ def finish_verification(document, operation):
         verify = group.get("verify") if isinstance(group.get("verify"), dict) else {}
         verify.update(status="verified", fixed=total, failed=0, total=total, finished_at=stamp)
         group["verify"] = verify
+        run = tracking.get("verification_run") if isinstance(tracking.get("verification_run"), dict) else {}
+        program = Path(command.split()[0]).name if command.split() else command
+        group.setdefault("trail", []).append({"step": "fix_verified", "at": stamp, "source": "verify",
+                                             "result": f"{run.get('id') or 'verify'}: {program} passed"})
     clear_finished_running_state(document, stamp, merged=False)
 
 
@@ -3097,7 +3112,7 @@ def run(args, parser):
                 raise ValueError("pause and resume must be the only batch operation")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "finish-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "set-fix-order", "start-job", "attach-job", "heartbeat-job", "finish-job", "record-cleanup", "archive-history", "unblock-lane"}
+            run_actions = {"start-verification", "finish-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "set-fix-order", "start-job", "attach-job", "heartbeat-job", "report-step", "finish-job", "record-cleanup", "archive-history", "unblock-lane"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -3147,7 +3162,8 @@ def run(args, parser):
                         return 0
                     pause_result = payload
                     continue
-                if action in ("start-job", "attach-job", "heartbeat-job", "finish-job"):
+                if action in ("start-job", "attach-job", "heartbeat-job", "report-step", "finish-job"):
+                    # BCL-179: report-step was never dispatched here, so bcl report-step failed on every call.
                     job_transition(store["document"], operation)
                     continue
                 if action == "finish-verification":

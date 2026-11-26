@@ -2167,6 +2167,45 @@ class ManageFindingsTests(unittest.TestCase):
             args.append("--force")
         return self.cli(*args)
 
+    def test_set_plan_cannot_claim_or_change_a_lane_trail(self):
+        document = copy.deepcopy(self.document)
+        finding_id = document["findings"][0]["id"]
+        entry = {"step": "failed_first", "at": "2026-11-26T03:10:00Z", "result": "test_x fails: assert",
+                 "job_id": "j1", "phase": "fix"}
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": [finding_id], "status": "running", "phase": "fix", "trail": [entry],
+        }]}}
+        changed = copy.deepcopy(entry); changed["result"] = "claimed later"
+        result = self._replay_batch(document, {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": [finding_id], "status": "running", "phase": "fix", "trail": [changed],
+        }]}})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot change trail", result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["trail"], [entry])
+
+        fresh = copy.deepcopy(document)
+        fresh["tracking"]["plan"]["groups"][0].pop("trail")
+        claimed = self._replay_batch(fresh, {"action": "set-plan", "plan": {"round": 1, "groups": [{
+            "id": "A", "finding_ids": [finding_id], "status": "planned", "phase": "fix", "trail": [entry],
+        }]}})
+        self.assertNotEqual(claimed.returncode, 0)
+        self.assertIn("cannot claim completed job state (trail)", claimed.stderr)
+
+    def test_lane_trail_survives_a_later_round_set_plan(self):
+        document = copy.deepcopy(self.document)
+        finding_id = document["findings"][0]["id"]
+        entry = {"step": "root_cause", "at": "2026-11-26T03:20:00Z", "result": "a.py:f",
+                 "job_id": "j1", "phase": "fix"}
+        document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{
+            "id": "A", "finding_ids": [finding_id], "status": "running", "phase": "fix", "trail": [entry],
+        }]}}
+        document["tracking"]["round"] = 2
+        result = self._replay_batch(document, {"action": "set-plan", "plan": {"round": 2, "groups": [{
+            "id": "A", "finding_ids": [finding_id], "status": "planned", "phase": "fix",
+        }]}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.data.read_text())["tracking"]["plan"]["groups"][0]["trail"], [entry])
+
     def test_blocked_lane_status_cannot_be_cleared_by_plan_group_writer(self):
         document = copy.deepcopy(self.document)
         document["tracking"] = {"cycle": 1, "round": 1, "plan": {"cycle": 1, "round": 1, "groups": [{

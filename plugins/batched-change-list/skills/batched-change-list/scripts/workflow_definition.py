@@ -57,6 +57,7 @@ def _lane_contract(lane):
         "special_phases": frozenset(lane["special_phases"]),
         "job_phases": tuple(lane["job_phases"]),
         "review_phases": frozenset(lane["review_phases"]),
+        "trail_steps": tuple(lane["trail_steps"]),
         "fix_states": tuple(lane["fix_states"]),
         "review_states": tuple(lane["review_states"]),
         "presuite_states": tuple(lane["presuite_states"]),

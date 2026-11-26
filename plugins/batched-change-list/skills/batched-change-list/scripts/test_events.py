@@ -55,6 +55,27 @@ class EventTests(unittest.TestCase):
             self.assertEqual(next(row for row in rows if row["job_id"] == "job-2")["event"], "incomplete")
             self.assertEqual(next(row for row in rows if row["job_id"] == "job-1")["model"], "gpt-test")
 
+    def test_trail_event_maps_steps_and_keeps_group_membership(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tracker = root / "list.json"
+            tracker.write_text(json.dumps({"tracking": {"plan": {"groups": [
+                {"id": "A", "finding_ids": ["ISSUE-01"]}]}}}))
+            events.trail_event(tracker, "failed_first", group_id="A", finding_ids=["ISSUE-01", "ISSUE-01"],
+                               result="test_guard fails: expected refusal", job_id="job-1", commit="abc1234",
+                               state_dir=root / "state")
+            events.trail_event(tracker, "root_cause", group_id="A", finding_ids=["ISSUE-01"],
+                               result="manage_findings.py:_lane_groups", job_id="job-1", state_dir=root / "state")
+            rows = [json.loads(line) for line in events.events_path(tracker, root / "state").read_text().splitlines()]
+            self.assertEqual([row["event"] for row in rows], ["issue_failed_first", "root_cause_identified"])
+            self.assertEqual([row["step"] for row in rows], ["failed_first", "root_cause"])
+            self.assertEqual(rows[0]["group_id"], "A")
+            self.assertEqual(rows[0]["finding_ids"], ["ISSUE-01"])
+            self.assertEqual(rows[0]["commit"], "abc1234")
+            with self.assertRaisesRegex(ValueError, "unsupported trail step"):
+                events.trail_event(tracker, "guessed", group_id="A", finding_ids=[], result="x",
+                                   state_dir=root / "state")
+
     def test_failed_start_stays_visible(self):
         with tempfile.TemporaryDirectory() as tmp:
             events.job_event("repo", "job", "failed_start", state_dir=tmp, agent="Codex")

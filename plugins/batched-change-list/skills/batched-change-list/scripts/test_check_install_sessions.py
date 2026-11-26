@@ -27,5 +27,18 @@ class InstallSessionTests(unittest.TestCase):
                 check.validate_group_codex(self.group(**codex))
 
 
+    def test_review_accepts_a_non_codex_fix_job_model(self):
+        group = self.group(fix_status="passed")
+        group["codex"]["job"] = {"id": "j1", "phase": "fix", "exit_code": 0, "model": "opencode/x"}
+        self.assertEqual(check.validate_review_sessions({"groups": [group]}, ["A"]), ["A"])
+        self.assertEqual(check.implementer_identity(group), "opencode/x")
+
+    def test_review_without_any_implementer_names_the_fix_job_option(self):
+        group = self.group(fix_status="passed")
+        group["codex"]["job"] = {"id": "j1", "phase": "fix", "exit_code": 1, "model": "opencode/x"}
+        with self.assertRaisesRegex(ValueError, r"review requires a recorded implementer \(bcl job --phase fix --model NAME"):
+            check.validate_review_sessions({"groups": [group]}, ["A"])
+
+
 if __name__ == "__main__":
     unittest.main()
