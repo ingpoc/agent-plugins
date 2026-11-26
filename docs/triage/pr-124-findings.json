@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-26T07:18:00Z",
-      "now": "2026-11-26T07:18:00Z — Review started"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-26T07:25:13Z",
+      "now": "2026-11-26T07:25:13Z — Fix started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T07:18:00Z",
+    "last_written_at": "2026-11-26T07:25:13Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2704,7 +2704,7 @@
           "finding_ids": [
             "CL-2"
           ],
-          "status": "review",
+          "status": "running",
           "depends_on": [],
           "reason": "Guru approved a context-ledger reinstall (12:22 PM IST). Lookup log gains ledger version and tokens not reported on find/get/save; additive migration.",
           "verify": {
@@ -2719,45 +2719,63 @@
           "worktree": "bcl124-r5-ledger",
           "codex": {
             "fix_base_head": "c42f2964af9e90e7b9cb89846873f0bd493899e2",
-            "fix_status": "passed",
+            "fix_status": "running",
             "job": {
-              "id": "431008d789a646d282468043f13cad21",
+              "id": "7a88d711653a4d9cb3b03b562b07674f",
               "phase": "fix",
-              "started_at": "2026-11-26T06:59:55Z",
-              "command": "codex",
-              "heartbeat_at": "2026-11-26T07:05:56Z",
-              "plan_sha256": "121eac6deb4ae885098ca45ec9476321b7fd7c9be30ba0a50aedd324abf4907d",
+              "started_at": "2026-11-26T07:25:13Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-26T07:25:13Z",
+              "plan_sha256": "6a2bc1da6b0715fe67baabbbbb8d77160fd250d3571b0104b18c6dabdb1fa520",
               "finding_ids": [
                 "CL-2"
               ],
               "worktree": "bcl124-r5-ledger",
-              "model": "gpt-6-luna",
-              "lane_sha256": "d460f9d733ec8d119cebc754c9794fd1609c55f86e5e7429735c590ff3eff313",
+              "model": "grok-bot-executor",
+              "lane_sha256": "74e1e215fec670fb358ec8f288a09d61e94c92bdd5df1cb9ed5f2e82c57a8ce8",
               "cycle": 16,
-              "round": 3,
-              "pid": 85923,
-              "exit_code": 0,
-              "finished_at": "2026-11-26T07:05:56Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/431008d789a646d282468043f13cad21.log",
-              "output_retained": true,
-              "commit": "c42f2964af9e90e7b9cb89846873f0bd493899e2",
-              "tokens_source": "official",
-              "tokens": {
-                "total": 3287908,
-                "output": 12569
-              },
-              "wall_time_s": 361,
-              "session": "rollout-2026-11-26T12-29-56-01a216a7-5852-76c2-81e9-8269b8507f26.jsonl",
-              "finished_phase_status": "passed"
+              "round": 3
             },
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "431008d789a646d282468043f13cad21",
+                "phase": "fix",
+                "started_at": "2026-11-26T06:59:55Z",
+                "command": "codex",
+                "heartbeat_at": "2026-11-26T07:05:56Z",
+                "plan_sha256": "121eac6deb4ae885098ca45ec9476321b7fd7c9be30ba0a50aedd324abf4907d",
+                "finding_ids": [
+                  "CL-2"
+                ],
+                "worktree": "bcl124-r5-ledger",
+                "model": "gpt-6-luna",
+                "lane_sha256": "d460f9d733ec8d119cebc754c9794fd1609c55f86e5e7429735c590ff3eff313",
+                "cycle": 16,
+                "round": 3,
+                "pid": 85923,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T07:05:56Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/431008d789a646d282468043f13cad21.log",
+                "output_retained": true,
+                "commit": "c42f2964af9e90e7b9cb89846873f0bd493899e2",
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 3287908,
+                  "output": 12569
+                },
+                "wall_time_s": 361,
+                "session": "rollout-2026-11-26T12-29-56-01a216a7-5852-76c2-81e9-8269b8507f26.jsonl",
+                "finished_phase_status": "passed"
+              }
+            ]
           },
           "parked_to": 3,
-          "stage_entered_at": "2026-11-26T07:05:56Z",
+          "stage_entered_at": "2026-11-26T07:25:13Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-26T06:57:57Z",
-          "phase": "review"
+          "phase": "fix"
         },
         {
           "id": "R2-CL-VIEW",
@@ -2821,7 +2839,8 @@
               "model": "gpt-6.1-terra",
               "lane_sha256": "fa8a8ef0fbbf9f0dce7fc56c1c1d3b8874afe105ce2edf8986bf2c0a8eb6a4f4",
               "cycle": 16,
-              "round": 3
+              "round": 3,
+              "pid": 51716
             },
             "tool_fault_streak": 0,
             "jobs": [
