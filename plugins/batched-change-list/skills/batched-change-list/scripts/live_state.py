@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 SCRIPTS = Path(__file__).resolve().parent
 STATE = Path(os.environ.get("BCL_STATE_DIR", Path.home() / ".agents/state/batched-change-list"))
+_VIEWER_PROBE_TIMEOUT = 10
 _LIVE_WRITES_ALLOWED = False
 
 
@@ -389,7 +390,9 @@ def _viewer_state_path(key, record):
     return STATE / "viewers" / (safe_component(project.replace("/", "--") if project else key.replace("/", "--")) + ".json")
 
 @contextmanager
-def _viewer_state_lock(state, timeout=15):
+def _viewer_state_lock(state, timeout=None):
+    if timeout is None:
+        timeout = _VIEWER_PROBE_TIMEOUT * 2
     lock_path = Path(state).with_suffix(".lock")
     deadline = time.monotonic() + timeout
     while True:
@@ -406,6 +409,22 @@ def ensure_viewer(key, record, live, plugin_version, reject_unverifiable_pid=Fal
     state = _viewer_state_path(key, record)
     guard_live_state_write(state)
     state.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        old = json.loads(state.read_text()) if state.exists() else {}
+    except (OSError, ValueError):
+        old = {}
+    if (old.get("pid") and old.get("port") and old.get("instance") and old.get("data") and
+            _pid_is_running(int(old["pid"]), reject_unverifiable_pid)):
+        if _viewer_responds(int(old["port"]), old, raise_on_identity_mismatch=True):
+            page, base = report_paths(record, live)
+            scripts = scripts_identity()
+            same_target = (old.get("report") == str(page.resolve()) and
+                           old.get("base") == str(base.resolve()) and
+                           old.get("scripts") == str(SCRIPTS.resolve()))
+            same_live = Path(old.get("data", "")).resolve() == Path(live).resolve()
+            if (same_live and old.get("version") == plugin_version and
+                    old.get("scripts_identity") == scripts and same_target):
+                return old
     with _viewer_state_lock(state):
         return _ensure_viewer_locked(key, record, live, plugin_version, reject_unverifiable_pid)
 
@@ -568,19 +587,27 @@ def _wait_for_pid(pid):
         time.sleep(0.05)
     return True
 
-def _viewer_responds(port, expected):
-    deadline = time.monotonic() + 3
+def _viewer_responds(port, expected, *, raise_on_identity_mismatch=False):
+    deadline = time.monotonic() + _VIEWER_PROBE_TIMEOUT
     identity = {"pid": expected["pid"], "path": str(Path(expected["data"]).resolve()), "instance": expected["instance"]}
-    while time.monotonic() < deadline:
-        timeout = min(1.5, max(0.05, deadline - time.monotonic()))
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=timeout) as response:
-                if response.status == 200 and json.load(response) != identity:
-                    return False
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/__bcl_health", timeout=remaining) as response:
                 if response.status != 200:
                     return False
-            timeout = min(1, max(0.001, deadline - time.monotonic()))
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=timeout) as response:
+                if json.load(response) != identity:
+                    if raise_on_identity_mismatch:
+                        raise RuntimeError(
+                            f"cannot verify viewer ownership on port {port}; inspect its state before retrying"
+                        )
+                    return False
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=remaining) as response:
                 if response.status == 200 and response.read(1):
                     return True
         except urllib.error.HTTPError:
@@ -592,9 +619,10 @@ def _viewer_responds(port, expected):
             return False
         except (OSError, ValueError, KeyError):
             pass
-        if time.monotonic() < deadline:
-            time.sleep(min(0.05, deadline - time.monotonic()))
-    return False
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(0.05, remaining))
 
 def _viewer_ready(proc, port, expected):
     deadline = time.monotonic() + 3

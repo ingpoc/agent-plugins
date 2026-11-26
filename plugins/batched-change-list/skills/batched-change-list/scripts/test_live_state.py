@@ -26,7 +26,8 @@ def tearDownModule():
 
 
 class ViewerLivenessTests(unittest.TestCase):
-    def _slow_health_viewer(self, root, delay, identity_override=None, page_delay=0):
+    def _slow_health_viewer(self, root, delay, identity_override=None, page_delay=0, *,
+                            always_delay=False, viewer_pid=4242, patch_helpers=True):
         previous_state = live_state.STATE
         live_state.STATE = root / 'state'
         self.addCleanup(setattr, live_state, 'STATE', previous_state)
@@ -40,7 +41,7 @@ class ViewerLivenessTests(unittest.TestCase):
             def do_GET(self):
                 if self.path == '/__bcl_health':
                     hits.append(time.monotonic())
-                    time.sleep(delay if len(hits) == 1 else 0)
+                    time.sleep(delay if always_delay or len(hits) == 1 else 0)
                     identity = identity_override or expected_identity
                     body = json.dumps(identity).encode()
                     self.send_response(200)
@@ -60,25 +61,37 @@ class ViewerLivenessTests(unittest.TestCase):
             def log_message(self, *_args): pass
         server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         port = server.server_address[1]
-        expected_identity = {'pid': 4242, 'path': str(live.resolve()), 'instance': 'recorded-instance'}
+        expected_identity = {'pid': viewer_pid, 'path': str(live.resolve()), 'instance': 'recorded-instance'}
+        record = {
+            'repo': 'owner/project', 'id': '1', 'home': str(root.resolve()),
+            'snapshot': 'live.json', 'html': 'page.html', 'viewer_port': port,
+        }
+        if patch_helpers:
+            report, base = page, root
+            scripts_digest = 'same-scripts'
+        else:
+            report, base = live_state.report_paths(record, live)
+            scripts_digest = live_state.scripts_identity()
         state = live_state.STATE / 'viewers' / 'owner--project.json'
         state.parent.mkdir(parents=True)
         state.write_text(json.dumps({
-            'pid': 4242, 'port': port, 'instance': 'recorded-instance', 'data': str(live.resolve()),
-            'report': str(page.resolve()), 'base': str(root.resolve()), 'scripts': str(live_state.SCRIPTS.resolve()),
-            'scripts_identity': 'same-scripts', 'version': 'same-version'
+            'pid': viewer_pid, 'port': port, 'instance': 'recorded-instance', 'data': str(live.resolve()),
+            'report': str(report.resolve()), 'base': str(base.resolve()), 'scripts': str(live_state.SCRIPTS.resolve()),
+            'scripts_identity': scripts_digest, 'version': 'same-version'
         }))
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        self.addCleanup(server.shutdown)
-        self.addCleanup(server.server_close)
-        self.addCleanup(thread.join, 2)
-        record = {'repo': 'owner/project', 'viewer_port': port}
-        patches = [
+        def stop_server():
+            server.shutdown()
+            server.server_close()
+            thread.join(2)
+            self.assertFalse(thread.is_alive(), 'assert_no_leak: health server thread still running')
+        self.addCleanup(stop_server)
+        patches = ([
             patch.object(live_state, '_pid_is_running', return_value=True),
             patch.object(live_state, 'report_paths', return_value=(page, root)),
             patch.object(live_state, 'scripts_identity', return_value='same-scripts'),
-        ]
+        ] if patch_helpers else [])
         for item in patches: item.start()
         self.addCleanup(lambda: [item.stop() for item in reversed(patches)])
         return record, live, state, hits, page_hits
@@ -101,26 +114,83 @@ class ViewerLivenessTests(unittest.TestCase):
             self.assertEqual(len(results), 4)
             self.assertTrue(all(value['pid'] == 4242 for value in results))
 
-    def test_slow_health_answer_is_retried(self):
+    def test_slow_health_answer_succeeds_within_deadline(self):
         with tempfile.TemporaryDirectory() as temp:
-            record, live, _state, hits, _pages = self._slow_health_viewer(Path(temp), 1.7)
+            record, live, state, _hits, _pages = self._slow_health_viewer(Path(temp), 1.7)
+            original = json.loads(state.read_text())
             value = live_state.ensure_viewer('owner/project', record, live, 'same-version')
-            self.assertEqual(value['pid'], 4242)
-            self.assertGreaterEqual(len(hits), 2)
+            self.assertEqual(value, original)
+
+    def test_every_health_answer_slow_but_healthy_does_not_raise(self):
+        with tempfile.TemporaryDirectory() as temp:
+            record, live, state, hits, _pages = self._slow_health_viewer(
+                Path(temp), 1.8, always_delay=True)
+            original = json.loads(state.read_text())
+            value = live_state.ensure_viewer('owner/project', record, live, 'same-version')
+            self.assertEqual(value, original)
+            self.assertTrue(hits)
+
+    def test_concurrent_processes_slow_healthy_viewer_never_raise(self):
+        with tempfile.TemporaryDirectory() as temp:
+            record, live, state, _hits, _pages = self._slow_health_viewer(
+                Path(temp), 1.0, always_delay=True, viewer_pid=os.getpid(), patch_helpers=False)
+            original = json.loads(state.read_text())
+            environment = {
+                'BCL_STATE_DIR': str(live_state.STATE),
+                'HOME': os.environ.get('HOME', str(Path.home())),
+                'PATH': os.environ.get('PATH', ''),
+            }
+            script = '''
+import json
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import live_state
+record = json.loads(sys.argv[2])
+value = live_state.ensure_viewer('owner/project', record, Path(sys.argv[3]), sys.argv[4])
+print(json.dumps({key: value[key] for key in ('pid', 'port', 'instance')}))
+'''
+            processes = []
+            started = time.monotonic()
+            try:
+                for _ in range(8):
+                    processes.append(subprocess.Popen(
+                        [sys.executable, '-c', script, str(live_state.SCRIPTS), json.dumps(record),
+                         str(live), 'same-version'],
+                        env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True))
+                results = [process.communicate(timeout=20) for process in processes]
+            finally:
+                for process in processes:
+                    if process.poll() is None:
+                        process.terminate()
+                for process in processes:
+                    try:
+                        process.communicate(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.communicate()
+            elapsed = time.monotonic() - started
+            for process, (stdout, stderr) in zip(processes, results):
+                self.assertEqual(process.returncode, 0, stderr)
+                result = json.loads(stdout)
+                self.assertEqual(result, {key: original[key] for key in ('pid', 'port', 'instance')})
+            self.assertLess(elapsed, 6.5)
+            self.assertEqual(json.loads(state.read_text()), original)
 
     def test_wrong_identity_still_raises(self):
         with tempfile.TemporaryDirectory() as temp:
-            record, live, _state, _hits, _pages = self._slow_health_viewer(
+            record, live, _state, hits, _pages = self._slow_health_viewer(
                 Path(temp), 0, {'pid': 9999, 'path': str(Path(temp, 'live.json').resolve()), 'instance': 'wrong-instance'})
             with self.assertRaisesRegex(RuntimeError, 'cannot verify viewer ownership'):
                 live_state.ensure_viewer('owner/project', record, live, 'same-version')
+            self.assertEqual(len(hits), 1)
 
-    def test_slow_report_answer_is_retried(self):
+    def test_slow_report_answer_succeeds_within_deadline(self):
         with tempfile.TemporaryDirectory() as temp:
-            record, live, _state, _hits, pages = self._slow_health_viewer(Path(temp), 0, page_delay=1.2)
+            record, live, state, _hits, _pages = self._slow_health_viewer(Path(temp), 0, page_delay=1.2)
+            original = json.loads(state.read_text())
             value = live_state.ensure_viewer('owner/project', record, live, 'same-version')
-            self.assertEqual(value['pid'], 4242)
-            self.assertGreaterEqual(len(pages), 2)
+            self.assertEqual(value, original)
 
     def test_concurrent_start_starts_one_viewer(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -140,9 +210,12 @@ class ViewerLivenessTests(unittest.TestCase):
             server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
             server_thread = threading.Thread(target=server.serve_forever, daemon=True)
             server_thread.start()
-            self.addCleanup(server.server_close)
-            self.addCleanup(server_thread.join, 2)
-            self.addCleanup(server.shutdown)
+            def stop_server():
+                server.shutdown()
+                server.server_close()
+                server_thread.join(2)
+                self.assertFalse(server_thread.is_alive(), 'assert_no_leak: concurrent-start server thread still running')
+            self.addCleanup(stop_server)
             record = {'repo': 'owner/project', 'viewer_port': server.server_address[1]}
             def start_viewer(*_args, **_kwargs):
                 starts.append(1)
@@ -396,7 +469,6 @@ class ViewerLivenessTests(unittest.TestCase):
                  patch.object(live_state.urllib.request, 'urlopen') as urlopen:
                 with self.assertRaisesRegex(RuntimeError, 'cannot verify viewer ownership'):
                     live_state.ensure_viewer('repo/1', {}, live, 'new')
-            verify.assert_called_once_with(5000, old)
             popen.assert_not_called()
             urlopen.assert_not_called()
             self.assertEqual(state.read_bytes(), previous)
