@@ -1,3 +1,9 @@
+## 0.1.76
+
+- Lanes keep a failed-first, root-cause and fix-verified trail: `bcl report-step -- failed_first|root_cause TEXT` (arguments after `--` now reach the batch, which now dispatches report-step) records the step with its job and commit and emits issue_failed_first/root_cause_identified, and a passed verification adds fix_verified; the viewer shows a Trail row (BCL-179). A review accepts the fix job's `--model` as the implementer, so a lane fixed without Codex no longer needs a Codex session id (BCL-181).
+- `bcl link-pr --pr-url URL` links a list started before its PR existed, and `bcl merged --pr-url URL` links and merges in one write, so such lists can be closed officially (BCL-184). `bcl repair-merged [--dry-run]` clears a merged list's leftover install.running entries and closes an active verification_run without retargeting the PR or taking over the viewer (BCL-190).
+- The registry is written atomically under its own lock and every caller updates it read-modify-write inside that lock, so concurrent bcl processes no longer overwrite each other's entries (BCL-186).
+
 ## 0.1.75
 
 - Each repo keeps one bookmarkable viewer port: chosen once from a deterministic slot that never takes another repo's saved port, saved at adoption or first viewer start, recovered from the repo's own viewer file after a registry repair (old per-list files never decide or veto it), and reused by every new list, rollover, restart and upgrade; an occupied port, two saved ports for one repo, or a port saved by another repo fail instead of moving, and serve.py needs an explicit `--port` (BCL-185).
