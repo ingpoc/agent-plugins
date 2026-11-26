@@ -484,6 +484,28 @@ def _filed_after_review(document, row):
     return False
 
 
+def _trailing_plan_review_changes(group):
+    reviews = _lane_history(group, "plan_review_history", mutate=False)
+    unblocks = group.get("unblock_history", [])
+    if not isinstance(unblocks, list) or any(not isinstance(row, dict) for row in unblocks):
+        raise ValueError(f"{group.get('id')} unblock_history must be an array")
+    owner_unblocks = [row for row in unblocks if row.get("owner_override")]
+    latest_unblock = max((_history_instant(row) for row in owner_unblocks
+                          if _history_instant(row) is not None), default=None)
+    count = 0
+    for row in reversed(reviews):
+        reviewed_at = _history_instant(row)
+        if latest_unblock is not None and (reviewed_at is None or reviewed_at <= latest_unblock):
+            break
+        # Incomplete and tool-fault reviews do not continue a run of requested changes.
+        if row.get("tool_fault") or row.get("status") in ("incomplete", "failed"):
+            break
+        if row.get("status") != "changes_requested":
+            break
+        count += 1
+    return count
+
+
 def _review_attempts(group):
     return [row for row in _lane_history(group, "failure_history")
             if row.get("source") == "review" and not row.get("tool_fault")]
@@ -1215,6 +1237,9 @@ def job_transition(document, operation):
                 group.update(status="review", phase="review")
             else:
                 reviews = _lane_history(group, "plan_review_history")
+                if _trailing_plan_review_changes(group) >= 2:
+                    raise ValueError(f"lane {group['id']}: 2 plan reviews in a row asked for changes; "
+                                     "park the lane, or an owner unblock resets the count")
                 if reviews and not _filed_after_review(document, reviews[-1]):
                     raise ValueError(f"{group['id']} requires plan review items to be filed as standalone findings before another plan_review")
                 if _plan_folded_into_review(group, failures):

@@ -87,6 +87,59 @@ class BclTests(unittest.TestCase):
             self.assertEqual(Path(str(first) + ".bcl-job").read_text().strip(), "job-a")
             self.assertFalse(Path(str(second) + ".bcl-job").exists())
 
+    def _prepare_plan_review_history(self, history, *, unblock_history=None):
+        live, _ = self._prepare_review_plan()
+        document = json.loads(live.read_text())
+        group = document["tracking"]["plan"]["groups"][0]
+        group["plan_review_history"] = history
+        if unblock_history is not None:
+            group["unblock_history"] = unblock_history
+        unrelated = copy.deepcopy(document["findings"][0])
+        unrelated.update(id="ISSUE-UNRELATED", created_at="2026-11-25T00:00:00Z", title="Unrelated follow-up")
+        document["findings"].append(unrelated)
+        prepared = json.dumps(document)
+        live.write_text(prepared)
+        self.data.write_text(prepared)
+        return live
+
+    def _start_plan_review(self, live):
+        result = self.root / "plan-review-result.md"
+        return self.call_job_without_viewer(live, "--ids", "ISSUE-01", "--phase", "plan_review", "--result", result, "job", "--",
+                                            sys.executable, "-c",
+                                            f"from pathlib import Path; Path({str(result)!r}).write_text('VERDICT: PASS\\n## Must-fix\\nnone\\n## ROOT CAUSE\\nnone\\n## FAILING TEST\\nnone\\n')")
+
+    def test_third_plan_review_after_two_changes_is_refused(self):
+        history = [
+            {"job_id": "review-1", "status": "changes_requested", "after_failure": "a", "at": "2026-11-20T00:00:00Z"},
+            {"job_id": "review-2", "status": "changes_requested", "after_failure": "b", "at": "2026-11-24T00:00:00Z"},
+        ]
+        live = self._prepare_plan_review_history(history)
+        result = self._start_plan_review(live)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("lane A: 2 plan reviews in a row asked for changes; park the lane, or an owner unblock resets the count", result.stderr)
+
+    def test_owner_unblock_resets_plan_review_cap(self):
+        history = [
+            {"job_id": "review-1", "status": "changes_requested", "after_failure": "a", "at": "2026-11-20T00:00:00Z"},
+            {"job_id": "review-2", "status": "changes_requested", "after_failure": "b", "at": "2026-11-24T00:00:00Z"},
+        ]
+        unblock = [{"owner_override": True, "at": "2026-11-24T12:00:00Z"}]
+        live = self._prepare_plan_review_history(history, unblock_history=unblock)
+        result = self._start_plan_review(live)
+        self.assertNotIn("plan reviews in a row asked for changes", result.stderr)
+        self.assertTrue(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]["job"].get("id"))
+
+    def test_tool_fault_plan_review_does_not_count(self):
+        history = [
+            {"job_id": "review-1", "status": "changes_requested", "after_failure": "a", "at": "2026-11-20T00:00:00Z"},
+            {"job_id": "review-2", "status": "changes_requested", "after_failure": "b", "at": "2026-11-22T00:00:00Z"},
+            {"job_id": "review-3", "status": "incomplete", "tool_fault": True, "after_failure": "c", "at": "2026-11-24T00:00:00Z"},
+        ]
+        live = self._prepare_plan_review_history(history)
+        result = self._start_plan_review(live)
+        self.assertNotIn("plan reviews in a row asked for changes", result.stderr)
+        self.assertTrue(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]["job"].get("id"))
+
     def test_last_verdict_block_never_falls_back_to_earlier_pass(self):
         text = "log\nVERDICT: PASS\n## Must-fix\nnone\nVERDICT: CHANGES\n## Notes\ncut off"
         self.assertEqual(bcl_entrypoint._last_verdict_block(text), "VERDICT: CHANGES\n## Notes\ncut off\n")
