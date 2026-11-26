@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-26T08:46:24Z",
-      "now": "2026-11-26T08:46:24Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-26T09:04:40Z",
+      "now": "2026-11-26T09:04:40Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T08:46:24Z",
+    "last_written_at": "2026-11-26T09:04:40Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2596,7 +2596,7 @@
               "phase": "review",
               "started_at": "2026-11-26T08:46:05Z",
               "command": "codex",
-              "heartbeat_at": "2026-11-26T08:46:05Z",
+              "heartbeat_at": "2026-11-26T08:47:29Z",
               "plan_sha256": "c1c7a3915872f606c7dfc3b0dc9ba16eccc955e4857b5962e7dd1978e752f6e5",
               "finding_ids": [
                 "BCL-191"
@@ -2606,7 +2606,19 @@
               "lane_sha256": "8a9d5eb5375f931aa195a25beb4090edbae3f534fc5716f6bfb281b54d983cd5",
               "cycle": 16,
               "round": 3,
-              "pid": 42686
+              "pid": 42686,
+              "exit_code": 0,
+              "finished_at": "2026-11-26T08:47:29Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/cc0a6e99add04f73bef2a8b7ff0cba2b.log",
+              "output_retained": true,
+              "tokens_source": "official",
+              "tokens": {
+                "total": 446578,
+                "output": 2306
+              },
+              "wall_time_s": 84,
+              "session": "rollout-2026-11-26T14-16-06-01a21708-8c16-7ca3-a6b3-3cce3dc66284.jsonl",
+              "finished_phase_status": "passed"
             },
             "fix_status": "passed",
             "tool_fault_streak": 0,
@@ -2642,7 +2654,7 @@
                 "finished_phase_status": "passed"
               }
             ],
-            "review_status": "running",
+            "review_status": "passed",
             "reviewer_model": "gpt-6-luna"
           },
           "stage_entered_at": "2026-11-26T08:41:57Z",
@@ -3819,8 +3831,8 @@
           "finding_ids": [
             "BCL-197"
           ],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "depends_on": [],
           "worktree": "bcl124-r5-plancap",
           "reason": "Recurring: plan review CHANGES looped 7 times on Likeminded PROC-10 and reopened on #124 via an unrelated finding; cap it at 2 in a row.",
@@ -3834,29 +3846,64 @@
             "total": 1
           },
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
-            "fix_status": "running",
+            "fix_base_head": "7d0b865b040bc7760cd18eeb7234f2fae21372ef",
+            "fix_status": "passed",
             "job": {
-              "id": "6359160c682d48afa2a0c7a42de6ea67",
-              "phase": "fix",
-              "started_at": "2026-11-26T08:46:24Z",
+              "id": "478e0bf382cc4881b80623bbeb18fdd4",
+              "phase": "review",
+              "started_at": "2026-11-26T09:04:40Z",
               "command": "codex",
-              "heartbeat_at": "2026-11-26T08:46:24Z",
-              "plan_sha256": "c1c7a3915872f606c7dfc3b0dc9ba16eccc955e4857b5962e7dd1978e752f6e5",
+              "heartbeat_at": "2026-11-26T09:04:40Z",
+              "plan_sha256": "7df3e8b831ea6a94999e6cee9e2e9775e73736f36b33b4323121da2351b4fbd4",
               "finding_ids": [
                 "BCL-197"
               ],
               "worktree": "bcl124-r5-plancap",
               "model": "gpt-6-luna",
-              "lane_sha256": "fc8dfa1f5724055ab7ad69b75e566edf835c41655236985cd86e55fffa7fdd5d",
+              "lane_sha256": "5d8ef3edaa48a9131a4c1fc5cd05df67901b7c2a096c91c5c5c1643bc7d5f94d",
               "cycle": 16,
               "round": 3
-            }
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "6359160c682d48afa2a0c7a42de6ea67",
+                "phase": "fix",
+                "started_at": "2026-11-26T08:46:24Z",
+                "command": "codex",
+                "heartbeat_at": "2026-11-26T08:57:58Z",
+                "plan_sha256": "c1c7a3915872f606c7dfc3b0dc9ba16eccc955e4857b5962e7dd1978e752f6e5",
+                "finding_ids": [
+                  "BCL-197"
+                ],
+                "worktree": "bcl124-r5-plancap",
+                "model": "gpt-6-luna",
+                "lane_sha256": "fc8dfa1f5724055ab7ad69b75e566edf835c41655236985cd86e55fffa7fdd5d",
+                "cycle": 16,
+                "round": 3,
+                "pid": 44130,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T08:57:58Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/6359160c682d48afa2a0c7a42de6ea67.log",
+                "output_retained": true,
+                "commit": "7d0b865b040bc7760cd18eeb7234f2fae21372ef",
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 3134089,
+                  "output": 16615
+                },
+                "wall_time_s": 694,
+                "session": "rollout-2026-11-26T14-16-25-01a21708-d4a6-7223-b34c-e309e5ac497f.jsonl",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "gpt-6-luna"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-26T08:45:56Z",
-          "stage_entered_at": "2026-11-26T08:46:24Z"
+          "stage_entered_at": "2026-11-26T08:57:58Z"
         }
       ],
       "cycle": 16
