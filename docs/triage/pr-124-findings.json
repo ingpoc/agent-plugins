@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-26T07:49:27Z",
-      "now": "2026-11-26T07:49:27Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-26T07:49:42Z",
+      "now": "2026-11-26T07:49:42Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T07:49:27Z",
+    "last_written_at": "2026-11-26T07:49:42Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2680,8 +2680,8 @@
           "finding_ids": [
             "BCL-193"
           ],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "depends_on": [],
           "worktree": "samantha-next-r14",
           "reason": "Status accuracy: render.py lane display falls back to Paused · needs resume for a passed fix waiting for review. Same file as R2-PLANHEAD (render.py) but a different function (lane display vs plan head and template).",
@@ -2695,26 +2695,57 @@
             "total": 1
           },
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
-            "fix_status": "running",
+            "fix_base_head": "817c1e924d02411c2b34c5b29942a795006fc8b9",
+            "fix_status": "passed",
             "job": {
-              "id": "159693b06dcf47b2ab395867dfd6d251",
-              "phase": "fix",
-              "started_at": "2026-11-26T07:49:27Z",
-              "command": "bash",
-              "heartbeat_at": "2026-11-26T07:49:27Z",
-              "plan_sha256": "829494e47df10f97db2d1111b30780171c6de67f24d6301ff1a79b50dfb14b40",
+              "id": "967a71e6946a4b14a76d83dc1af50034",
+              "phase": "review",
+              "started_at": "2026-11-26T07:49:42Z",
+              "command": "codex",
+              "heartbeat_at": "2026-11-26T07:49:42Z",
+              "plan_sha256": "b29e118c2dfc54a767558f1b17ea2f40bd11d5c64665283da7932cd08758cd17",
               "finding_ids": [
                 "BCL-193"
               ],
               "worktree": "samantha-next-r14",
-              "model": "grok-bot-executor",
-              "lane_sha256": "c04eff2ddd177f0a0f1ae5632ec17262a8ff8216deb4bc491fe911bfecc63fdb",
+              "model": "gpt-6-luna",
+              "lane_sha256": "e55f6f6854107f8471a2687532f05a41560d835e7f91a68785ceabd4ff40c98c",
               "cycle": 16,
               "round": 3
-            }
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "159693b06dcf47b2ab395867dfd6d251",
+                "phase": "fix",
+                "started_at": "2026-11-26T07:49:27Z",
+                "command": "bash",
+                "heartbeat_at": "2026-11-26T07:49:28Z",
+                "plan_sha256": "829494e47df10f97db2d1111b30780171c6de67f24d6301ff1a79b50dfb14b40",
+                "finding_ids": [
+                  "BCL-193"
+                ],
+                "worktree": "samantha-next-r14",
+                "model": "grok-bot-executor",
+                "lane_sha256": "c04eff2ddd177f0a0f1ae5632ec17262a8ff8216deb4bc491fe911bfecc63fdb",
+                "cycle": 16,
+                "round": 3,
+                "pid": 33582,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T07:49:28Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/159693b06dcf47b2ab395867dfd6d251.log",
+                "output_retained": true,
+                "commit": "817c1e924d02411c2b34c5b29942a795006fc8b9",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 1,
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "gpt-6-luna"
           },
-          "stage_entered_at": "2026-11-26T07:49:27Z",
+          "stage_entered_at": "2026-11-26T07:49:28Z",
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-26T06:57:57Z"
