@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.42
+
+- Each lookup row (find, get, save) records the ledger version, tokens as not reported, and the caller project through an additive access_log migration; save rows stay out of lookup counts and the activity feed (CL-2).
+
 ## 0.1.41
 
 - Route skill procedures into triggered references and resolve lookup paths from installed skill copies or the plugin checkout.
