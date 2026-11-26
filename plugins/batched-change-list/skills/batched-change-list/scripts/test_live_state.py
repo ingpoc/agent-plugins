@@ -9,7 +9,9 @@ import tempfile
 import threading
 import time
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.request import Request, urlopen
@@ -601,6 +603,55 @@ class RegistryConcurrencyTests(unittest.TestCase):
 class RepoViewerPortTests(unittest.TestCase):
     """BCL-185: one bookmarkable viewer port per repo, chosen once and never moved."""
 
+    def test_stale_viewer_file_with_reused_pid_is_not_live(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, 'PORT_RANGE', (52000, 52001)), \
+                patch.object(live_state, '_port_is_free', return_value=True):
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            process = subprocess.Popen(['sleep', '30'])
+            self.addCleanup(process.wait)
+            self.addCleanup(process.terminate)
+            stale = viewers / 'old--list.json'
+            stale.write_text(json.dumps({'port': 52000, 'pid': process.pid,
+                                         'data': '/gone/list.json', 'instance': 'old-instance'}))
+            self.assertEqual(live_state._project_port('new/project', {}), 52000)
+            self.assertTrue(stale.exists())
+
+    def test_viewer_file_with_matching_health_is_live(self):
+        data = str(Path('/tmp/matching-list.json').resolve())
+        instance = 'matching-instance'
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = (json.dumps({'pid': os.getpid(), 'path': data, 'instance': instance}).encode()
+                        if self.path == '/__bcl_health' else b'viewer')
+                self.send_response(200); self.end_headers(); self.wfile.write(body)
+            def log_message(self, *_args):
+                pass
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join); self.addCleanup(server.server_close); self.addCleanup(server.shutdown)
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, 'PORT_RANGE', (server.server_address[1], server.server_address[1] + 1)), \
+                patch.object(live_state, '_port_is_free', return_value=True):
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            (viewers / 'old--list.json').write_text(json.dumps(
+                {'port': server.server_address[1], 'pid': os.getpid(), 'data': data, 'instance': instance}))
+            with self.assertRaisesRegex(RuntimeError, 'no free viewer port'):
+                live_state._project_port('new/project', {})
+
+    def test_fresh_pick_ignores_reused_pid_per_list_file(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
+                patch.object(live_state, 'PORT_RANGE', (52001, 52002)), \
+                patch.object(live_state, '_port_is_free', return_value=True), \
+                patch.object(live_state, '_pid_is_running', return_value=True):
+            viewers = Path(temp) / 'viewers'; viewers.mkdir()
+            stale = viewers / 'ingpoc--agent-plugins--111.json'
+            original = {'port': 52001, 'pid': 4242, 'data': '/gone/111.json', 'instance': 'stale'}
+            stale.write_text(json.dumps(original))
+            self.assertEqual(live_state._project_port('new/project', {}), 52001)
+            self.assertEqual(json.loads(stale.read_text()), original)
+
     def test_new_repo_slot_is_deterministic_and_skips_other_repos_saved_ports(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
                 patch.object(live_state, '_port_is_free', return_value=True):
@@ -643,10 +694,12 @@ class RepoViewerPortTests(unittest.TestCase):
     def test_live_old_viewer_still_reserves_its_port_and_two_saved_ports_fail(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(live_state, 'STATE', Path(temp)), \
                 patch.object(live_state, '_port_is_free', return_value=True), \
-                patch.object(live_state, '_pid_is_running', return_value=True):
+                patch.object(live_state, '_pid_is_running', return_value=True), \
+                patch.object(live_state, '_viewer_responds', return_value=True):
             slot = live_state._project_port('new/project', {})
             viewers = Path(temp) / 'viewers'; viewers.mkdir()
-            (viewers / 'some--old--list.json').write_text(json.dumps({'port': slot, 'pid': 4242}))
+            (viewers / 'some--old--list.json').write_text(json.dumps(
+                {'port': slot, 'pid': 4242, 'data': '/old/list.json', 'instance': 'old-instance'}))
             self.assertNotEqual(live_state._project_port('new/project', {}), slot)
             records = {'a/b/1': {'repo': 'a/b', 'viewer_port': 51000}, 'a/b/2': {'repo': 'a/b', 'viewer_port': 51001}}
             with self.assertRaisesRegex(RuntimeError, 'more than one saved viewer port'):

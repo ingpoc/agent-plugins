@@ -183,13 +183,18 @@ def _viewer_states():
         except (OSError, ValueError, TypeError, AttributeError):
             continue
         if port:
-            states[path.stem] = (port, value.get("pid"))
+            states[path.stem] = {"port": port, "pid": value.get("pid"),
+                                 "instance": value.get("instance"), "data": value.get("data")}
     return states
 
-def _state_is_live(pid):
+def _state_is_live(state):
     try:
-        return bool(pid) and _pid_is_running(int(pid))
-    except (ValueError, TypeError, OSError, ViewerPIDProbeError):
+        pid = state.get("pid")
+        if not pid or not state.get("instance") or not state.get("data"):
+            return False
+        expected = {"pid": int(pid), "data": state["data"], "instance": state["instance"]}
+        return _pid_is_running(expected["pid"]) and _viewer_responds(int(state["port"]), expected)
+    except (ValueError, TypeError, OSError, KeyError, ViewerPIDProbeError):
         return False
 
 def _project_port(repo, records=None):
@@ -214,14 +219,14 @@ def _project_port(repo, records=None):
     states = _viewer_states()
     own = states.get(slug)
     if own:
-        if own[0] in taken:
-            raise RuntimeError(f"{repo} viewer port {own[0]} is saved by another repo; give one of them a new port and retry")
-        return own[0]
+        if own["port"] in taken:
+            raise RuntimeError(f"{repo} viewer port {own['port']} is saved by another repo; give one of them a new port and retry")
+        return own["port"]
     # Only a fresh pick avoids other repos' viewer files and old per-list viewers still running.
     reserved = set(taken)
-    for stem, (port, pid) in states.items():
-        if stem != slug and (stem in repo_slugs or _state_is_live(pid)):
-            reserved.add(port)
+    for stem, state in states.items():
+        if stem != slug and (stem in repo_slugs or _state_is_live(state)):
+            reserved.add(state["port"])
     low, high = PORT_RANGE
     span = high - low
     start = int(hashlib.sha256(repo.encode()).hexdigest()[:8], 16) % span
