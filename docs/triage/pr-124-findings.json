@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-26T03:49:42Z",
-      "now": "2026-11-26T03:49:42Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-26T03:56:51Z",
+      "now": "2026-11-26T03:56:51Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -372,7 +372,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T03:49:42Z",
+    "last_written_at": "2026-11-26T03:56:51Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -1217,25 +1217,25 @@
           "finding_ids": [
             "BCL-186"
           ],
-          "status": "running",
+          "status": "review",
           "reason": "Registry updates can overwrite each other when two change-list commands run at once.",
-          "worktree": "bcl124-r1-registry",
+          "worktree": "samantha-next-r14",
           "codex": {
-            "fix_base_head": "9a789fd09678dc5d03f31b3abf15194e63f8a909",
-            "fix_status": "running",
+            "fix_base_head": "112777a83b090fc79ad87d2b94322506d62ca421",
+            "fix_status": "passed",
             "job": {
-              "id": "430472853acb48f79e2e38a2480c2103",
-              "phase": "fix",
-              "started_at": "2026-11-26T03:49:42Z",
-              "command": "lane-commit.sh",
-              "heartbeat_at": "2026-11-26T03:49:42Z",
-              "plan_sha256": "3d3f705d77c907a6dec159e0949999657dbf489c85681112b070c0f81c508f21",
+              "id": "8748818451db40a88116b4973f94780f",
+              "phase": "review",
+              "started_at": "2026-11-26T03:56:51Z",
+              "command": "bash",
+              "heartbeat_at": "2026-11-26T03:56:51Z",
+              "plan_sha256": "8541e9d4fb26e83d07ecafc0800db6dadc5aa9d6c47cd8c407165fca91478bb1",
               "finding_ids": [
                 "BCL-186"
               ],
-              "worktree": "bcl124-r1-registry",
+              "worktree": "samantha-next-r14",
               "model": "grok-bot-executor",
-              "lane_sha256": "525b7c03d2673f5f08fecb4f941d66b5d43bdf85f744ea033486e0dd318df9e9",
+              "lane_sha256": "4d836af45a3951b5c33678d857496899a641100e9a40d3aa84fea96849868f43",
               "cycle": 16,
               "round": 1
             },
@@ -1467,10 +1467,55 @@
                 "wall_time_s": 0,
                 "session": "grok-bot-executor",
                 "finished_phase_status": "passed"
+              },
+              {
+                "id": "430472853acb48f79e2e38a2480c2103",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:49:42Z",
+                "command": "lane-commit.sh",
+                "heartbeat_at": "2026-11-26T03:49:57Z",
+                "plan_sha256": "3d3f705d77c907a6dec159e0949999657dbf489c85681112b070c0f81c508f21",
+                "finding_ids": [
+                  "BCL-186"
+                ],
+                "worktree": "bcl124-r1-registry",
+                "model": "grok-bot-executor",
+                "lane_sha256": "525b7c03d2673f5f08fecb4f941d66b5d43bdf85f744ea033486e0dd318df9e9",
+                "cycle": 16,
+                "round": 1,
+                "pid": 40950,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-26T03:49:43Z",
+                    "result": "test_failed_adoption_leaves_no_live_file_and_can_be_retried fails (orphan live file blocks retry); unsynchronized concurrency tests passed with the lock removed only by timing"
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-26T03:49:43Z",
+                    "result": "adoption wrote the live file before the registry transaction without rollback; tests used sleeps, not ready-file synchronization"
+                  }
+                ],
+                "latest_step": {
+                  "step": "root_cause",
+                  "at": "2026-11-26T03:49:43Z",
+                  "result": "adoption wrote the live file before the registry transaction without rollback; tests used sleeps, not ready-file synchronization"
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-26T03:49:57Z",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/430472853acb48f79e2e38a2480c2103.log",
+                "output_retained": true,
+                "commit": "112777a83b090fc79ad87d2b94322506d62ca421",
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 15,
+                "session": "grok-bot-executor",
+                "finished_phase_status": "passed"
               }
             ],
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "- [live_state.py:365](/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r14/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:365) creates the adopted live file before entering the registry transaction, but does not remove it if `_project_port()` or `update_registry()` fails. The command then leaves an unregistered file, and retry fails with “adoption destination already exists.” Clean up the file on failure, as `register_rollover` does.\n- The concurrency tests use sleeps without synchronizing the two processes. They can pass if the processes run sequentially, so they do not reliably prove that simultaneous updates survive. Add synchronization that establishes contention and exercise the registry-writing callers."
+            "reviewer_model": "grok-bot-executor",
+            "must_fix_note": "- [live_state.py:365](/Users/gurusharan/code/worktrees/agent-plugins/samantha-next-r14/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:365) creates the adopted live file before entering the registry transaction, but does not remove it if `_project_port()` or `update_registry()` fails. The command then leaves an unregistered file, and retry fails with “adoption destination already exists.” Clean up the file on failure, as `register_rollover` does.\n- The concurrency tests use sleeps without synchronizing the two processes. They can pass if the processes run sequentially, so they do not reliably prove that simultaneous updates survive. Add synchronization that establishes contention and exercise the registry-writing callers.",
+            "review_status": "running"
           },
           "depends_on": [],
           "verify": {
@@ -1481,7 +1526,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-26T03:49:42Z",
+          "stage_entered_at": "2026-11-26T03:49:57Z",
           "failure_history": [
             {
               "attempt_id": "306a3d6bde884cbb964c1053fd3dd2fc",
@@ -1515,7 +1560,7 @@
             }
           ],
           "updated_at": "2026-11-26T02:56:45Z",
-          "phase": "fix",
+          "phase": "review",
           "trail": [
             {
               "step": "failed_first",
@@ -1543,6 +1588,20 @@
               "at": "2026-11-26T03:37:35Z",
               "result": "the new guard test located bin/bcl with a repo-relative parents[3] instead of the shared PLUGIN locator used by test_bcl",
               "job_id": "c2c6f9a71dd14bb2b360dd2211ad6ac8",
+              "phase": "fix"
+            },
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T03:49:43Z",
+              "result": "test_failed_adoption_leaves_no_live_file_and_can_be_retried fails (orphan live file blocks retry); unsynchronized concurrency tests passed with the lock removed only by timing",
+              "job_id": "430472853acb48f79e2e38a2480c2103",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T03:49:43Z",
+              "result": "adoption wrote the live file before the registry transaction without rollback; tests used sleeps, not ready-file synchronization",
+              "job_id": "430472853acb48f79e2e38a2480c2103",
               "phase": "fix"
             }
           ]
