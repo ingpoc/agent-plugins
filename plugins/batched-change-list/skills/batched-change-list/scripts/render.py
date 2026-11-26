@@ -687,7 +687,10 @@ def render_plan(data, tracking, plan, round_number, now, displays=None):
     parked = "".join(f'<p class="parked-line"><span>Parked for Round {target}</span>'
                       + "".join(f'<span class="pill parked">{html.escape(str(group.get("id", "?")))} · {len(group.get("finding_ids", []))}</span>' for group in target_groups)
                       + '<span>· not running</span></p>' for target, target_groups in sorted(parked_by_round.items()))
-    header = (f'<span><strong>Round {round_number}</strong> · {len(active_groups)} lanes · each installs and verifies when ready</span>'
+    open_count = len(active_groups)
+    lane_head = (f'{open_count} open lane{"" if open_count == 1 else "s"} · each installs and verifies when ready'
+                 if open_count else f'0 open lanes · {len(groups)} settled')
+    header = (f'<span><strong>Round {round_number}</strong> · {lane_head}</span>'
               + (f'<span class="t">{" · ".join(tally)}</span>' if tally else ""))
     return (f'<div class="plan" aria-label="Fix plan, round {round_number}"><div class="plan-head">{header}</div>'
             '<p class="close-line">Lane dots: Fix → Review → Install → Verify. Filled means completed; outlined means not completed (highlighted: current). Introspect is a round step.</p>'

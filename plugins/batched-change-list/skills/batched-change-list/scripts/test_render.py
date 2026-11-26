@@ -18,6 +18,33 @@ spec.loader.exec_module(renderer)
 
 
 class RenderTests(unittest.TestCase):
+    def test_plan_head_counts_open_and_settled_lanes(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        data['tracking'] = {'plan': {'round': 1, 'groups': [
+            {'id': f'G{i}', 'finding_ids': ['ISSUE-01'], 'status': 'verified'}
+            for i in range(4)
+        ]}}
+        page = renderer.render(data, Path(__file__).parent.parent)
+        plan_head = page.split('<div class="plan-head">', 1)[1].split('</div>', 1)[0]
+        self.assertIn('<strong>Round 1</strong> · 0 open lanes · 4 settled', plan_head)
+        self.assertIn('<b>4</b> verified', plan_head)
+
+    def test_minimum_text_is_16px(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        page = renderer.render(data, Path(__file__).parent.parent)
+        sizes = re.findall(r'(?:font-size\s*:\s*|font\s*:\s*[^;{}]*?)(\d+(?:\.\d+)?)(px|rem)\b', page)
+        self.assertTrue(sizes, 'rendered page should contain typography declarations')
+        too_small = [(value, unit) for value, unit in sizes
+                     if float(value) < (16 if unit == 'px' else 1)]
+        self.assertEqual(too_small, [], f'text sizes below 16px/1rem: {too_small}')
+
+    def test_viewport_does_not_block_zoom(self):
+        data = json.loads((Path(__file__).parent.parent / 'examples/findings.json').read_text())
+        page = renderer.render(data, Path(__file__).parent.parent)
+        viewport = re.search(r'<meta name="viewport" content="([^"]+)"', page)
+        self.assertIsNotNone(viewport)
+        self.assertNotRegex(viewport.group(1), r'maximum-scale|user-scalable\s*=\s*no')
+
     def test_stage_duration_uses_explicit_entry_and_missing_is_unknown(self):
         now = renderer.datetime.fromisoformat('2026-11-22T10:05:00+00:00')
         self.assertEqual(renderer.stage_duration({'stage_entered_at':'2026-11-22T10:00:00Z'}, now), '5 min')
@@ -556,7 +583,7 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertEqual(page, renderer.render(self.data, self.base))
         for marker in ('class="wf"', 'class="wf-band gate-pending"', 'class="wf-loop"', 'wf-gate', 'class="grp paused"', 'class="grp planned"', 'after A', 'href="#ISSUE-01"', 'title="'):
             self.assertIn(marker, page)
-        self.assertIn('<strong>Round 1</strong> · 2 lanes · each installs and verifies when ready', page)
+        self.assertIn('<strong>Round 1</strong> · 2 open lanes · each installs and verifies when ready', page)
         self.assertIn('<b>1</b> paused', page)
         self.assertLess(page.index('class="plan-head"'), page.index('class="plan-rows"'))
         self.assertNotIn('class="tail"', page)
@@ -591,7 +618,7 @@ if(badge.hidden||clock>=Date.parse({json.dumps(updated)})+{stale_after}*60000)pr
         self.assertIn('13 min ago', page)
         self.assertIn('class="tag-stale" title="No update for over 10 minutes" hidden', page)
         self.assertIn('data-stale-active="false"', page)
-        self.assertIn('2 lanes · each installs and verifies when ready', page)
+        self.assertIn('2 open lanes · each installs and verifies when ready', page)
         self.assertIn('<b>1</b> installing', page)
         self.assertIn('<b>1</b> blocked', page)
         self.assertIn('Parked for Round 2', page)
@@ -1641,7 +1668,7 @@ if(text.includes('Blocked')||text.includes('no microphone'))process.exit(2);
         page = renderer.render(data, self.base)
         self.assertIn('Round 2', page)
         plan_head = page.split('<div class="plan-head">', 1)[1].split('</div>', 1)[0]
-        self.assertIn('<strong>Round 2</strong> · 1 lanes · each installs and verifies when ready', plan_head)
+        self.assertIn('<strong>Round 2</strong> · 1 open lane · each installs and verifies when ready', plan_head)
         self.assertIn('<b>1</b> verifying', plan_head)
         self.assertIn('class="grp verifying"', page)
         self.assertIn('Verifying', page)
