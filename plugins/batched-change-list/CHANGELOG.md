@@ -1,3 +1,8 @@
+## 0.1.77
+
+- A viewer file counts as running only when its own health check answers with its recorded identity, so a dead per-list viewer file whose process id was reused no longer reserves a port; old files are ignored, not deleted (BCL-187).
+- A lane whose fix passed and is waiting for review reads Fix passed · review next instead of Paused · needs resume; a recorded pause still reads Paused (BCL-193).
+
 ## 0.1.76
 
 - Lanes keep a failed-first, root-cause and fix-verified trail: `bcl report-step -- failed_first|root_cause TEXT` (arguments after `--` now reach the batch, which now dispatches report-step) records the step with its job and commit and emits issue_failed_first/root_cause_identified, and a passed verification adds fix_verified; the viewer shows a Trail row (BCL-179). A review accepts the fix job's `--model` as the implementer, so a lane fixed without Codex no longer needs a Codex session id (BCL-181).
