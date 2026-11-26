@@ -299,6 +299,34 @@ class CollectorTests(unittest.TestCase):
         event = next(event for event in events if event['step'] == 'unpushed_commits')
         self.assertEqual(event['message'], '1 local-only commit(s)')
 
+    def test_git_state_ignores_snapshot_commit_with_special_character_paths(self):
+        repo = self._git_repo_with_upstream('special-character-snapshot')
+        (repo / 'docs/triage').mkdir(parents=True)
+        for name in ('space name.json', 'quote"name.json', 'tab\tname.json', 'back\\slash.json'):
+            (repo / 'docs/triage' / name).write_text('{}\n')
+        self._git_commit(repo, 'special character snapshot')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        self.assertNotIn('unpushed_commits', [event['step'] for event in events])
+
+    def test_git_state_counts_lookalike_snapshot_prefix_paths(self):
+        repo = self._git_repo_with_upstream('lookalike-snapshot-paths')
+        (repo / 'docs/triage-old').mkdir(parents=True)
+        (repo / 'docs/triage-old/x.json').write_text('{}\n')
+        (repo / 'docs/triagex.json').write_text('{}\n')
+        self._git_commit(repo, 'lookalike snapshot paths')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '1 local-only commit(s)')
+
+    def test_git_state_counts_snapshot_path_nested_under_source_dir(self):
+        repo = self._git_repo_with_upstream('nested-snapshot-path')
+        (repo / 'src/docs/triage').mkdir(parents=True)
+        (repo / 'src/docs/triage/x.json').write_text('{}\n')
+        self._git_commit(repo, 'nested snapshot path')
+        events = list(iter_git(repo, 'r', 'r:git', {}))
+        event = next(event for event in events if event['step'] == 'unpushed_commits')
+        self.assertEqual(event['message'], '1 local-only commit(s)')
+
     def test_git_state_counts_merge_commit_and_its_ahead_parents(self):
         repo = self._git_repo_with_upstream('merge-change')
         main = subprocess.run(['git', '-C', str(repo), 'branch', '--show-current'], check=True,
