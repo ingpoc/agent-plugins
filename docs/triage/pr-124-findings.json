@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "introspect",
-      "updated_at": "2026-11-26T06:47:36Z",
-      "now": "2026-11-26T06:47:36Z — Introspection recorded"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-26T06:54:51Z",
+      "now": "2026-11-26T06:54:51Z — Plan recorded"
     },
     "rollover": {
       "source_pr": 123,
@@ -77,7 +77,7 @@
       }
     },
     "cycle": 16,
-    "round": 2,
+    "round": 3,
     "round_history": [
       {
         "round": 2,
@@ -353,6 +353,11 @@
         "round": 1,
         "fixed": 6,
         "ended_at": "2026-11-26T06:10:22Z"
+      },
+      {
+        "round": 2,
+        "fixed": 7,
+        "ended_at": "2026-11-26T06:54:51Z"
       }
     ],
     "introspect_history": [
@@ -620,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T06:47:36Z",
+    "last_written_at": "2026-11-26T06:54:51Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -788,7 +793,7 @@
         ]
       }
     ],
-    "round_started_at": "2026-11-26T06:10:22Z",
+    "round_started_at": "2026-11-26T06:54:51Z",
     "gate": {
       "merge_previous_pr_threshold": 16,
       "report_threshold": 15
@@ -927,13 +932,10 @@
     "stages_reached": [
       "collect",
       "review",
-      "plan_fix",
-      "install",
-      "verify",
-      "introspect"
+      "plan_fix"
     ],
     "plan": {
-      "round": 2,
+      "round": 3,
       "groups": [
         {
           "id": "R1-JOBREC",
@@ -1284,7 +1286,7 @@
               "at": "2026-11-26T03:32:25Z"
             }
           ],
-          "updated_at": "2026-11-26T06:23:07Z",
+          "updated_at": "2026-11-26T06:54:51Z",
           "stage_entered_at": "2026-11-26T04:05:13Z",
           "phase": "verify",
           "trail": [
@@ -1529,7 +1531,7 @@
             }
           ],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:23:07Z",
+          "updated_at": "2026-11-26T06:54:51Z",
           "phase": "verify",
           "trail": [
             {
@@ -1966,7 +1968,7 @@
               "at": "2026-11-26T03:49:41Z"
             }
           ],
-          "updated_at": "2026-11-26T06:23:07Z",
+          "updated_at": "2026-11-26T06:54:51Z",
           "phase": "verify",
           "trail": [
             {
@@ -2277,7 +2279,7 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-26T06:23:07Z",
+          "updated_at": "2026-11-26T06:54:51Z",
           "phase": "verify",
           "presuite": {
             "status": "passed",
@@ -2308,22 +2310,19 @@
           "finding_ids": [
             "PR122-parked-backlog"
           ],
-          "status": "parked",
           "reason": "Parked backlog of review nits and process ideas stays parked.",
+          "parked_to": 2,
+          "verify": {
+            "status": "pending"
+          },
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
-          "parked_to": 2,
-          "stage_entered_at": "2026-11-25T16:19:42Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:23:07Z",
-          "verify": {
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
-          }
+          "status": "parked",
+          "stage_entered_at": "2026-11-25T16:19:42Z",
+          "updated_at": "2026-11-26T06:54:51Z"
         },
         {
           "id": "R1-VIEWER",
@@ -2539,7 +2538,7 @@
           "stage_entered_at": "2026-11-26T06:45:00Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:44:44Z",
+          "updated_at": "2026-11-26T06:54:51Z",
           "trail": [
             {
               "step": "failed_first",
@@ -2591,8 +2590,6 @@
           "finding_ids": [
             "BCL-191"
           ],
-          "status": "parked",
-          "phase": "fix",
           "depends_on": [],
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
           "worktree": "bcl124-r4-race",
@@ -2600,165 +2597,13 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh",
             "method": "Named unit tests plus 6 concurrent installed bcl status runs under CPU load against the live viewer 58771",
             "summary": "Six concurrent starts pass; viewer pid unchanged",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
+            "status": "pending"
           },
+          "blocked_reason": "Two review failures; awaiting Guru unblock",
+          "parked_to": 3,
           "codex": {
-            "fix_base_head": "dd602d866b7c6cc537a23e929ae009af3b890f61",
-            "job": {
-              "id": "f8c72e115fa741d7999d979626ef0dbe",
-              "phase": "review",
-              "started_at": "2026-11-26T06:30:03Z",
-              "command": "codex",
-              "heartbeat_at": "2026-11-26T06:31:13Z",
-              "plan_sha256": "f24658ae49f8783af123673d14f8d0702a1e6fc03ec30d5662b9ecc61c053072",
-              "finding_ids": [
-                "BCL-191"
-              ],
-              "worktree": "bcl124-r4-race",
-              "model": "gpt-6.1-terra",
-              "lane_sha256": "4025314720f7e9b4784eea1357fc5daf105a3501de1a16500af44cb4102955dd",
-              "cycle": 16,
-              "round": 2,
-              "pid": 63798,
-              "exit_code": 0,
-              "finished_at": "2026-11-26T06:31:13Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/f8c72e115fa741d7999d979626ef0dbe.log",
-              "output_retained": true,
-              "tokens_source": "official",
-              "tokens": {
-                "total": 334147,
-                "output": 2056
-              },
-              "wall_time_s": 70,
-              "session": "rollout-2026-11-26T12-00-04-01a2168c-0057-72b2-ae1e-a8a6de8c59f2.jsonl",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers."
-            },
-            "jobs": [
-              {
-                "id": "bf42af0b09ff412ab95f46744e5893ec",
-                "phase": "fix",
-                "started_at": "2026-11-26T06:12:35Z",
-                "command": "codex",
-                "heartbeat_at": "2026-11-26T06:16:57Z",
-                "plan_sha256": "129d15bbef51e71e351d454b9647a7f6df0685cdf6dd365312cbe9ff0bdbc80b",
-                "finding_ids": [
-                  "BCL-191"
-                ],
-                "worktree": "bcl124-r4-race",
-                "model": "gpt-6-luna",
-                "lane_sha256": "3442ff017b1682b7fcd1549b404de85b7eb69ba06e3233241c994a3200e486b3",
-                "cycle": 16,
-                "round": 2,
-                "pid": 2469,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:16:57Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/bf42af0b09ff412ab95f46744e5893ec.log",
-                "output_retained": true,
-                "commit": "00bba12734eed2ebb23ab20b097aa293bd2eb229",
-                "tokens_source": "official",
-                "tokens": {
-                  "total": 1845045,
-                  "output": 11071
-                },
-                "wall_time_s": 262,
-                "session": "rollout-2026-11-26T11-42-36-01a2167c-0497-7d31-9761-41c381bad8b0.jsonl",
-                "finished_phase_status": "passed"
-              },
-              {
-                "id": "1fba226f7fc8422780f9ecbc20974093",
-                "phase": "review",
-                "started_at": "2026-11-26T06:18:08Z",
-                "command": "codex",
-                "heartbeat_at": "2026-11-26T06:19:25Z",
-                "plan_sha256": "cd1c0ee011ce8c19ef10b5c947fc3e119e522e9289ea3defda4baa0d93434cb2",
-                "finding_ids": [
-                  "BCL-191"
-                ],
-                "worktree": "bcl124-r4-race",
-                "model": "gpt-6.1-terra",
-                "lane_sha256": "a39f4a80b24fcc3c054d750220b4650808225dfca2fc7931bf5c1ed8e1b6d8de",
-                "cycle": 16,
-                "round": 2,
-                "pid": 28186,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:19:25Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/1fba226f7fc8422780f9ecbc20974093.log",
-                "output_retained": true,
-                "tokens_source": "official",
-                "tokens": {
-                  "total": 371101,
-                  "output": 2216
-                },
-                "wall_time_s": 77,
-                "session": "rollout-2026-11-26T11-48-09-01a21681-1983-72b1-b8e6-4ae26743d0f2.jsonl",
-                "finished_phase_status": "changes_requested",
-                "must_fix": "- [live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:584) still performs the report-page probe only once with a one-second timeout. A healthy but delayed response can therefore still produce “cannot verify viewer ownership.” Retry the complete ownership check within a bounded deadline.\n- [test_live_state.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/test_live_state.py:81) does not prove the new lock fixes concurrent startup: the fixture writes an existing viewer state before the threads run. The health retry alone could make this test pass even if the lock were removed. Add a deterministic concurrent-start test that fails without the lock and proves only one viewer is started."
-              },
-              {
-                "id": "d40833fcb28545fc8ecfa6f20d54a063",
-                "phase": "plan_review",
-                "started_at": "2026-11-26T06:23:52Z",
-                "command": "cat",
-                "heartbeat_at": "2026-11-26T06:23:52Z",
-                "plan_sha256": "f7a8c5279083481fc7c0f98b23f12706f9f084df348bf17403c340af0d0689f4",
-                "finding_ids": [
-                  "BCL-191"
-                ],
-                "worktree": "bcl124-r4-race",
-                "model": "grok-bot-executor",
-                "lane_sha256": "3442ff017b1682b7fcd1549b404de85b7eb69ba06e3233241c994a3200e486b3",
-                "cycle": 16,
-                "round": 2,
-                "pid": 43197,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:23:52Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/d40833fcb28545fc8ecfa6f20d54a063.log",
-                "output_retained": true,
-                "tokens_source": "not_reported",
-                "tokens": null,
-                "wall_time_s": 0,
-                "session": "gpt-6-luna",
-                "finished_phase_status": "passed"
-              },
-              {
-                "id": "f9170f69d29f48d6ba7cc4e3ea72a5f8",
-                "phase": "fix",
-                "started_at": "2026-11-26T06:23:53Z",
-                "command": "codex",
-                "heartbeat_at": "2026-11-26T06:25:41Z",
-                "plan_sha256": "f7a8c5279083481fc7c0f98b23f12706f9f084df348bf17403c340af0d0689f4",
-                "finding_ids": [
-                  "BCL-191"
-                ],
-                "worktree": "bcl124-r4-race",
-                "model": "gpt-6-luna",
-                "lane_sha256": "3442ff017b1682b7fcd1549b404de85b7eb69ba06e3233241c994a3200e486b3",
-                "cycle": 16,
-                "round": 2,
-                "pid": 43326,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:25:41Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/f9170f69d29f48d6ba7cc4e3ea72a5f8.log",
-                "output_retained": true,
-                "commit": "dd602d866b7c6cc537a23e929ae009af3b890f61",
-                "tokens_source": "not_reported",
-                "tokens": null,
-                "wall_time_s": 108,
-                "session": "gpt-6-luna",
-                "finished_phase_status": "passed"
-              }
-            ],
-            "fix_status": "passed",
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers.",
-            "tool_fault_streak": 0,
-            "review_status": "blocked"
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
-          "stage_entered_at": "2026-11-26T06:41:42Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -2789,18 +2634,17 @@
               "at": "2026-11-26T06:23:52Z"
             }
           ],
-          "updated_at": "2026-11-26T06:41:42Z",
-          "blocked_reason": "Two review failures; awaiting Guru unblock",
           "failure_block_reason": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers.",
-          "parked_to": 3
+          "status": "blocked",
+          "phase": "fix",
+          "stage_entered_at": "2026-11-26T06:54:51Z",
+          "updated_at": "2026-11-26T06:54:51Z"
         },
         {
           "id": "R2-PLANHEAD",
           "finding_ids": [
             "BCL-192"
           ],
-          "status": "parked",
-          "phase": "fix",
           "depends_on": [],
           "reason": "Visibility and status wording in render.py plan head and the change-list.html template; no file shared with R2-VIEWER.",
           "worktree": "bcl124-r4-planhead",
@@ -2808,165 +2652,13 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh",
             "method": "Named unit tests plus live run of the installed bcl 0.1.77 against the live viewer 58771",
             "summary": "Plan head shows open lanes; no text under 16px",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1
+            "status": "pending"
           },
+          "blocked_reason": "Two review failures; awaiting Guru unblock",
+          "parked_to": 3,
           "codex": {
-            "fix_base_head": "0bfa66abfea2fbf1bc90e65111ca022bcfbc7bd9",
-            "job": {
-              "id": "ad29b96165a140d9a19703aaa870c146",
-              "phase": "review",
-              "started_at": "2026-11-26T06:28:42Z",
-              "command": "codex",
-              "heartbeat_at": "2026-11-26T06:30:01Z",
-              "plan_sha256": "f24658ae49f8783af123673d14f8d0702a1e6fc03ec30d5662b9ecc61c053072",
-              "finding_ids": [
-                "BCL-192"
-              ],
-              "worktree": "bcl124-r4-planhead",
-              "model": "gpt-6.1-terra",
-              "lane_sha256": "773755a32a5de9c70b5d73c3e0d5905d4c2fc0d79e4b88efd49705d768b9e410",
-              "cycle": 16,
-              "round": 2,
-              "pid": 59903,
-              "exit_code": 0,
-              "finished_at": "2026-11-26T06:30:01Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/ad29b96165a140d9a19703aaa870c146.log",
-              "output_retained": true,
-              "tokens_source": "official",
-              "tokens": {
-                "total": 433429,
-                "output": 2157
-              },
-              "wall_time_s": 79,
-              "session": "rollout-2026-11-26T11-58-43-01a2168a-c52e-7ff2-aab7-84c92f5f7e9c.jsonl",
-              "finished_phase_status": "changes_requested",
-              "must_fix": "1. **The navigation buttons can still render below 16px.** In [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:185), `font: 600 1rem/1.3 inherit` is invalid: `inherit` cannot be used as a font family inside that shorthand. The browser discards the declaration, leaving the buttons subject to the browser’s smaller default control font. Set a valid inherited or explicit font and verify computed sizes.\n\n2. **The head does not consistently count settled lanes.** [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:604) defines open lanes using `closed`, while the workflow definition separately classifies blocked and failed lanes as settled. Thus a blocked lane is reported as open and receives “each installs and verifies when ready,” despite the round-close copy saying blocked lanes can close the round. Use consistent state semantics and report open and settled counts for mixed states too."
-            },
-            "jobs": [
-              {
-                "id": "c46b547e0c944061a38c91ba666aaf24",
-                "phase": "fix",
-                "started_at": "2026-11-26T06:12:47Z",
-                "command": "codex",
-                "heartbeat_at": "2026-11-26T06:15:44Z",
-                "plan_sha256": "129d15bbef51e71e351d454b9647a7f6df0685cdf6dd365312cbe9ff0bdbc80b",
-                "finding_ids": [
-                  "BCL-192"
-                ],
-                "worktree": "bcl124-r4-planhead",
-                "model": "gpt-6-luna",
-                "lane_sha256": "43536aecf908a48173cf6d34f1c5805ab9bdbece9b125810a6f04c8954b1be0e",
-                "cycle": 16,
-                "round": 2,
-                "pid": 3842,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:15:44Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/c46b547e0c944061a38c91ba666aaf24.log",
-                "output_retained": true,
-                "commit": "db6a5c33405ed0659014c3b30d5bcf242f0ee1bc",
-                "tokens_source": "official",
-                "tokens": {
-                  "total": 1463271,
-                  "output": 9431
-                },
-                "wall_time_s": 177,
-                "session": "rollout-2026-11-26T11-42-49-01a2167c-33f6-74b2-8af4-69269ae0410b.jsonl",
-                "finished_phase_status": "passed"
-              },
-              {
-                "id": "ef5c5024f4124b5385fc004d515bc76d",
-                "phase": "review",
-                "started_at": "2026-11-26T06:18:01Z",
-                "command": "codex",
-                "heartbeat_at": "2026-11-26T06:19:49Z",
-                "plan_sha256": "cd1c0ee011ce8c19ef10b5c947fc3e119e522e9289ea3defda4baa0d93434cb2",
-                "finding_ids": [
-                  "BCL-192"
-                ],
-                "worktree": "bcl124-r4-planhead",
-                "model": "gpt-6.1-terra",
-                "lane_sha256": "85f3e4fa80117f7a06d0c8c098f8f9c4590ac1393b2fd7727fa4e983cd9ca643",
-                "cycle": 16,
-                "round": 2,
-                "pid": 25910,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:19:49Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/ef5c5024f4124b5385fc004d515bc76d.log",
-                "output_retained": true,
-                "tokens_source": "official",
-                "tokens": {
-                  "total": 494449,
-                  "output": 3594
-                },
-                "wall_time_s": 108,
-                "session": "rollout-2026-11-26T11-48-01-01a21680-fba9-75f0-91d9-a534f4271f26.jsonl",
-                "finished_phase_status": "changes_requested",
-                "must_fix": "- The 16px minimum misses the “Pre-push suite” sublabel. It is rendered as `<small>` in [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:772), while [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:47) sets only `display: block` for it. The browser’s default smaller font therefore applies.\n- The original BCL-192 acceptance criteria could not be checked: `BCL_DATA` is unset. The commit message was the available description of the intended behavior."
-              },
-              {
-                "id": "72db788c0f8f4a39bd836f7bee70542b",
-                "phase": "plan_review",
-                "started_at": "2026-11-26T06:24:02Z",
-                "command": "cat",
-                "heartbeat_at": "2026-11-26T06:24:02Z",
-                "plan_sha256": "f7a8c5279083481fc7c0f98b23f12706f9f084df348bf17403c340af0d0689f4",
-                "finding_ids": [
-                  "BCL-192"
-                ],
-                "worktree": "bcl124-r4-planhead",
-                "model": "grok-bot-executor",
-                "lane_sha256": "43536aecf908a48173cf6d34f1c5805ab9bdbece9b125810a6f04c8954b1be0e",
-                "cycle": 16,
-                "round": 2,
-                "pid": 44537,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:24:02Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/72db788c0f8f4a39bd836f7bee70542b.log",
-                "output_retained": true,
-                "tokens_source": "not_reported",
-                "tokens": null,
-                "wall_time_s": 0,
-                "session": "gpt-6-luna",
-                "finished_phase_status": "passed"
-              },
-              {
-                "id": "441990b51a4e4faeb9a181752474fec3",
-                "phase": "fix",
-                "started_at": "2026-11-26T06:24:03Z",
-                "command": "codex",
-                "heartbeat_at": "2026-11-26T06:24:48Z",
-                "plan_sha256": "f7a8c5279083481fc7c0f98b23f12706f9f084df348bf17403c340af0d0689f4",
-                "finding_ids": [
-                  "BCL-192"
-                ],
-                "worktree": "bcl124-r4-planhead",
-                "model": "gpt-6-luna",
-                "lane_sha256": "43536aecf908a48173cf6d34f1c5805ab9bdbece9b125810a6f04c8954b1be0e",
-                "cycle": 16,
-                "round": 2,
-                "pid": 44673,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:24:48Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/441990b51a4e4faeb9a181752474fec3.log",
-                "output_retained": true,
-                "commit": "0bfa66abfea2fbf1bc90e65111ca022bcfbc7bd9",
-                "tokens_source": "not_reported",
-                "tokens": null,
-                "wall_time_s": 45,
-                "session": "gpt-6-luna",
-                "finished_phase_status": "passed"
-              }
-            ],
-            "fix_status": "passed",
-            "reviewer_model": "gpt-6.1-terra",
-            "must_fix_note": "1. **The navigation buttons can still render below 16px.** In [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:185), `font: 600 1rem/1.3 inherit` is invalid: `inherit` cannot be used as a font family inside that shorthand. The browser discards the declaration, leaving the buttons subject to the browser’s smaller default control font. Set a valid inherited or explicit font and verify computed sizes.\n\n2. **The head does not consistently count settled lanes.** [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:604) defines open lanes using `closed`, while the workflow definition separately classifies blocked and failed lanes as settled. Thus a blocked lane is reported as open and receives “each installs and verifies when ready,” despite the round-close copy saying blocked lanes can close the round. Use consistent state semantics and report open and settled counts for mixed states too.",
-            "tool_fault_streak": 0,
-            "review_status": "blocked"
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
-          "stage_entered_at": "2026-11-26T06:41:42Z",
           "failure_history": [
             {
               "attempt_id": "ef5c5024f4124b5385fc004d515bc76d",
@@ -2997,10 +2689,11 @@
               "at": "2026-11-26T06:24:02Z"
             }
           ],
-          "updated_at": "2026-11-26T06:41:42Z",
-          "blocked_reason": "Two review failures; awaiting Guru unblock",
           "failure_block_reason": "1. **The navigation buttons can still render below 16px.** In [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:185), `font: 600 1rem/1.3 inherit` is invalid: `inherit` cannot be used as a font family inside that shorthand. The browser discards the declaration, leaving the buttons subject to the browser’s smaller default control font. Set a valid inherited or explicit font and verify computed sizes.\n\n2. **The head does not consistently count settled lanes.** [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:604) defines open lanes using `closed`, while the workflow definition separately classifies blocked and failed lanes as settled. Thus a blocked lane is reported as open and receives “each installs and verifies when ready,” despite the round-close copy saying blocked lanes can close the round. Use consistent state semantics and report open and settled counts for mixed states too.",
-          "parked_to": 3
+          "status": "blocked",
+          "phase": "fix",
+          "stage_entered_at": "2026-11-26T06:54:51Z",
+          "updated_at": "2026-11-26T06:54:51Z"
         },
         {
           "id": "R2-LABEL",
@@ -3016,212 +2709,68 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh",
             "method": "Named render tests plus the installed bcl status on a temp copy of the live list",
             "summary": "Passed fix waiting for review is not shown paused",
-            "status": "pending",
-            "fixed": 0,
-            "failed": 0,
-            "total": 1,
-            "failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
+            "status": "pending"
           },
           "codex": {
-            "fix_base_head": "f76c792f2713a9e587be6df34c809a6bef9e7619",
-            "fix_status": "passed",
-            "job": {
-              "id": "244120d0da4a4b298d2ab05b97678596",
-              "phase": "presuite",
-              "started_at": "2026-11-26T06:37:17Z",
-              "command": "python3",
-              "heartbeat_at": "2026-11-26T06:40:39Z",
-              "plan_sha256": "f66a5b74102810f4d77504d4cec33c4edcf7c5fa0ad95674d8626fca1273a597",
-              "finding_ids": [
-                "BCL-187",
-                "BCL-193"
-              ],
-              "worktree": "samantha-next-r14",
-              "model": "grok-bot-executor",
-              "lane_sha256": "7a60c84c18376c67905432740d8dbddf63033ef8fdf0a7901462a545e808b8ed",
-              "cycle": 16,
-              "round": 2,
-              "pid": 80240,
-              "exit_code": 0,
-              "finished_at": "2026-11-26T06:40:39Z",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/244120d0da4a4b298d2ab05b97678596.log",
-              "output_retained": true,
-              "tokens_source": "not_reported",
-              "tokens": null,
-              "wall_time_s": 202,
-              "session": "grok-bot-executor",
-              "finished_phase_status": "passed"
-            },
-            "tool_fault_streak": 0,
-            "jobs": [
-              {
-                "id": "d0c113d11dc2410ba939d1a63e0c010b",
-                "phase": "fix",
-                "started_at": "2026-11-26T06:23:13Z",
-                "command": "codex",
-                "heartbeat_at": "2026-11-26T06:25:28Z",
-                "plan_sha256": "f7a8c5279083481fc7c0f98b23f12706f9f084df348bf17403c340af0d0689f4",
-                "finding_ids": [
-                  "BCL-193"
-                ],
-                "worktree": "bcl124-r4-label",
-                "model": "gpt-6-luna",
-                "lane_sha256": "a303f6d5541510589593495492adebc5738b4b1bd6b10cd25efcc7109d7c0cd7",
-                "cycle": 16,
-                "round": 2,
-                "pid": 39943,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:25:28Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/d0c113d11dc2410ba939d1a63e0c010b.log",
-                "output_retained": true,
-                "commit": "f76c792f2713a9e587be6df34c809a6bef9e7619",
-                "tokens_source": "official",
-                "tokens": {
-                  "total": 972554,
-                  "output": 6305
-                },
-                "wall_time_s": 135,
-                "session": "rollout-2026-11-26T11-53-14-01a21685-c121-7323-99a4-9b807380f5fe.jsonl",
-                "finished_phase_status": "passed"
-              },
-              {
-                "id": "c67ee2aacd6143ceb5d7bcc4446535f2",
-                "phase": "review",
-                "started_at": "2026-11-26T06:28:40Z",
-                "command": "cat",
-                "heartbeat_at": "2026-11-26T06:28:41Z",
-                "plan_sha256": "f24658ae49f8783af123673d14f8d0702a1e6fc03ec30d5662b9ecc61c053072",
-                "finding_ids": [
-                  "BCL-193"
-                ],
-                "worktree": "bcl124-r4-label",
-                "model": "grok-bot-executor",
-                "lane_sha256": "7a60c84c18376c67905432740d8dbddf63033ef8fdf0a7901462a545e808b8ed",
-                "cycle": 16,
-                "round": 2,
-                "pid": 59573,
-                "exit_code": 0,
-                "finished_at": "2026-11-26T06:28:41Z",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/c67ee2aacd6143ceb5d7bcc4446535f2.log",
-                "output_retained": true,
-                "tokens_source": "not_reported",
-                "tokens": null,
-                "wall_time_s": 1,
-                "session": "gpt-6-luna",
-                "finished_phase_status": "passed"
-              },
-              {
-                "id": "16535adbe3eb41de85fe5a0345fd6ce5",
-                "phase": "presuite",
-                "started_at": "2026-11-26T06:33:59Z",
-                "command": "python3",
-                "heartbeat_at": "2026-11-26T06:34:00Z",
-                "plan_sha256": "f24658ae49f8783af123673d14f8d0702a1e6fc03ec30d5662b9ecc61c053072",
-                "finding_ids": [
-                  "BCL-187",
-                  "BCL-193"
-                ],
-                "worktree": "samantha-next-r14",
-                "model": "grok-bot-executor",
-                "lane_sha256": "7a60c84c18376c67905432740d8dbddf63033ef8fdf0a7901462a545e808b8ed",
-                "cycle": 16,
-                "round": 2,
-                "pid": 69693,
-                "exit_code": 1,
-                "finished_at": "2026-11-26T06:34:00Z",
-                "first_error_line": "validate plugins/agent-computer-use",
-                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/16535adbe3eb41de85fe5a0345fd6ce5.log",
-                "output_retained": true,
-                "tokens_source": "not_reported",
-                "tokens": null,
-                "wall_time_s": 1,
-                "session": "gpt-6-luna",
-                "finished_phase_status": "failed"
-              }
-            ],
-            "review_status": "passed",
-            "reviewer_model": "grok-bot-executor"
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
+          "stage_entered_at": "2026-11-26T06:45:35Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:45:35Z",
-          "stage_entered_at": "2026-11-26T06:45:35Z",
-          "presuite": {
-            "status": "passed",
-            "exit_code": 0,
-            "finished_at": "2026-11-26T06:40:39Z"
-          },
-          "install": {
-            "status": "running",
-            "started_at": "2026-11-26T06:41:58Z"
-          },
-          "stage_model": {
-            "stage": "verify",
-            "model": "grok-bot-executor",
-            "at": "2026-11-26T06:45:34Z"
-          },
-          "verify_reruns": [
-            {
-              "round": 2,
-              "reason": "Broken check, not the fix: the row match included the finding title tooltip, which itself contains the word Paused; the visible lane label already read Fix passed · review next. Check now ignores title attributes.",
-              "at": "2026-11-26T06:45:34Z",
-              "previous_failure": "Checked: verification command\nExpected: command exits 0\nObserved: Verification command exited 1"
-            }
-          ]
+          "updated_at": "2026-11-26T06:54:51Z"
         },
         {
           "id": "R2-CL-CAPTURE",
           "finding_ids": [
             "CL-2"
           ],
-          "status": "parked",
-          "phase": "deferred",
           "depends_on": [],
-          "reason": "Deferred: verified_fixed needs an installed live check, and reinstalling context-ledger is off-limits this round. Unblock with Guru OK to reinstall context-ledger.",
+          "reason": "Guru approved a context-ledger reinstall (12:22 PM IST). Lookup log gains ledger version and tokens not reported on find/get/save; additive migration.",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-cl2.sh",
-            "method": "Named tests plus a fixture-ledger find, then read the access_log row",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl2.sh",
+            "method": "Named tests plus a real installed ledger find, then read its lookup row",
             "summary": "Lookup row has version and tokens not reported",
             "status": "pending"
           },
+          "worktree": "bcl124-r5-ledger",
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
           "parked_to": 3,
-          "stage_entered_at": "2026-11-26T06:10:22Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:23:07Z"
+          "status": "planned",
+          "updated_at": "2026-11-26T06:54:51Z",
+          "stage_entered_at": "2026-11-26T06:54:51Z"
         },
         {
           "id": "R2-CL-VIEW",
           "finding_ids": [
             "CL-3"
           ],
-          "status": "parked",
-          "phase": "deferred",
           "depends_on": [
             "R2-CL-CAPTURE"
           ],
-          "reason": "Deferred: depends on CL-2 lookup-log fields for last-lookup match, and needs a context-ledger reinstall to verify.",
+          "reason": "Runs after R2-CL-CAPTURE lands in the same worktree (uses its lookup-row fields); ledger page shows project and last-lookup match at 16px.",
           "verify": {
-            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-cl3.sh",
-            "method": "UI test plus bookmark read",
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh",
+            "method": "UI tests plus the installed ledger page HTML on its local viewer",
             "summary": "Project and last-lookup match visible at 16px",
             "status": "pending"
           },
+          "worktree": "bcl124-r5-ledger",
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
           "parked_to": 3,
-          "stage_entered_at": "2026-11-26T06:10:22Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:23:07Z"
+          "status": "planned",
+          "updated_at": "2026-11-26T06:54:51Z",
+          "stage_entered_at": "2026-11-26T06:54:51Z"
         }
       ],
-      "cycle": 16,
-      "status": "closed"
+      "cycle": 16
     },
     "introspect": {
       "result": "Introspect recorded",
