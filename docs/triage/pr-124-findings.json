@@ -21,8 +21,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-26T03:28:07Z",
-      "now": "2026-11-26T03:28:07Z — Fix started"
+      "updated_at": "2026-11-26T03:29:08Z",
+      "now": "2026-11-26T03:29:08Z — root_cause: live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other"
     },
     "rollover": {
       "source_pr": 123,
@@ -372,7 +372,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T03:28:11Z",
+    "last_written_at": "2026-11-26T03:29:22Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -776,40 +776,86 @@
             "BCL-184",
             "BCL-190"
           ],
-          "status": "failed",
+          "status": "review",
           "reason": "Both are merged-list lifecycle in bin/bcl merged: a list started before its PR cannot record its merge (BCL-184), and an already-merged list cannot clear leftover install.running and active verification runs (BCL-190). Same code path, one lane, no dependency on other lanes.",
           "worktree": "bcl124-r1-merged",
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
-            "fix_status": "failed",
+            "fix_base_head": "559767a280495c8447e37bd4942b8a3fe4ab3ab7",
+            "fix_status": "passed",
             "job": {
-              "id": "942e0a13873f417dac099f87ccf28ec8",
+              "id": "a3049faadf3b45799ec2e538ec379dd3",
               "phase": "fix",
-              "started_at": "2026-11-26T03:05:25Z",
-              "command": "perl",
-              "heartbeat_at": "2026-11-26T03:08:50Z",
-              "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+              "started_at": "2026-11-26T03:29:01Z",
+              "command": "lane-commit.sh",
+              "heartbeat_at": "2026-11-26T03:29:06Z",
+              "plan_sha256": "d3bbcc6d933c636376182d27635421ccdab9f074a125fa44c9fd98b614eab001",
               "finding_ids": [
                 "BCL-184",
                 "BCL-190"
               ],
               "worktree": "bcl124-r1-merged",
-              "model": "opencode/deepseek-v4.1-flash-free",
+              "model": "grok-bot-executor",
               "lane_sha256": "63a4c6d5cd1c97ec2a738fb4984dbfc6381617686a6e6110865544d325c82272",
               "cycle": 16,
               "round": 1,
-              "pid": 88446,
-              "exit_code": 1,
-              "finished_at": "2026-11-26T03:08:50Z",
-              "first_error_line": "fix job made no commit",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/942e0a13873f417dac099f87ccf28ec8.log",
+              "pid": 49590,
+              "steps": [
+                {
+                  "step": "failed_first",
+                  "at": "2026-11-26T03:29:01Z",
+                  "result": "new tests fail before fix: link-pr and repair-merged are unknown stages; bcl merged on a list without a PR link exits \"bcl merged requires tracking.pull_request.url\" with no way to add it"
+                },
+                {
+                  "step": "root_cause",
+                  "at": "2026-11-26T03:29:02Z",
+                  "result": "bin/bcl: tracking.pull_request was only ever written by rollover, so a list adopted before its PR could never record its merge; the only caller of clear_finished_running_state on merged lists is set-stage merged, which also retargets stacked PRs and stops the repo viewer, so lists merged before BCL-189 could not be repaired"
+                }
+              ],
+              "latest_step": {
+                "step": "root_cause",
+                "at": "2026-11-26T03:29:02Z",
+                "result": "bin/bcl: tracking.pull_request was only ever written by rollover, so a list adopted before its PR could never record its merge; the only caller of clear_finished_running_state on merged lists is set-stage merged, which also retargets stacked PRs and stops the repo viewer, so lists merged before BCL-189 could not be repaired"
+              },
+              "exit_code": 0,
+              "finished_at": "2026-11-26T03:29:06Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/a3049faadf3b45799ec2e538ec379dd3.log",
               "output_retained": true,
+              "commit": "559767a280495c8447e37bd4942b8a3fe4ab3ab7",
               "tokens_source": "not_reported",
               "tokens": null,
-              "wall_time_s": 205,
-              "finished_phase_status": "failed"
+              "wall_time_s": 5,
+              "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 1
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "942e0a13873f417dac099f87ccf28ec8",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:05:25Z",
+                "command": "perl",
+                "heartbeat_at": "2026-11-26T03:08:50Z",
+                "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+                "finding_ids": [
+                  "BCL-184",
+                  "BCL-190"
+                ],
+                "worktree": "bcl124-r1-merged",
+                "model": "opencode/deepseek-v4.1-flash-free",
+                "lane_sha256": "63a4c6d5cd1c97ec2a738fb4984dbfc6381617686a6e6110865544d325c82272",
+                "cycle": 16,
+                "round": 1,
+                "pid": 88446,
+                "exit_code": 1,
+                "finished_at": "2026-11-26T03:08:50Z",
+                "first_error_line": "fix job made no commit",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/942e0a13873f417dac099f87ccf28ec8.log",
+                "output_retained": true,
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 205,
+                "finished_phase_status": "failed"
+              }
+            ]
           },
           "depends_on": [],
           "verify": {
@@ -820,7 +866,7 @@
             "failed": 0,
             "total": 2
           },
-          "stage_entered_at": "2026-11-26T03:08:50Z",
+          "stage_entered_at": "2026-11-26T03:29:06Z",
           "failure_history": [
             {
               "attempt_id": "942e0a13873f417dac099f87ccf28ec8",
@@ -836,46 +882,107 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-26T03:02:49Z",
-          "phase": "fix"
+          "phase": "review",
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T03:29:01Z",
+              "result": "new tests fail before fix: link-pr and repair-merged are unknown stages; bcl merged on a list without a PR link exits \"bcl merged requires tracking.pull_request.url\" with no way to add it",
+              "job_id": "a3049faadf3b45799ec2e538ec379dd3",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T03:29:02Z",
+              "result": "bin/bcl: tracking.pull_request was only ever written by rollover, so a list adopted before its PR could never record its merge; the only caller of clear_finished_running_state on merged lists is set-stage merged, which also retargets stacked PRs and stops the repo viewer, so lists merged before BCL-189 could not be repaired",
+              "job_id": "a3049faadf3b45799ec2e538ec379dd3",
+              "phase": "fix"
+            }
+          ]
         },
         {
           "id": "R1-REGISTRY",
           "finding_ids": [
             "BCL-186"
           ],
-          "status": "failed",
+          "status": "review",
           "reason": "Registry updates can overwrite each other when two change-list commands run at once.",
           "worktree": "bcl124-r1-registry",
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
-            "fix_status": "failed",
+            "fix_base_head": "864671f5059fb8736daa3f21464d2350082f1230",
+            "fix_status": "passed",
             "job": {
-              "id": "306a3d6bde884cbb964c1053fd3dd2fc",
+              "id": "ed58cba52e6040c3a546ece19dd66bed",
               "phase": "fix",
-              "started_at": "2026-11-26T03:06:13Z",
-              "command": "perl",
-              "heartbeat_at": "2026-11-26T03:08:53Z",
-              "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+              "started_at": "2026-11-26T03:29:07Z",
+              "command": "lane-commit.sh",
+              "heartbeat_at": "2026-11-26T03:29:22Z",
+              "plan_sha256": "36eefee0b6b05a7733f092d90f85a763dcdf0e58ab97be23346c55361a65fdd7",
               "finding_ids": [
                 "BCL-186"
               ],
               "worktree": "bcl124-r1-registry",
-              "model": "opencode/deepseek-v4.1-flash-free",
+              "model": "grok-bot-executor",
               "lane_sha256": "1f134074d7de991464e26b0c55b0620a9a69e50a173e904c1c6f9407b1779f52",
               "cycle": 16,
               "round": 1,
-              "pid": 89695,
-              "exit_code": 1,
-              "finished_at": "2026-11-26T03:08:53Z",
-              "first_error_line": "fix job made no commit",
-              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/306a3d6bde884cbb964c1053fd3dd2fc.log",
+              "pid": 50014,
+              "steps": [
+                {
+                  "step": "failed_first",
+                  "at": "2026-11-26T03:29:07Z",
+                  "result": "test_two_processes_keep_both_added_keys and test_rollover_clear_keeps_a_key_added_concurrently fail before fix (no locked update path); source check finds save_registry called from locate, _save_project_port, register_rollover and bin/bcl"
+                },
+                {
+                  "step": "root_cause",
+                  "at": "2026-11-26T03:29:08Z",
+                  "result": "live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other"
+                }
+              ],
+              "latest_step": {
+                "step": "root_cause",
+                "at": "2026-11-26T03:29:08Z",
+                "result": "live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other"
+              },
+              "exit_code": 0,
+              "finished_at": "2026-11-26T03:29:22Z",
+              "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/ed58cba52e6040c3a546ece19dd66bed.log",
               "output_retained": true,
+              "commit": "864671f5059fb8736daa3f21464d2350082f1230",
               "tokens_source": "not_reported",
               "tokens": null,
-              "wall_time_s": 160,
-              "finished_phase_status": "failed"
+              "wall_time_s": 15,
+              "finished_phase_status": "passed"
             },
-            "tool_fault_streak": 1
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "306a3d6bde884cbb964c1053fd3dd2fc",
+                "phase": "fix",
+                "started_at": "2026-11-26T03:06:13Z",
+                "command": "perl",
+                "heartbeat_at": "2026-11-26T03:08:53Z",
+                "plan_sha256": "bef1d5c362b836b38bce7618e3b9fb6ee8a9fd3d24f34e55d7cbd2d02071ba47",
+                "finding_ids": [
+                  "BCL-186"
+                ],
+                "worktree": "bcl124-r1-registry",
+                "model": "opencode/deepseek-v4.1-flash-free",
+                "lane_sha256": "1f134074d7de991464e26b0c55b0620a9a69e50a173e904c1c6f9407b1779f52",
+                "cycle": 16,
+                "round": 1,
+                "pid": 89695,
+                "exit_code": 1,
+                "finished_at": "2026-11-26T03:08:53Z",
+                "first_error_line": "fix job made no commit",
+                "output_path": "/Users/gurusharan/.agents/state/batched-change-list/fd89b4df2c98d416305734cc98264b5d0c4d49b185ac7ea31f86a17da0d1693a/jobs/306a3d6bde884cbb964c1053fd3dd2fc.log",
+                "output_retained": true,
+                "tokens_source": "not_reported",
+                "tokens": null,
+                "wall_time_s": 160,
+                "finished_phase_status": "failed"
+              }
+            ]
           },
           "depends_on": [],
           "verify": {
@@ -886,7 +993,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-26T03:08:53Z",
+          "stage_entered_at": "2026-11-26T03:29:22Z",
           "failure_history": [
             {
               "attempt_id": "306a3d6bde884cbb964c1053fd3dd2fc",
@@ -902,7 +1009,23 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-26T02:56:45Z",
-          "phase": "fix"
+          "phase": "review",
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-26T03:29:07Z",
+              "result": "test_two_processes_keep_both_added_keys and test_rollover_clear_keeps_a_key_added_concurrently fail before fix (no locked update path); source check finds save_registry called from locate, _save_project_port, register_rollover and bin/bcl",
+              "job_id": "ed58cba52e6040c3a546ece19dd66bed",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-26T03:29:08Z",
+              "result": "live_state.save_registry callers each did registry() read, change, write with no lock, and save_registry used one shared registry.tmp path, so concurrent commands overwrote each other",
+              "job_id": "ed58cba52e6040c3a546ece19dd66bed",
+              "phase": "fix"
+            }
+          ]
         },
         {
           "id": "R2-DO1",
