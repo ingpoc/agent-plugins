@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-26T04:01:23Z",
-      "now": "2026-11-26T04:01:23Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-26T04:01:31Z",
+      "now": "2026-11-26T04:01:31Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 123,
@@ -372,7 +372,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T04:01:23Z",
+    "last_written_at": "2026-11-26T04:01:31Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -670,7 +670,8 @@
       "collect",
       "plan_fix",
       "review",
-      "install"
+      "install",
+      "verify"
     ],
     "plan": {
       "round": 1,
@@ -1898,7 +1899,7 @@
             "review_status": "passed",
             "reviewer_model": "grok-bot-executor"
           },
-          "status": "installing",
+          "status": "verifying",
           "worktree": "samantha-next-r14",
           "depends_on": [],
           "verify": {
@@ -1910,7 +1911,7 @@
             "total": 1
           },
           "parked_to": 2,
-          "stage_entered_at": "2026-11-26T04:01:23Z",
+          "stage_entered_at": "2026-11-26T04:01:31Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -1984,8 +1985,8 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-26T03:02:49Z",
-          "phase": "install",
+          "updated_at": "2026-11-26T04:01:31Z",
+          "phase": "verify",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -1996,9 +1997,9 @@
             "started_at": "2026-11-26T04:01:23Z"
           },
           "stage_model": {
-            "stage": "install",
+            "stage": "verify",
             "model": "grok-bot-executor",
-            "at": "2026-11-26T04:01:23Z"
+            "at": "2026-11-26T04:01:31Z"
           }
         },
         {
