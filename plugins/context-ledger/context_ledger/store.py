@@ -889,7 +889,7 @@ class Store:
                 self._log_access(
                     conn, tool="get", caller=parsed["actor"], task_id=parsed["task_id"], query=None,
                     ids=[parsed["decision_id"]], nbytes=len(canonical_json(packed).encode("utf-8")),
-                    started=started, project=self._lookup_project(rec.get("body", {}).get("scope")),
+                    started=started,
                 )
             return packed
 
@@ -1391,7 +1391,10 @@ class Store:
         conn = self.open()
         by_caller: dict[str, dict[str, Any]] = {}
         returned: dict[str, set[str]] = {}
-        for row in conn.execute("select tool, caller, task_id, n, bytes, ids from access_log"):
+        # Save rows are capture receipts, not lookups: keep them out of lookup counts and returned ids.
+        for row in conn.execute(
+            "select tool, caller, task_id, n, bytes, ids from access_log where tool in ('find', 'get')"
+        ):
             item = by_caller.setdefault(row["caller"], {"find": 0, "get": 0, "bytes": 0, "hits": 0})
             item[row["tool"]] = item.get(row["tool"], 0) + 1
             item["bytes"] += row["bytes"]

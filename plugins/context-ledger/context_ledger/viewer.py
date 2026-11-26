@@ -203,7 +203,8 @@ class LedgerView:
     # ---------- activity ----------
     def _events(self, conn: sqlite3.Connection, visible: set[str]) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
-        for r in conn.execute("select seq, ts, tool, caller, task_id, query, n, ids, ms from access_log"):
+        for r in conn.execute("select seq, ts, tool, caller, task_id, query, n, ids, ms from access_log "
+                             "where tool in ('find', 'get')"):
             raw = parse_json(r["ids"])
             ids = [i for i in raw if i in visible]
             if len(ids) != len(raw):

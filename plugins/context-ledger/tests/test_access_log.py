@@ -97,5 +97,22 @@ class AccessLogTests(unittest.TestCase):
         self.assertEqual(set(result), {"matches", "has_more"})
 
 
+    def test_get_row_records_the_caller_project_not_the_record_project(self) -> None:
+        decision_id = self.save(project="other-project")
+        self.store.get({"decision_id": decision_id}, mcp=True)
+        row = self.store.open().execute(
+            "select project from access_log where tool='get' order by seq desc limit 1"
+        ).fetchone()
+        self.assertEqual(row["project"], "example-project")
+
+    def test_save_rows_do_not_count_as_lookups(self) -> None:
+        self.save()
+        report = self.store.access_report()
+        self.assertEqual(report["by_caller"], {})
+        from context_ledger.viewer import LedgerView
+        self.store.close()
+        kinds = [e["tool"] for e in LedgerView(self.data).activity({})["items"] if e["k"] == "lookup"]
+        self.assertNotIn("save", kinds)
+
 if __name__ == "__main__":
     unittest.main()
