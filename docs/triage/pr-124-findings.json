@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-26T03:57:01Z",
-      "now": "2026-11-26T03:57:01Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-26T04:01:23Z",
+      "now": "2026-11-26T04:01:23Z — Install in progress"
     },
     "rollover": {
       "source_pr": 123,
@@ -372,7 +372,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T04:00:43Z",
+    "last_written_at": "2026-11-26T04:01:23Z",
     "fix_order": {
       "ids": [
         "PR121-r2-live-state-guard",
@@ -669,7 +669,8 @@
     "stages_reached": [
       "collect",
       "plan_fix",
-      "review"
+      "review",
+      "install"
     ],
     "plan": {
       "round": 1,
@@ -680,7 +681,7 @@
             "BCL-179",
             "BCL-181"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "Both are lane job records in the same code (bin/bcl job flow, manage_findings job transitions, check_install_sessions): failed-first/root-cause/fix-verified steps are not kept per lane, and review insists on a Codex implementer session. One lane avoids two writers on the same functions.",
           "worktree": "samantha-next-r14",
           "codex": {
@@ -1023,8 +1024,8 @@
             }
           ],
           "updated_at": "2026-11-26T02:56:45Z",
-          "stage_entered_at": "2026-11-26T03:32:29Z",
-          "phase": "review",
+          "stage_entered_at": "2026-11-26T04:01:23Z",
+          "phase": "install",
           "trail": [
             {
               "step": "failed_first",
@@ -1045,6 +1046,15 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-26T04:00:43Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-26T04:01:23Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "grok-bot-executor",
+            "at": "2026-11-26T04:01:23Z"
           }
         },
         {
@@ -1053,7 +1063,7 @@
             "BCL-184",
             "BCL-190"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "Both are merged-list lifecycle in bin/bcl merged: a list started before its PR cannot record its merge (BCL-184), and an already-merged list cannot clear leftover install.running and active verification runs (BCL-190). Same code path, one lane, no dependency on other lanes.",
           "worktree": "samantha-next-r14",
           "codex": {
@@ -1235,7 +1245,7 @@
             "failed": 0,
             "total": 2
           },
-          "stage_entered_at": "2026-11-26T03:29:06Z",
+          "stage_entered_at": "2026-11-26T04:01:23Z",
           "failure_history": [
             {
               "attempt_id": "942e0a13873f417dac099f87ccf28ec8",
@@ -1251,7 +1261,7 @@
           ],
           "plan_review_history": [],
           "updated_at": "2026-11-26T03:02:49Z",
-          "phase": "review",
+          "phase": "install",
           "trail": [
             {
               "step": "failed_first",
@@ -1272,6 +1282,15 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-26T04:00:43Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-26T04:01:23Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "grok-bot-executor",
+            "at": "2026-11-26T04:01:23Z"
           }
         },
         {
@@ -1279,7 +1298,7 @@
           "finding_ids": [
             "BCL-186"
           ],
-          "status": "review",
+          "status": "installing",
           "reason": "Registry updates can overwrite each other when two change-list commands run at once.",
           "worktree": "samantha-next-r14",
           "codex": {
@@ -1629,7 +1648,7 @@
             "failed": 0,
             "total": 1
           },
-          "stage_entered_at": "2026-11-26T03:49:57Z",
+          "stage_entered_at": "2026-11-26T04:01:23Z",
           "failure_history": [
             {
               "attempt_id": "306a3d6bde884cbb964c1053fd3dd2fc",
@@ -1663,7 +1682,7 @@
             }
           ],
           "updated_at": "2026-11-26T02:56:45Z",
-          "phase": "review",
+          "phase": "install",
           "trail": [
             {
               "step": "failed_first",
@@ -1712,6 +1731,15 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-26T04:00:43Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-26T04:01:23Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "grok-bot-executor",
+            "at": "2026-11-26T04:01:23Z"
           }
         },
         {
@@ -1870,7 +1898,7 @@
             "review_status": "passed",
             "reviewer_model": "grok-bot-executor"
           },
-          "status": "review",
+          "status": "installing",
           "worktree": "samantha-next-r14",
           "depends_on": [],
           "verify": {
@@ -1882,7 +1910,7 @@
             "total": 1
           },
           "parked_to": 2,
-          "stage_entered_at": "2026-11-26T03:15:10Z",
+          "stage_entered_at": "2026-11-26T04:01:23Z",
           "failure_history": [
             {
               "attempt_id": "3c9e094c725a400b95a22641c1cf7369",
@@ -1957,11 +1985,20 @@
             }
           ],
           "updated_at": "2026-11-26T03:02:49Z",
-          "phase": "review",
+          "phase": "install",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-26T04:00:43Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-26T04:01:23Z"
+          },
+          "stage_model": {
+            "stage": "install",
+            "model": "grok-bot-executor",
+            "at": "2026-11-26T04:01:23Z"
           }
         },
         {
@@ -2023,7 +2060,7 @@
       "observed": "22 Nov 2026 19:08 IST, round 1 introspect of PR 120",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "details": {
         "finding_key": "col-8394fc3bec1b1387",
         "evidence": "snapshots 0ea4fb35 (19:07:32 IST) and d017c9e9 (19:08:11 IST), ~/.agents/artifacts/bcl-120/devobs-after-142.json",
@@ -2036,7 +2073,14 @@
         "round": 2,
         "source": "legacy_gap"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-26T04:01:23Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-26T03:08:53Z",
         "source": "lane_failure"
@@ -2090,7 +2134,7 @@
       "observed": "2026-11-25 09:22 IST: bcl 0.1.70 scripts/events.py only supports job events start/finish/failed_start/incomplete and stage_start/stage_finish; grep for issue_failed_first, root_cause_identified, fix_verified across the plugin and developer-observability found nothing.",
       "recommendation": "Owned by the batched-change-list plugin: add trail events per lane; pass to the plugin owner.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "area": "batched-change-list",
       "details": {
@@ -2103,7 +2147,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-26T04:01:23Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-26T03:31:02Z",
         "source": "review"
@@ -2118,7 +2169,7 @@
       "observed": "2026-11-25 09:31 IST: bcl job --phase review refused all three lanes: 'review requires codex.implementer_session'. Set it to a Grok Bot executor label via update-plan-group.",
       "recommendation": "Owned by the batched-change-list plugin: rename to implementer_session and accept non-Codex implementers.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "area": "batched-change-list",
       "details": {
@@ -2132,7 +2183,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-26T04:01:23Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-26T03:31:02Z",
         "source": "review"
@@ -2147,7 +2205,7 @@
       "observed": "25 Nov 2026 (IST), Likeminded test: after PR #19 merged as 73ced46, bcl merged refused with 'bcl merged requires tracking.pull_request.url'. bcl-r1.json tracking has no pull_request key. bin/bcl 0.1.70 _merged_details raises at line 704; the only writer of tracking.pull_request in bin/bcl is rollover (line 1164), and KNOWN_STAGES has no stage to set it. tracker.md only says to provide the url where applicable.",
       "recommendation": "Let bcl merged take the pull request url (or add a stage that records label and url on a live list), and validate it against the provider before recording the merge.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "medium",
       "area": "batched-change-list",
       "details": {
@@ -2160,7 +2218,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-26T04:01:23Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-26T03:08:51Z",
         "source": "lane_failure"
@@ -2175,7 +2240,7 @@
       "observed": "25 Nov 2026 (IST), BCL-185 review (OpenCode deepseek-v4.1-flash-free, R2-PORT): live_state.save_registry and its callers (locate adopt, register_rollover, the rollover_pending clear in bin/bcl, and the new first-start port save) do read-modify-write of registry.json without tracker_lock; only the per-tracker file is locked.",
       "recommendation": "Hold an exclusive lock on the registry across read, change and write (tracker_lock), and re-read inside the lock.",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "priority": "low",
       "area": "batched-change-list",
       "details": {
@@ -2188,7 +2253,14 @@
         "round": 2,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-26T04:01:23Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-26T03:44:26Z",
         "source": "review"
@@ -2232,7 +2304,7 @@
       "observed": "26 Nov 2026 08:30 IST Asia/Calcutta. PR #121 (merged 24 Nov 2026 20:50 IST, commit a16fb535f1d6, stage merged) still has 5 leftover tracking.plan.groups[].install.status=running on lanes R2-STATUS, R2-TRACKER, R2-DOVIEW, R2-DO4 and R3-CLI, plus verification_run r3-2d1e049c-121 status=active. PR #122 (merged 25 Nov 2026 00:27 IST, commit 94a08a8b464c, stage merged) still has 12 leftover install.running marks and verification_run pr122-r5-acb790bb status=active. 121.json last write matches the merge time, so the original merge did not clear them. BCL-189 later added clear_finished_running_state on verify and merge; PR #123 is clean after its merge, but 121 and 122 were already merged and stay dirty. Re-running bcl merged would call that cleanup, but also retarget stacked pull requests and stop the per-repo viewer (currently #124 on port 58771). bcl stop-verify does not clear install.running, and any other bcl command on #121 or #122 would start the repo viewer on that old list and take over port 58771. install, job finish and job cancel are refused because merged is terminal. No tracker JSON was hand-edited.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "plugin": "batched-change-list",
       "area": "merge-reconcile",
       "details": {
@@ -2247,7 +2319,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-26T04:01:23Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-26T03:08:51Z",
         "source": "lane_failure"
