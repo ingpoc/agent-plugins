@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-26T07:58:57Z",
-      "now": "2026-11-26T07:58:57Z — Verify in progress"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-26T08:02:52Z",
+      "now": "2026-11-26T08:02:52Z — Fix started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-26T07:58:57Z",
+    "last_written_at": "2026-11-26T08:02:52Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2572,7 +2572,7 @@
           "finding_ids": [
             "BCL-191"
           ],
-          "status": "parked",
+          "status": "running",
           "phase": "fix",
           "depends_on": [],
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
@@ -2581,14 +2581,32 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh",
             "method": "Named unit tests plus 6 concurrent installed bcl status runs under CPU load against the live viewer 58771",
             "summary": "Six concurrent starts pass; viewer pid unchanged",
-            "status": "pending"
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
-          "blocked_reason": "Two review failures; awaiting Guru unblock",
-          "parked_to": 3,
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
+            "fix_status": "running",
+            "job": {
+              "id": "f1d83c39430a4625b831cac6a2851f3f",
+              "phase": "fix",
+              "started_at": "2026-11-26T08:02:52Z",
+              "command": "codex",
+              "heartbeat_at": "2026-11-26T08:02:52Z",
+              "plan_sha256": "69b51096ee0fc90b3fb61b4415bae0e738da5daac910edc8da1addf42359ac95",
+              "finding_ids": [
+                "BCL-191"
+              ],
+              "worktree": "bcl124-r4-race",
+              "model": "gpt-6-luna",
+              "lane_sha256": "8a9d5eb5375f931aa195a25beb4090edbae3f534fc5716f6bfb281b54d983cd5",
+              "cycle": 16,
+              "round": 3
+            }
           },
-          "stage_entered_at": "2026-11-26T06:55:01Z",
+          "stage_entered_at": "2026-11-26T08:02:52Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -2619,15 +2637,29 @@
               "at": "2026-11-26T06:23:52Z"
             }
           ],
-          "failure_block_reason": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers.",
-          "updated_at": "2026-11-26T06:57:57Z"
+          "updated_at": "2026-11-26T06:57:57Z",
+          "unblock_history": [
+            {
+              "at": "2026-11-26T07:59:27Z",
+              "reason": "Guru approved one more fix round for BCL-191 (Round 5, 12:22 IST)",
+              "tool_faults": [],
+              "covered_attempts": [
+                "1fba226f7fc8422780f9ecbc20974093",
+                "f8c72e115fa741d7999d979626ef0dbe"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 16,
+              "round": 3,
+              "owner_override": true
+            }
+          ]
         },
         {
           "id": "R2-PLANHEAD",
           "finding_ids": [
             "BCL-192"
           ],
-          "status": "parked",
+          "status": "planned",
           "phase": "fix",
           "depends_on": [],
           "reason": "Visibility and status wording in render.py plan head and the change-list.html template; no file shared with R2-VIEWER.",
@@ -2636,14 +2668,15 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh",
             "method": "Named unit tests plus live run of the installed bcl 0.1.77 against the live viewer 58771",
             "summary": "Plan head shows open lanes; no text under 16px",
-            "status": "pending"
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
           },
-          "blocked_reason": "Two review failures; awaiting Guru unblock",
-          "parked_to": 3,
           "codex": {
             "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4"
           },
-          "stage_entered_at": "2026-11-26T06:55:01Z",
+          "stage_entered_at": "2026-11-26T07:59:28Z",
           "failure_history": [
             {
               "attempt_id": "ef5c5024f4124b5385fc004d515bc76d",
@@ -2674,15 +2707,29 @@
               "at": "2026-11-26T06:24:02Z"
             }
           ],
-          "failure_block_reason": "1. **The navigation buttons can still render below 16px.** In [change-list.html](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/templates/change-list.html:185), `font: 600 1rem/1.3 inherit` is invalid: `inherit` cannot be used as a font family inside that shorthand. The browser discards the declaration, leaving the buttons subject to the browser’s smaller default control font. Set a valid inherited or explicit font and verify computed sizes.\n\n2. **The head does not consistently count settled lanes.** [render.py](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-planhead/plugins/batched-change-list/skills/batched-change-list/scripts/render.py:604) defines open lanes using `closed`, while the workflow definition separately classifies blocked and failed lanes as settled. Thus a blocked lane is reported as open and receives “each installs and verifies when ready,” despite the round-close copy saying blocked lanes can close the round. Use consistent state semantics and report open and settled counts for mixed states too.",
-          "updated_at": "2026-11-26T06:57:57Z"
+          "updated_at": "2026-11-26T06:57:57Z",
+          "unblock_history": [
+            {
+              "at": "2026-11-26T07:59:28Z",
+              "reason": "Guru approved one more fix round for BCL-192 (Round 5, 12:22 IST)",
+              "tool_faults": [],
+              "covered_attempts": [
+                "ef5c5024f4124b5385fc004d515bc76d",
+                "ad29b96165a140d9a19703aaa870c146"
+              ],
+              "rows_seen": 2,
+              "by_cycle": 16,
+              "round": 3,
+              "owner_override": true
+            }
+          ]
         },
         {
           "id": "R2-LABEL",
           "finding_ids": [
             "BCL-193"
           ],
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "depends_on": [],
           "worktree": "samantha-next-r14",
@@ -2691,10 +2738,11 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh",
             "method": "Named render tests plus the installed bcl status on a temp copy of the live list",
             "summary": "Passed fix waiting for review is not shown paused",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-26T07:58:58Z"
           },
           "codex": {
             "fix_base_head": "817c1e924d02411c2b34c5b29942a795006fc8b9",
@@ -2819,7 +2867,7 @@
             "reviewer_model": "gpt-6-luna",
             "must_fix_note": "Review incomplete: strict verdict or Must-fix section missing"
           },
-          "stage_entered_at": "2026-11-26T07:58:57Z",
+          "stage_entered_at": "2026-11-26T07:58:58Z",
           "failure_history": [
             {
               "attempt_id": "967a71e6946a4b14a76d83dc1af50034",
@@ -2841,26 +2889,36 @@
             "finished_at": "2026-11-26T07:56:35Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-26T07:57:20Z"
-          }
+            "status": "complete",
+            "started_at": "2026-11-26T07:57:20Z",
+            "finished_at": "2026-11-26T07:58:58Z"
+          },
+          "trail": [
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T07:58:58Z",
+              "source": "verify",
+              "result": "verify: verify-r4-label.sh passed"
+            }
+          ]
         },
         {
           "id": "R2-CL-CAPTURE",
           "finding_ids": [
             "CL-2"
           ],
-          "status": "installing",
+          "status": "verified",
           "depends_on": [],
           "reason": "Guru approved a context-ledger reinstall (12:22 PM IST). Lookup log gains ledger version and tokens not reported on find/get/save; additive migration.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl2.sh",
             "method": "Named tests plus a real installed ledger find, then read its lookup row",
             "summary": "Lookup row has version and tokens not reported",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-26T07:58:59Z"
           },
           "worktree": "samantha-next-r14",
           "codex": {
@@ -3042,11 +3100,11 @@
             "reviewer_model": "gpt-6-luna"
           },
           "parked_to": 3,
-          "stage_entered_at": "2026-11-26T07:57:20Z",
+          "stage_entered_at": "2026-11-26T07:58:59Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T06:57:57Z",
-          "phase": "install",
+          "updated_at": "2026-11-26T07:58:59Z",
+          "phase": "verify",
           "trail": [
             {
               "step": "failed_first",
@@ -3075,6 +3133,12 @@
               "result": "store.py get passed the record scope as project; access_report and viewer._events read every access_log row, so new save rows inflate lookups",
               "job_id": "5b94de87dd0240a69a72388186506ab1",
               "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T07:58:59Z",
+              "source": "verify",
+              "result": "verify: verify-r5-cl2.sh passed"
             }
           ],
           "presuite": {
@@ -3083,8 +3147,9 @@
             "finished_at": "2026-11-26T07:56:35Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-26T07:57:20Z"
+            "status": "complete",
+            "started_at": "2026-11-26T07:57:20Z",
+            "finished_at": "2026-11-26T07:58:59Z"
           }
         },
         {
@@ -3302,8 +3367,8 @@
           "finding_ids": [
             "BCL-194"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "depends_on": [],
           "worktree": "samantha-next-r14",
           "reason": "Owner unblock must reopen a lane parked after blocking; needed before BCL-191 and BCL-192 can retry.",
@@ -3311,10 +3376,11 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-unpark.sh",
             "method": "Named tests plus installed bcl unblock on a throwaway copy of the live list",
             "summary": "Parked blocked lane reopens with owner unblock",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-26T07:59:04Z"
           },
           "codex": {
             "fix_base_head": "924353e0a13da05d9b79c44d7b9dd9275b094333",
@@ -3597,8 +3663,8 @@
               "at": "2026-11-26T07:35:28Z"
             }
           ],
-          "updated_at": "2026-11-26T06:57:57Z",
-          "stage_entered_at": "2026-11-26T07:57:20Z",
+          "updated_at": "2026-11-26T07:59:00Z",
+          "stage_entered_at": "2026-11-26T07:59:04Z",
           "trail": [
             {
               "step": "failed_first",
@@ -3613,6 +3679,12 @@
               "result": "test_bcl.py reopen test covered unblock and plan only; product path was right, the proof was incomplete",
               "job_id": "80e64252efbb47368e48cc8721b15ff8",
               "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-26T07:59:04Z",
+              "source": "verify",
+              "result": "verify: verify-r5-unpark.sh passed"
             }
           ],
           "presuite": {
@@ -3621,8 +3693,9 @@
             "finished_at": "2026-11-26T07:56:35Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-26T07:57:20Z"
+            "status": "complete",
+            "started_at": "2026-11-26T07:57:20Z",
+            "finished_at": "2026-11-26T07:59:04Z"
           }
         }
       ],
@@ -4140,7 +4213,7 @@
       "observed": "26 Nov 2026 08:35 IST: run-fix.sh started bcl job for R1-JOBREC, R1-MERGED and R1-REGISTRY 3 s apart on #124. R1-REGISTRY exited 1 before recording a job: live_state.ensure_viewer line 379 RuntimeError cannot verify viewer ownership on port 58771. The viewer (pid 66760) was listening and returned HTTP 200 right after; a retry 1 minute later started fine. Log ~/.agents/artifacts/bcl-124/fix-registry-attempt1.log.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "in_progress",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -4158,6 +4231,12 @@
           "at": "2026-11-26T06:31:13Z",
           "from": "untested",
           "to": "blocked",
+          "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T07:59:27Z",
+          "from": "blocked",
+          "to": "in_progress",
           "source": "tracker_update"
         }
       ],
@@ -4177,7 +4256,7 @@
       "observed": "26 Nov 2026 11:33 IST: curl http://127.0.0.1:58771/ showed Round 1 · 0 lanes · each installs and verifies when ready, then 4 verified. render.py:686 uses len(active_groups); templates/change-list.html has 7x font-size:11px, 6x 11.5px, 6x .75rem.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "blocked",
+      "status": "in_progress",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -4197,6 +4276,12 @@
           "from": "untested",
           "to": "blocked",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T07:59:28Z",
+          "from": "blocked",
+          "to": "in_progress",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
@@ -4215,7 +4300,7 @@
       "observed": "26 Nov 2026 11:45 IST: store.py access_log schema (line 132) and _log_access (line 1279) have no version or tokens; scoreboard Ledger Automatic capture evidence: no change since baseline.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "area": "context-ledger",
       "details": {
         "kind": "missing default",
@@ -4234,8 +4319,18 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T07:58:59Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
-      ]
+      ],
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl2.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl2.sh"
     },
     {
       "id": "CL-3",
@@ -4276,7 +4371,7 @@
       "observed": "26 Nov 2026 11:48 IST: bcl status on #124 showed R1-VIEWER, R2-RACE and R2-PLANHEAD as Paused · needs resume right after their fix jobs exited 0 (fix_status passed, phase review, no pause recorded). Code: render.py lane display step 4 falls back to Paused for any job-driven lane without a running job unless review passed.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -4295,12 +4390,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T07:58:58Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-26T07:51:01Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-label.sh"
     },
     {
       "id": "BCL-194",
@@ -4312,7 +4417,7 @@
       "observed": "26 Nov 2026 12:26 IST on #124: bcl unblock --ids BCL-191 says unblock requires blocked lane R2-RACE; update-plan-group to planned says cannot move from parked to blocked; a batch with unblock says cannot move from parked to running. The skill says a parked blocked lane stays blocked until bcl unblock.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -4331,12 +4436,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-26T07:59:04Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-26T07:34:21Z",
         "source": "review"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-unpark.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-unpark.sh"
     },
     {
       "id": "BCL-195",
