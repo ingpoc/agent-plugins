@@ -21,8 +21,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-27T05:51:34Z",
-      "now": "2026-11-27T05:51:34Z — Fix started"
+      "updated_at": "2026-11-27T05:52:36Z",
+      "now": "2026-11-27T05:52:36Z — root_cause: Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts."
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-27T05:51:34Z",
+    "last_written_at": "2026-11-27T05:54:55Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -951,7 +951,10 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-jobrec.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "verified"
+            "status": "verified",
+            "fixed": 2,
+            "failed": 0,
+            "total": 2
           },
           "worktree": "samantha-next-r14",
           "depends_on": [],
@@ -1337,7 +1340,10 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-merged.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "verified"
+            "status": "verified",
+            "fixed": 2,
+            "failed": 0,
+            "total": 2
           },
           "worktree": "samantha-next-r14",
           "depends_on": [],
@@ -1584,7 +1590,10 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-registry.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "verified"
+            "status": "verified",
+            "fixed": 1,
+            "failed": 0,
+            "total": 1
           },
           "worktree": "samantha-next-r14",
           "depends_on": [],
@@ -2037,7 +2046,10 @@
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/verify-do1.sh",
             "method": "Named unit tests plus live run of the installed bcl/devobs from the PR head",
-            "status": "verified"
+            "status": "verified",
+            "fixed": 1,
+            "failed": 0,
+            "total": 1
           },
           "worktree": "samantha-next-r14",
           "depends_on": [],
@@ -2325,7 +2337,10 @@
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-viewer.sh",
             "method": "Named unit tests plus the installed live_state judging a reused-pid stale viewer file in a temp state folder",
             "summary": "Reused-pid stale viewer file is not counted live",
-            "status": "verified"
+            "status": "verified",
+            "fixed": 1,
+            "failed": 0,
+            "total": 1
           },
           "worktree": "samantha-next-r14",
           "depends_on": [],
@@ -4016,8 +4031,8 @@
           "finding_ids": [
             "BCL-197"
           ],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "depends_on": [],
           "worktree": "bcl124-r5-plancap",
           "reason": "Recurring: plan review CHANGES looped 7 times on Likeminded PROC-10 and reopened on #124 via an unrelated finding; cap it at 2 in a row.",
@@ -4031,14 +4046,14 @@
             "total": 1
           },
           "codex": {
-            "fix_base_head": "1c9bb445dd390e722f7655146189291d3da12b4c",
-            "fix_status": "running",
+            "fix_base_head": "641b16a34b1dfd9f1998862fd7a27a6a197e5938",
+            "fix_status": "passed",
             "job": {
               "id": "adbaa4cce4aa48f28b40bf0b9d52d537",
               "phase": "fix",
               "started_at": "2026-11-27T05:51:34Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-27T05:51:34Z",
+              "heartbeat_at": "2026-11-27T05:54:25Z",
               "plan_sha256": "63feb86cd4f308e60486a4d15c78efbd797af5b205c8d070813018cf8d9bbc4b",
               "finding_ids": [
                 "BCL-197"
@@ -4047,7 +4062,36 @@
               "model": "session-worker",
               "lane_sha256": "128a24fd2007c8d796430b302d1360052f02e63dcd9499a1c67534ee8c56da34",
               "cycle": 16,
-              "round": 3
+              "round": 3,
+              "pid": 44037,
+              "steps": [
+                {
+                  "step": "failed_first",
+                  "at": "2026-11-27T05:52:30Z",
+                  "result": "test_owner_unblock_resets_plan_review_cap fails on real unblock: unblock requires blocked lane A."
+                },
+                {
+                  "step": "root_cause",
+                  "at": "2026-11-27T05:52:36Z",
+                  "result": "Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts."
+                }
+              ],
+              "latest_step": {
+                "step": "root_cause",
+                "at": "2026-11-27T05:52:36Z",
+                "result": "Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts."
+              },
+              "exit_code": 0,
+              "finished_at": "2026-11-27T05:54:25Z",
+              "commit": "641b16a34b1dfd9f1998862fd7a27a6a197e5938",
+              "tokens_source": "official",
+              "tokens": {
+                "total": 7089276,
+                "output": 15555
+              },
+              "wall_time_s": 171,
+              "session": "rollout-2026-11-27T11-12-44-01a21b87-0943-7803-9ed0-7d4490daca3a.jsonl",
+              "finished_phase_status": "passed"
             },
             "jobs": [
               {
@@ -4309,7 +4353,8 @@
               }
             ],
             "reviewer_model": "independent-session-review",
-            "must_fix_note": "- Make an owner unblock reset a lane capped after two plan-review CHANGES. The cap refuses review without blocking the lane, while unblock accepts only blocked lanes or lanes parked after two counted failures. Plan-review CHANGES are uncounted, and unblock only records owner_override for two counted failures."
+            "must_fix_note": "- Make an owner unblock reset a lane capped after two plan-review CHANGES. The cap refuses review without blocking the lane, while unblock accepts only blocked lanes or lanes parked after two counted failures. Plan-review CHANGES are uncounted, and unblock only records owner_override for two counted failures.",
+            "tool_fault_streak": 0
           },
           "failure_history": [
             {
@@ -4375,7 +4420,7 @@
             }
           ],
           "updated_at": "2026-11-26T08:45:56Z",
-          "stage_entered_at": "2026-11-27T05:51:28Z",
+          "stage_entered_at": "2026-11-27T05:54:25Z",
           "trail": [
             {
               "step": "failed_first",
@@ -4389,6 +4434,20 @@
               "at": "2026-11-27T05:49:42Z",
               "result": "A finding filed after the second changes verdict reopened plan review across lanes; the prior test did not explicitly represent the other lane.",
               "job_id": "81c05e90897a4a3492b07aabbf405d18",
+              "phase": "fix"
+            },
+            {
+              "step": "failed_first",
+              "at": "2026-11-27T05:52:30Z",
+              "result": "test_owner_unblock_resets_plan_review_cap fails on real unblock: unblock requires blocked lane A.",
+              "job_id": "adbaa4cce4aa48f28b40bf0b9d52d537",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-27T05:52:36Z",
+              "result": "Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts.",
+              "job_id": "adbaa4cce4aa48f28b40bf0b9d52d537",
               "phase": "fix"
             }
           ],
@@ -5268,6 +5327,31 @@
         "source": "review"
       },
       "needs": "- Make an owner unblock reset a lane capped after two plan-review CHANGES. The cap refuses review without blocking the lane, while unblock accepts only blocked lanes or lanes parked after two counted failures. Plan-review CHANGES are uncounted, and unblock only records owner_override for two counted failures."
+    },
+    {
+      "id": "BCL-198",
+      "title": "A job can show another job's model as its session",
+      "summary": "When a job has no captured session, its record can name an earlier implementer as though that were its own session.",
+      "impact": "An agent inspecting the job cannot reliably tell which session produced its work, and usage attribution may be harder to audit.",
+      "done_when": "A job without a captured session leaves its session missing or explicitly not reported, while review still accepts a separately recorded implementer identity. A regression test covers consecutive jobs with different models.",
+      "observed": "On PR #124, fix job 81c05e90897a4a3492b07aabbf405d18 had model session-worker and no reported tokens but session gpt-6-luna; subsequent review f222ea865fb74f3eb5965965bbe7e2d6 had model independent-session-review and session session-worker. Source bcl 0.1.78 falls back to implementer_identity when no current usage path exists. Downstream token misattribution has not been reproduced.",
+      "recommendation": "Keep implementer identity separate from the current job's session; do not populate session from a prior job.",
+      "priority": "medium",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "batched-change-list",
+      "details": {
+        "kind": "bug",
+        "regression_against_main": "unknown"
+      },
+      "created_at": "2026-11-27T05:54:55Z",
+      "first_seen": {
+        "at": "2026-11-27T05:54:55Z",
+        "pr": null,
+        "round": 3,
+        "source": "created_at"
+      },
+      "state_changes": []
     }
   ]
 }
