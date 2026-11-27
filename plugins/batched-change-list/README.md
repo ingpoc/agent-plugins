@@ -26,6 +26,12 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 **License.** MIT (repository root [`LICENSE`](../../LICENSE)).
 
+## 0.1.79
+
+- Concurrent jobs can reuse a healthy viewer without failing its ownership check (BCL-191).
+- The viewer shows open and settled lane counts and keeps navigation text readable (BCL-192).
+- A lane stops after two consecutive plan reviews request changes; an owner can unblock it to retry (BCL-197).
+
 ## Benchmarks
 
 This plugin has no 0–10 `run_benchmarks.py` suite yet. Scores stay **unmeasured** until a grader writes them. Live proof is the test files below — pass/fail, not a 0–10 fill. Do not invent scores.

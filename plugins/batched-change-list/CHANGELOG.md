@@ -1,3 +1,9 @@
+## 0.1.79
+
+- Concurrent jobs can reuse a healthy viewer without failing its ownership check (BCL-191).
+- The viewer shows open and settled lane counts and keeps navigation text readable (BCL-192).
+- A lane stops after two consecutive plan reviews request changes; an owner can unblock it to retry (BCL-197).
+
 ## 0.1.78
 
 - `bcl unblock --reason` now reopens a lane that was parked after blocking on two counted failures: it records the owner override, clears the park fields and returns the lane to planned, so its next plan review and fix can start. A plainly parked lane is still refused (BCL-194).

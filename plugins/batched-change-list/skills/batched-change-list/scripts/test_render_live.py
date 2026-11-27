@@ -76,6 +76,8 @@ class RenderedViewerTests(unittest.TestCase):
                     server.shutdown()
                     server.server_close()
                     thread.join(timeout=5)
+                    self.assertFalse(thread.is_alive(), "assert_no_leak: fixture server thread still running")
+                    self.assertEqual(server.socket.fileno(), -1, "assert_no_leak: fixture socket still open")
 
 
 if __name__ == "__main__":
