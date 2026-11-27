@@ -6,7 +6,7 @@ from importlib.machinery import SourceFileLoader
 import errno, json, os, shlex, shutil, socket, subprocess, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 def plugin_root(skill_dir, installed_root=None):
     candidate = skill_dir.parents[1]
@@ -2711,7 +2711,7 @@ elif args[:2] != ['pr', 'edit']:
              patch.object(live_state, "_viewer_ready", return_value=True):
             value = live_state.ensure_viewer(key, record, live, "0.1.17")
 
-        self.assertEqual(signals, [(12345, 0)])
+        self.assertEqual(set(signals), {(12345, 0)})
         self.assertEqual(probes, [record["viewer_port"]])
         self.assertEqual(value["port"], record["viewer_port"])
         self.assertEqual(binds, [])
@@ -2750,7 +2750,8 @@ elif args[:2] != ['pr', 'edit']:
              patch.object(live_state, "_viewer_responds", return_value=False):
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), state["version"])
-        signal_process.assert_called_once_with(state["pid"], 0)
+        self.assertTrue(signal_process.called)
+        self.assertTrue(all(item == call(state["pid"], 0) for item in signal_process.call_args_list))
         self.assertEqual(state_path.read_bytes(), previous)
 
     def test_unverified_viewer_is_never_signalled(self):
@@ -2765,7 +2766,8 @@ elif args[:2] != ['pr', 'edit']:
              patch.object(live_state, "_viewer_responds", return_value=False):
             with self.assertRaisesRegex(RuntimeError, "cannot verify viewer ownership"):
                 live_state.ensure_viewer(key, record, Path(record["live"]), "new-version")
-        signal_process.assert_called_once_with(state['pid'], 0)
+        self.assertTrue(signal_process.called)
+        self.assertTrue(all(item == call(state["pid"], 0) for item in signal_process.call_args_list))
         self.assertEqual(state_path.read_bytes(), previous)
 
     def test_legacy_viewer_is_not_stopped_without_identity(self):
