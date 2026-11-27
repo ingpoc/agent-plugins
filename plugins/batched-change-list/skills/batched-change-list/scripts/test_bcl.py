@@ -114,6 +114,12 @@ class BclTests(unittest.TestCase):
             {"job_id": "review-2", "status": "changes_requested", "after_failure": "b", "at": "2026-11-24T00:00:00Z"},
         ]
         live = self._prepare_plan_review_history(history)
+        document = json.loads(live.read_text())
+        document["tracking"]["plan"]["groups"].append({
+            "id": "B", "finding_ids": ["ISSUE-UNRELATED"], "status": "pending", "phase": "pending"
+        })
+        live.write_text(json.dumps(document))
+        self.data.write_text(json.dumps(document))
         result = self._start_plan_review(live)
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("lane A: 2 plan reviews in a row asked for changes; park the lane, or an owner unblock resets the count", result.stderr)
