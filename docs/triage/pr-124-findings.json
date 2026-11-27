@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-27T05:57:24Z",
-      "now": "2026-11-27T05:57:24Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-27T06:01:45Z",
+      "now": "2026-11-27T06:01:45Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-27T05:57:25Z",
+    "last_written_at": "2026-11-27T06:01:45Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2746,7 +2746,7 @@
               "phase": "fix",
               "started_at": "2026-11-27T05:57:24Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-27T05:57:24Z",
+              "heartbeat_at": "2026-11-27T06:01:26Z",
               "plan_sha256": "c85596cff71fb83d9c6dcd6adc5d97e4c0ae4d53d81699017c560ae3067d57d6",
               "finding_ids": [
                 "BCL-192"
@@ -2755,7 +2755,25 @@
               "model": "session-worker",
               "lane_sha256": "60dc0e780c6259a6976a1371b3af5cfd6935e5fb33fed697e5bddd5537a87b7c",
               "cycle": 16,
-              "round": 3
+              "round": 3,
+              "pid": 69284,
+              "steps": [
+                {
+                  "step": "failed_first",
+                  "at": "2026-11-27T06:00:43Z",
+                  "result": "Candidate tests for font shorthand and mixed-state counts fail in isolated 0bfa66ab pre-fix bundle."
+                },
+                {
+                  "step": "root_cause",
+                  "at": "2026-11-27T06:00:48Z",
+                  "result": "Invalid font shorthand left controls at browser defaults; plan counts treated settled workflow states as open."
+                }
+              ],
+              "latest_step": {
+                "step": "root_cause",
+                "at": "2026-11-27T06:00:48Z",
+                "result": "Invalid font shorthand left controls at browser defaults; plan counts treated settled workflow states as open."
+              }
             },
             "jobs": [
               {
@@ -2998,7 +3016,23 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-26T08:45:56Z"
+          "updated_at": "2026-11-26T08:45:56Z",
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-27T06:00:43Z",
+              "result": "Candidate tests for font shorthand and mixed-state counts fail in isolated 0bfa66ab pre-fix bundle.",
+              "job_id": "cc70c21170044399bb6f018047c2f15c",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-27T06:00:48Z",
+              "result": "Invalid font shorthand left controls at browser defaults; plan counts treated settled workflow states as open.",
+              "job_id": "cc70c21170044399bb6f018047c2f15c",
+              "phase": "fix"
+            }
+          ]
         },
         {
           "id": "R2-LABEL",
@@ -3434,7 +3468,7 @@
             "CL-3"
           ],
           "status": "review",
-          "phase": "plan_review",
+          "phase": "review",
           "reason": "Ships in the same worktree and install as R2-CL-CAPTURE, on top of its commits; the page tolerates a log without the project column. Verified after CL-2.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh",
@@ -3445,30 +3479,26 @@
             "failed": 0,
             "total": 1
           },
-          "worktree": "gurusharan",
+          "worktree": "bcl124-r5-ledger",
           "depends_on": [],
           "parked_to": 4,
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
+            "fix_base_head": "2431f553cc3767defcc4125fd4e4a8e673961210",
             "job": {
-              "id": "55a892b90f9e459ab176e1c0533abe79",
-              "phase": "plan_review",
-              "started_at": "2026-11-26T09:19:34Z",
-              "command": "cat",
-              "heartbeat_at": "2026-11-26T09:20:39Z",
-              "plan_sha256": "7df3e8b831ea6a94999e6cee9e2e9775e73736f36b33b4323121da2351b4fbd4",
+              "id": "6e604a1a91214da89267bba1f26d04e1",
+              "phase": "review",
+              "started_at": "2026-11-27T06:01:45Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-27T06:01:45Z",
+              "plan_sha256": "c535f89406f510cbb5b08348058d066821b47fa35c3458dd103fbed8997eb408",
               "finding_ids": [
                 "CL-3"
               ],
-              "worktree": "gurusharan",
-              "model": "grok-bot-executor",
-              "lane_sha256": "93dea22a5b51e6a56c42ba4ae615d42eab0432a7a2faf8a1f61d658c14fbee8f",
+              "worktree": "bcl124-r5-ledger",
+              "model": "independent-session-review",
+              "lane_sha256": "81abd3e3c4161767fa7a464efa3cbc8d9fff31d0cae4654a76d4aafa302f748f",
               "cycle": 16,
-              "round": 3,
-              "pid": 21216,
-              "exit_code": 0,
-              "finished_at": "2026-11-26T09:20:39Z",
-              "finished_phase_status": "passed"
+              "round": 3
             },
             "jobs": [
               {
@@ -3631,14 +3661,78 @@
                 "session": "rollout-2026-11-26T14-47-42-01a21725-7ad4-7d61-b7d5-66a87c7d32dd.jsonl",
                 "finished_phase_status": "incomplete",
                 "must_fix": "Reviewer exited 1"
+              },
+              {
+                "id": "55a892b90f9e459ab176e1c0533abe79",
+                "phase": "plan_review",
+                "started_at": "2026-11-26T09:19:34Z",
+                "command": "cat",
+                "heartbeat_at": "2026-11-26T09:20:39Z",
+                "plan_sha256": "7df3e8b831ea6a94999e6cee9e2e9775e73736f36b33b4323121da2351b4fbd4",
+                "finding_ids": [
+                  "CL-3"
+                ],
+                "worktree": "gurusharan",
+                "model": "grok-bot-executor",
+                "lane_sha256": "93dea22a5b51e6a56c42ba4ae615d42eab0432a7a2faf8a1f61d658c14fbee8f",
+                "cycle": 16,
+                "round": 3,
+                "pid": 21216,
+                "exit_code": 0,
+                "finished_at": "2026-11-26T09:20:39Z",
+                "finished_phase_status": "passed"
+              },
+              {
+                "id": "5256cff74816423e8b4e63e161b93d7a",
+                "phase": "fix",
+                "started_at": "2026-11-27T05:57:35Z",
+                "command": "sh",
+                "heartbeat_at": "2026-11-27T06:01:36Z",
+                "plan_sha256": "c85596cff71fb83d9c6dcd6adc5d97e4c0ae4d53d81699017c560ae3067d57d6",
+                "finding_ids": [
+                  "CL-3"
+                ],
+                "worktree": "bcl124-r5-ledger",
+                "model": "session-worker",
+                "lane_sha256": "93dea22a5b51e6a56c42ba4ae615d42eab0432a7a2faf8a1f61d658c14fbee8f",
+                "cycle": 16,
+                "round": 3,
+                "pid": 69747,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-27T06:01:18Z",
+                    "result": "Rendered browser test fails on pre-change bundle because project elements are absent; candidate passes."
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-27T06:01:25Z",
+                    "result": "Earlier acceptance checked markup and data without exercising browser rendering and text-size interactions."
+                  }
+                ],
+                "latest_step": {
+                  "step": "root_cause",
+                  "at": "2026-11-27T06:01:25Z",
+                  "result": "Earlier acceptance checked markup and data without exercising browser rendering and text-size interactions."
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-27T06:01:36Z",
+                "commit": "2431f553cc3767defcc4125fd4e4a8e673961210",
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 14156854,
+                  "output": 24520
+                },
+                "wall_time_s": 241,
+                "session": "rollout-2026-11-27T11-12-44-01a21b87-0943-7803-9ed0-7d4490daca3a.jsonl",
+                "finished_phase_status": "passed"
               }
             ],
             "fix_status": "passed",
-            "review_status": "changes_requested",
-            "plan_review_status": "passed",
-            "reviewer_model": "gpt-6-luna",
+            "reviewer_model": "independent-session-review",
             "must_fix_note": "- The acceptance requires a UI test, but the added tests in `tests/test_viewer.py` check backend card data and search source files for CSS tokens and markup strings. They do not render the page or verify that each decision visibly shows its project and lookup match, or that the size controls work. Add a test that exercises the rendered UI behavior.",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "running"
           },
           "trail": [
             {
@@ -3654,9 +3748,23 @@
               "result": "viewer.py _card never reads the lookup project, and style.css sizes text with px tokens under 16px with no size control",
               "job_id": "5351c3f224d545c2aca142f32ae0f4c3",
               "phase": "fix"
+            },
+            {
+              "step": "failed_first",
+              "at": "2026-11-27T06:01:18Z",
+              "result": "Rendered browser test fails on pre-change bundle because project elements are absent; candidate passes.",
+              "job_id": "5256cff74816423e8b4e63e161b93d7a",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-27T06:01:25Z",
+              "result": "Earlier acceptance checked markup and data without exercising browser rendering and text-size interactions.",
+              "job_id": "5256cff74816423e8b4e63e161b93d7a",
+              "phase": "fix"
             }
           ],
-          "stage_entered_at": "2026-11-26T09:20:39Z",
+          "stage_entered_at": "2026-11-27T06:01:36Z",
           "failure_history": [
             {
               "attempt_id": "5543f5fdcd7c470eb448f5cd04b3251e",
