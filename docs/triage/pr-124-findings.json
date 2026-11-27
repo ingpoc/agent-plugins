@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-27T05:52:36Z",
-      "now": "2026-11-27T05:52:36Z — root_cause: Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts."
+      "stage": "review",
+      "updated_at": "2026-11-27T05:55:08Z",
+      "now": "2026-11-27T05:55:08Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-27T05:54:55Z",
+    "last_written_at": "2026-11-27T05:55:09Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -4049,49 +4049,20 @@
             "fix_base_head": "641b16a34b1dfd9f1998862fd7a27a6a197e5938",
             "fix_status": "passed",
             "job": {
-              "id": "adbaa4cce4aa48f28b40bf0b9d52d537",
-              "phase": "fix",
-              "started_at": "2026-11-27T05:51:34Z",
+              "id": "58009cc610014821adb9858e56812bbc",
+              "phase": "review",
+              "started_at": "2026-11-27T05:55:08Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-27T05:54:25Z",
-              "plan_sha256": "63feb86cd4f308e60486a4d15c78efbd797af5b205c8d070813018cf8d9bbc4b",
+              "heartbeat_at": "2026-11-27T05:55:08Z",
+              "plan_sha256": "c85596cff71fb83d9c6dcd6adc5d97e4c0ae4d53d81699017c560ae3067d57d6",
               "finding_ids": [
                 "BCL-197"
               ],
               "worktree": "bcl124-r5-plancap",
-              "model": "session-worker",
-              "lane_sha256": "128a24fd2007c8d796430b302d1360052f02e63dcd9499a1c67534ee8c56da34",
+              "model": "independent-session-review",
+              "lane_sha256": "23269ed84d0c77cc926771889b6e224036eb2a9ef361da55ab942bfbac823350",
               "cycle": 16,
-              "round": 3,
-              "pid": 44037,
-              "steps": [
-                {
-                  "step": "failed_first",
-                  "at": "2026-11-27T05:52:30Z",
-                  "result": "test_owner_unblock_resets_plan_review_cap fails on real unblock: unblock requires blocked lane A."
-                },
-                {
-                  "step": "root_cause",
-                  "at": "2026-11-27T05:52:36Z",
-                  "result": "Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts."
-                }
-              ],
-              "latest_step": {
-                "step": "root_cause",
-                "at": "2026-11-27T05:52:36Z",
-                "result": "Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts."
-              },
-              "exit_code": 0,
-              "finished_at": "2026-11-27T05:54:25Z",
-              "commit": "641b16a34b1dfd9f1998862fd7a27a6a197e5938",
-              "tokens_source": "official",
-              "tokens": {
-                "total": 7089276,
-                "output": 15555
-              },
-              "wall_time_s": 171,
-              "session": "rollout-2026-11-27T11-12-44-01a21b87-0943-7803-9ed0-7d4490daca3a.jsonl",
-              "finished_phase_status": "passed"
+              "round": 3
             },
             "jobs": [
               {
@@ -4350,11 +4321,57 @@
                 "session": "session-worker",
                 "finished_phase_status": "changes_requested",
                 "must_fix": "- Make an owner unblock reset a lane capped after two plan-review CHANGES. The cap refuses review without blocking the lane, while unblock accepts only blocked lanes or lanes parked after two counted failures. Plan-review CHANGES are uncounted, and unblock only records owner_override for two counted failures."
+              },
+              {
+                "id": "adbaa4cce4aa48f28b40bf0b9d52d537",
+                "phase": "fix",
+                "started_at": "2026-11-27T05:51:34Z",
+                "command": "sh",
+                "heartbeat_at": "2026-11-27T05:54:25Z",
+                "plan_sha256": "63feb86cd4f308e60486a4d15c78efbd797af5b205c8d070813018cf8d9bbc4b",
+                "finding_ids": [
+                  "BCL-197"
+                ],
+                "worktree": "bcl124-r5-plancap",
+                "model": "session-worker",
+                "lane_sha256": "128a24fd2007c8d796430b302d1360052f02e63dcd9499a1c67534ee8c56da34",
+                "cycle": 16,
+                "round": 3,
+                "pid": 44037,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-27T05:52:30Z",
+                    "result": "test_owner_unblock_resets_plan_review_cap fails on real unblock: unblock requires blocked lane A."
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-27T05:52:36Z",
+                    "result": "Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts."
+                  }
+                ],
+                "latest_step": {
+                  "step": "root_cause",
+                  "at": "2026-11-27T05:52:36Z",
+                  "result": "Plan-review cap expects an owner_override marker, but unblock rejects this unblocked lane and cannot create the marker for uncounted plan-review verdicts."
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-27T05:54:25Z",
+                "commit": "641b16a34b1dfd9f1998862fd7a27a6a197e5938",
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 7089276,
+                  "output": 15555
+                },
+                "wall_time_s": 171,
+                "session": "rollout-2026-11-27T11-12-44-01a21b87-0943-7803-9ed0-7d4490daca3a.jsonl",
+                "finished_phase_status": "passed"
               }
             ],
             "reviewer_model": "independent-session-review",
             "must_fix_note": "- Make an owner unblock reset a lane capped after two plan-review CHANGES. The cap refuses review without blocking the lane, while unblock accepts only blocked lanes or lanes parked after two counted failures. Plan-review CHANGES are uncounted, and unblock only records owner_override for two counted failures.",
-            "tool_fault_streak": 0
+            "tool_fault_streak": 0,
+            "review_status": "running"
           },
           "failure_history": [
             {
