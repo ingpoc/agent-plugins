@@ -958,23 +958,24 @@ def unblock_lane(document, operation):
         failures = _counted_failures(rows)
         parked_after_blocking = (status == "parked" and len(failures) >= 2
                                  and not _unblock_covers_failures(group, failures))
-        if status != "blocked" and not parked_after_blocking:
+        capped = (status == "parked" or (status == "review" and group.get("phase") == "plan_review")) and _trailing_plan_review_changes(group) >= 2
+        if status != "blocked" and not parked_after_blocking and not capped:
             raise ValueError(f"unblock requires blocked lane {group.get('id')}")
         history = group.setdefault("unblock_history", [])
         if not isinstance(history, list):
             raise ValueError(f"{group.get('id')} unblock_history must be an array")
         known_faults.update(row["attempt_id"] for row in rows
                             if isinstance(row.get("attempt_id"), str))
-        lanes.append((group, history, rows, status))
+        lanes.append((group, history, rows, status, capped))
     unknown = set(tool_faults) - known_faults
     if unknown:
         raise ValueError(f"unblock names unknown attempt ID(s): {', '.join(sorted(unknown))}")
-    for group, history, rows, status in lanes:
+    for group, history, rows, status, capped in lanes:
         lane_faults = set(tool_faults).intersection(row.get("attempt_id") for row in rows)
         for row in rows:
             if row.get("attempt_id") in lane_faults:
                 row.update(tool_fault=True, tool_fault_reason=reason)
-        owner_override = len(_counted_failures(rows)) >= 2
+        owner_override = len(_counted_failures(rows)) >= 2 or capped
         if owner_override and tool_faults:
             raise ValueError(f"unblock lane {group.get('id')} has two or more counted failures; owner override requires no --tool-fault")
         entry = {"at": stamp, "reason": reason, "tool_faults": sorted(lane_faults),

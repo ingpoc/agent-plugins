@@ -115,6 +115,7 @@ class BclTests(unittest.TestCase):
         ]
         live = self._prepare_plan_review_history(history)
         document = json.loads(live.read_text())
+        document["tracking"]["plan"]["groups"][0]["phase"] = "plan_review"
         document["tracking"]["plan"]["groups"].append({
             "id": "B", "finding_ids": ["ISSUE-UNRELATED"], "status": "pending", "phase": "pending"
         })
@@ -129,11 +130,34 @@ class BclTests(unittest.TestCase):
             {"job_id": "review-1", "status": "changes_requested", "after_failure": "a", "at": "2026-11-20T00:00:00Z"},
             {"job_id": "review-2", "status": "changes_requested", "after_failure": "b", "at": "2026-11-24T00:00:00Z"},
         ]
-        unblock = [{"owner_override": True, "at": "2026-11-24T12:00:00Z"}]
-        live = self._prepare_plan_review_history(history, unblock_history=unblock)
+        live = self._prepare_plan_review_history(history)
+        document = json.loads(live.read_text())
+        document["tracking"]["plan"]["groups"][0]["phase"] = "plan_review"
+        document["tracking"]["plan"]["groups"].append({
+            "id": "B", "finding_ids": ["ISSUE-UNRELATED"], "status": "pending", "phase": "pending"
+        })
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        refused = self._start_plan_review(live)
+        self.assertIn("2 plan reviews in a row asked for changes", refused.stderr)
+        unblocked = self.call_without_viewer("unblock", live, "--ids", "ISSUE-01", "--reason", "owner approved retry")
+        self.assertEqual(unblocked.returncode, 0, unblocked.stderr)
         result = self._start_plan_review(live)
-        self.assertNotIn("plan reviews in a row asked for changes", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(json.loads(live.read_text())["tracking"]["plan"]["groups"][0]["codex"]["job"].get("id"))
+
+    def test_owner_unblock_resets_parked_plan_review_cap(self):
+        history = [
+            {"job_id": "review-1", "status": "changes_requested", "at": "2026-11-20T00:00:00Z"},
+            {"job_id": "review-2", "status": "changes_requested", "at": "2026-11-24T00:00:00Z"},
+        ]
+        live = self._prepare_plan_review_history(history)
+        document = json.loads(live.read_text())
+        document["tracking"]["plan"]["groups"][0].update(status="parked", phase="plan_review")
+        live.write_text(json.dumps(document)); self.data.write_text(json.dumps(document))
+        unblocked = self.call_without_viewer("unblock", live, "--ids", "ISSUE-01", "--reason", "owner approved retry")
+        self.assertEqual(unblocked.returncode, 0, unblocked.stderr)
+        result = self._start_plan_review(live)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_tool_fault_plan_review_does_not_count(self):
         history = [
