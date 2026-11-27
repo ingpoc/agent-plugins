@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-27T06:12:39Z",
+    "last_written_at": "2026-11-27T06:15:06Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -5732,6 +5732,31 @@
       "created_at": "2026-11-27T06:12:39Z",
       "first_seen": {
         "at": "2026-11-27T06:12:39Z",
+        "pr": null,
+        "round": 3,
+        "source": "created_at"
+      },
+      "state_changes": []
+    },
+    {
+      "id": "BCL-201",
+      "title": "The repository test inventory can miss inherited test cases",
+      "summary": "The full test inventory can omit a test file when its tests inherit from a shared base in another file.",
+      "impact": "A full test run can report success without executing real tests, giving reviewers a false sense of coverage.",
+      "done_when": "The repository inventory finds runnable unittest cases that inherit an imported test base without counting ordinary scripts as tests; a regression covers inventory and actual runner execution.",
+      "observed": "On 27 Nov 2026 the full PR #124 suite omitted the CL-3 browser test, whose class inherits an imported ViewerBase. An isolated fixture inheriting an imported unittest.TestCase subclass is also classified as a script by scripts/check_inventory.py. The new browser checks are separately moving to the explicit integration contract; this finding covers the general inventory gap.",
+      "recommendation": "Correct test discovery at its owner and verify both inherited tests and non-test scripts in an isolated fixture.",
+      "priority": "high",
+      "source": "Agent reported",
+      "status": "untested",
+      "area": "agent-plugins",
+      "details": {
+        "kind": "bug",
+        "regression_against_main": "unknown"
+      },
+      "created_at": "2026-11-27T06:15:06Z",
+      "first_seen": {
+        "at": "2026-11-27T06:15:06Z",
         "pr": null,
         "round": 3,
         "source": "created_at"
