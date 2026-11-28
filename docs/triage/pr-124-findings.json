@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-28T04:03:22Z",
-      "now": "2026-11-28T04:03:22Z — Install in progress"
+      "stage": "verify",
+      "updated_at": "2026-11-28T04:05:07Z",
+      "now": "2026-11-28T04:05:07Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-28T04:03:22Z",
+    "last_written_at": "2026-11-28T04:05:07Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -4403,8 +4403,8 @@
           "finding_ids": [
             "BCL-197"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "depends_on": [],
           "worktree": "samantha-next-r14",
           "reason": "Recurring: plan review CHANGES looped 7 times on Likeminded PROC-10 and reopened on #124 via an unrelated finding; cap it at 2 in a row.",
@@ -4877,8 +4877,8 @@
               "at": "2026-11-26T09:20:38Z"
             }
           ],
-          "updated_at": "2026-11-26T08:45:56Z",
-          "stage_entered_at": "2026-11-28T04:03:22Z",
+          "updated_at": "2026-11-28T04:05:07Z",
+          "stage_entered_at": "2026-11-28T04:05:07Z",
           "trail": [
             {
               "step": "failed_first",
@@ -5077,6 +5077,84 @@
       },
       "round": 2,
       "cycle": 16
+    },
+    "verification_run": {
+      "id": "pr124-c2977776-install-20261128",
+      "build": "batched-change-list 0.1.79; context-ledger 0.1.43",
+      "revision": "c297777615c2d2ad331e8df30e295d98e2448bab",
+      "installed_at": "2026-11-28T04:04:49.183662+00:00",
+      "install_evidence": "BCL install-local reported matching tree digests; Context Ledger install and refresh commands reported 0.1.43 for cursor, codex and grok; local access check passed.",
+      "cycle": 16,
+      "status": "active",
+      "checks": {
+        "DO-1": {
+          "state": "pending"
+        },
+        "PR122-parked-backlog": {
+          "state": "pending"
+        },
+        "BCL-179": {
+          "state": "pending"
+        },
+        "BCL-181": {
+          "state": "pending"
+        },
+        "BCL-184": {
+          "state": "pending"
+        },
+        "BCL-186": {
+          "state": "pending"
+        },
+        "BCL-187": {
+          "state": "pending"
+        },
+        "BCL-190": {
+          "state": "pending"
+        },
+        "BCL-191": {
+          "state": "pending"
+        },
+        "BCL-192": {
+          "state": "pending"
+        },
+        "CL-2": {
+          "state": "pending"
+        },
+        "CL-3": {
+          "state": "pending"
+        },
+        "BCL-193": {
+          "state": "pending"
+        },
+        "BCL-194": {
+          "state": "pending"
+        },
+        "BCL-195": {
+          "state": "pending"
+        },
+        "BCL-196": {
+          "state": "pending"
+        },
+        "BCL-197": {
+          "state": "pending"
+        },
+        "BCL-198": {
+          "state": "pending"
+        },
+        "BCL-199": {
+          "state": "pending"
+        },
+        "BCL-200": {
+          "state": "pending"
+        },
+        "BCL-201": {
+          "state": "pending"
+        }
+      },
+      "run_id": "pr124-c2977776-install-20261128",
+      "pr": 124,
+      "round": 3,
+      "started_at": "2026-11-28T04:04:49.183662+00:00"
     }
   },
   "findings": [
