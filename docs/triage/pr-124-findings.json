@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-28T03:53:08Z",
-      "now": "2026-11-28T03:53:08Z — Presuite started"
+      "stage": "install",
+      "updated_at": "2026-11-28T04:03:22Z",
+      "now": "2026-11-28T04:03:22Z — Install in progress"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-28T03:58:00Z",
+    "last_written_at": "2026-11-28T04:03:22Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2590,8 +2590,8 @@
           "finding_ids": [
             "BCL-191"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh",
@@ -2731,7 +2731,7 @@
             "review_status": "passed",
             "reviewer_model": "gpt-6-luna"
           },
-          "stage_entered_at": "2026-11-26T08:41:57Z",
+          "stage_entered_at": "2026-11-28T04:03:22Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -2782,6 +2782,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-28T03:58:00Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-28T04:03:22Z"
           }
         },
         {
@@ -2789,8 +2793,8 @@
           "finding_ids": [
             "BCL-192"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "reason": "Visibility and status wording in render.py plan head and the change-list.html template; no file shared with R2-VIEWER.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh",
@@ -3076,7 +3080,7 @@
             "tool_fault_streak": 0,
             "review_status": "passed"
           },
-          "stage_entered_at": "2026-11-27T06:04:10Z",
+          "stage_entered_at": "2026-11-28T04:03:22Z",
           "failure_history": [
             {
               "attempt_id": "ef5c5024f4124b5385fc004d515bc76d",
@@ -3195,6 +3199,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-28T03:58:00Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-28T04:03:22Z"
           }
         },
         {
@@ -3630,8 +3638,8 @@
           "finding_ids": [
             "CL-3"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "reason": "Ships in the same worktree and install as R2-CL-CAPTURE, on top of its commits; the page tolerates a log without the project column. Verified after CL-2.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh",
@@ -3996,7 +4004,7 @@
               "phase": "fix"
             }
           ],
-          "stage_entered_at": "2026-11-27T06:01:36Z",
+          "stage_entered_at": "2026-11-28T04:03:22Z",
           "failure_history": [
             {
               "attempt_id": "5543f5fdcd7c470eb448f5cd04b3251e",
@@ -4048,6 +4056,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-28T03:58:00Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-28T04:03:22Z"
           }
         },
         {
@@ -4391,8 +4403,8 @@
           "finding_ids": [
             "BCL-197"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "depends_on": [],
           "worktree": "samantha-next-r14",
           "reason": "Recurring: plan review CHANGES looped 7 times on Likeminded PROC-10 and reopened on #124 via an unrelated finding; cap it at 2 in a row.",
@@ -4866,7 +4878,7 @@
             }
           ],
           "updated_at": "2026-11-26T08:45:56Z",
-          "stage_entered_at": "2026-11-27T05:54:25Z",
+          "stage_entered_at": "2026-11-28T04:03:22Z",
           "trail": [
             {
               "step": "failed_first",
@@ -4916,6 +4928,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-28T03:58:00Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-28T04:03:22Z"
           }
         }
       ],
@@ -5575,7 +5591,7 @@
       "observed": "26 Nov 2026 11:45 IST: ui-src/style.css uses var(--text-xs) and var(--text-dense) for labels; scoreboard Ledger Visibility: no change since baseline.",
       "priority": "low",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "area": "context-ledger",
       "details": {
         "kind": "missing feature",
@@ -5588,7 +5604,14 @@
         "round": 1,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-28T04:03:22Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
         "at": "2026-11-26T09:17:46Z",
         "source": "review"
