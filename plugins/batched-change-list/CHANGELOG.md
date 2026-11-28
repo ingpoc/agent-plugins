@@ -1,3 +1,7 @@
+## 0.1.80
+
+- Current-install checks no longer inherit historical verification; guarded recovery restores affected lane history (BCL-202).
+
 ## 0.1.79
 
 - Concurrent jobs can reuse a healthy viewer without failing its ownership check (BCL-191).
