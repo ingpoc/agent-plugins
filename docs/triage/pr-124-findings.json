@@ -576,9 +576,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-28T04:30:36Z",
-      "now": "2026-11-28T04:30:36Z — Verify in progress"
+      "stage": "install",
+      "updated_at": "2026-11-28T04:31:49Z",
+      "now": "2026-11-28T04:31:49Z — Install in progress"
     },
     "rollover": {
       "source_pr": 123,
@@ -1181,7 +1181,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-28T04:30:36Z",
+    "last_written_at": "2026-11-28T04:31:49Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -3181,17 +3181,18 @@
           "finding_ids": [
             "BCL-191"
           ],
-          "status": "verifying",
+          "status": "verified",
           "phase": "verify",
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh",
             "method": "Named unit tests plus 6 concurrent installed bcl status runs under CPU load against the live viewer 58771",
             "summary": "Six concurrent starts pass; viewer pid unchanged",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-28T04:30:42Z"
           },
           "worktree": "samantha-next-r14",
           "depends_on": [],
@@ -3322,7 +3323,7 @@
             "review_status": "passed",
             "reviewer_model": "gpt-6-luna"
           },
-          "stage_entered_at": "2026-11-28T04:30:36Z",
+          "stage_entered_at": "2026-11-28T04:30:42Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -3375,26 +3376,36 @@
             "finished_at": "2026-11-28T03:58:00Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-28T04:03:22Z"
-          }
+            "status": "complete",
+            "started_at": "2026-11-28T04:03:22Z",
+            "finished_at": "2026-11-28T04:30:42Z"
+          },
+          "trail": [
+            {
+              "step": "fix_verified",
+              "at": "2026-11-28T04:30:42Z",
+              "source": "verify",
+              "result": "pr124-c297-installed-recheck2-20261128: verify-r4-race.sh passed"
+            }
+          ]
         },
         {
           "id": "R2-PLANHEAD",
           "finding_ids": [
             "BCL-192"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "reason": "Visibility and status wording in render.py plan head and the change-list.html template; no file shared with R2-VIEWER.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh",
             "method": "Named unit tests plus live run of the installed bcl 0.1.77 against the live viewer 58771",
             "summary": "Plan head shows open lanes; no text under 16px",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-28T04:31:12Z"
           },
           "worktree": "samantha-next-r14",
           "depends_on": [],
@@ -3671,7 +3682,7 @@
             "tool_fault_streak": 0,
             "review_status": "passed"
           },
-          "stage_entered_at": "2026-11-28T04:03:22Z",
+          "stage_entered_at": "2026-11-28T04:31:12Z",
           "failure_history": [
             {
               "attempt_id": "ef5c5024f4124b5385fc004d515bc76d",
@@ -3769,7 +3780,7 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-28T04:08:40Z",
+          "updated_at": "2026-11-28T04:31:08Z",
           "trail": [
             {
               "step": "failed_first",
@@ -3784,6 +3795,12 @@
               "result": "Invalid font shorthand left controls at browser defaults; plan counts treated settled workflow states as open.",
               "job_id": "cc70c21170044399bb6f018047c2f15c",
               "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-28T04:31:12Z",
+              "source": "verify",
+              "result": "pr124-c297-installed-recheck2-20261128: verify-r4-planhead.sh passed"
             }
           ],
           "presuite": {
@@ -3792,8 +3809,9 @@
             "finished_at": "2026-11-28T03:58:00Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-28T04:03:22Z"
+            "status": "complete",
+            "started_at": "2026-11-28T04:03:22Z",
+            "finished_at": "2026-11-28T04:31:12Z"
           }
         },
         {
@@ -4243,17 +4261,18 @@
           "finding_ids": [
             "CL-3"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "verified",
+          "phase": "verify",
           "reason": "Ships in the same worktree and install as R2-CL-CAPTURE, on top of its commits; the page tolerates a log without the project column. Verified after CL-2.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh",
             "method": "UI tests plus the installed ledger page HTML on its local viewer",
             "summary": "Project and last-lookup match visible at 16px",
-            "status": "pending",
-            "fixed": 0,
+            "status": "verified",
+            "fixed": 1,
             "failed": 0,
-            "total": 1
+            "total": 1,
+            "finished_at": "2026-11-28T04:31:21Z"
           },
           "worktree": "samantha-next-r14",
           "depends_on": [],
@@ -4607,9 +4626,15 @@
               "result": "Earlier acceptance checked markup and data without exercising browser rendering and text-size interactions.",
               "job_id": "5256cff74816423e8b4e63e161b93d7a",
               "phase": "fix"
+            },
+            {
+              "step": "fix_verified",
+              "at": "2026-11-28T04:31:21Z",
+              "source": "verify",
+              "result": "pr124-c297-installed-recheck2-20261128: verify-r5-cl3.sh passed"
             }
           ],
-          "stage_entered_at": "2026-11-28T04:03:22Z",
+          "stage_entered_at": "2026-11-28T04:31:21Z",
           "failure_history": [
             {
               "attempt_id": "5543f5fdcd7c470eb448f5cd04b3251e",
@@ -4656,15 +4681,16 @@
               "at": "2026-11-26T09:20:39Z"
             }
           ],
-          "updated_at": "2026-11-28T04:08:40Z",
+          "updated_at": "2026-11-28T04:31:19Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-28T03:58:00Z"
           },
           "install": {
-            "status": "running",
-            "started_at": "2026-11-28T04:03:22Z"
+            "status": "complete",
+            "started_at": "2026-11-28T04:03:22Z",
+            "finished_at": "2026-11-28T04:31:21Z"
           }
         },
         {
@@ -5559,8 +5585,8 @@
           "finding_ids": [
             "BCL-202"
           ],
-          "status": "review",
-          "phase": "review",
+          "status": "installing",
+          "phase": "install",
           "depends_on": [],
           "worktree": "samantha-next-r14",
           "reason": "Stop current-install verification from inheriting unrelated historical results.",
@@ -5682,7 +5708,7 @@
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-28T04:08:40Z",
-          "stage_entered_at": "2026-11-28T04:16:52Z",
+          "stage_entered_at": "2026-11-28T04:31:49Z",
           "trail": [
             {
               "step": "failed_first",
@@ -5703,6 +5729,10 @@
             "status": "passed",
             "exit_code": 0,
             "finished_at": "2026-11-28T04:25:33Z"
+          },
+          "install": {
+            "status": "running",
+            "started_at": "2026-11-28T04:31:49Z"
           }
         }
       ],
@@ -5856,82 +5886,236 @@
       "installed_at": "2026-11-28T04:04:49.183662+00:00",
       "install_evidence": "Previously installed c2977776; installed BCL manifest and package digest were checked, ledger client refresh and local access passed. Tracker operations use reviewed BCL-202 source repair.",
       "cycle": 16,
-      "status": "active",
+      "status": "complete",
       "checks": {
         "DO-1": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "PR122-parked-backlog": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-179": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-181": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-184": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-186": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-187": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-190": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-191": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh (exit 0)",
+          "observed_at": "2026-11-28T04:30:42Z",
+          "finished_at": "2026-11-28T04:30:42Z"
         },
         "BCL-192": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh (exit 0)",
+          "observed_at": "2026-11-28T04:31:12Z",
+          "finished_at": "2026-11-28T04:31:12Z"
         },
         "CL-2": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "CL-3": {
-          "state": "pending"
+          "state": "fixed",
+          "evidence": "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh (exit 0)",
+          "observed_at": "2026-11-28T04:31:21Z",
+          "finished_at": "2026-11-28T04:31:21Z"
         },
         "BCL-193": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-194": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-195": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-196": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-197": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-198": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-199": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-200": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-201": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-202": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         },
         "BCL-203": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-28T04:31:43Z",
+          "stopped": true,
+          "evidence": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observation": "Run stopped: Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+          "observed_at": "2026-11-28T04:31:43Z",
+          "updated_at": "2026-11-28T04:31:43Z",
+          "finished_at": "2026-11-28T04:31:43Z"
         }
       },
       "run_id": "pr124-c297-installed-recheck2-20261128",
       "pr": 124,
       "round": 3,
-      "started_at": "2026-11-28T04:04:49.183662+00:00"
+      "started_at": "2026-11-28T04:04:49.183662+00:00",
+      "stopped": {
+        "reason": "Install the BCL-202 evidence-integrity repair; remaining checks are not yet performed on this installation.",
+        "at": "2026-11-28T04:31:43Z"
+      },
+      "ended_at": "2026-11-28T04:31:43Z"
     }
   },
   "findings": [
@@ -5982,10 +6166,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6029,7 +6219,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6079,10 +6269,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6137,10 +6333,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6194,10 +6396,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6251,10 +6459,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6308,10 +6522,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6368,10 +6588,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6389,7 +6615,7 @@
       "observed": "26 Nov 2026 08:35 IST: run-fix.sh started bcl job for R1-JOBREC, R1-MERGED and R1-REGISTRY 3 s apart on #124. R1-REGISTRY exited 1 before recording a job: live_state.ensure_viewer line 379 RuntimeError cannot verify viewer ownership on port 58771. The viewer (pid 66760) was listening and returned HTTP 200 right after; a retry 1 minute later started fine. Log ~/.agents/artifacts/bcl-124/fix-registry-attempt1.log.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -6414,13 +6640,23 @@
           "from": "blocked",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-28T04:30:42Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
-      "needs": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers."
+      "needs": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers.",
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh"
     },
     {
       "id": "BCL-192",
@@ -6432,7 +6668,7 @@
       "observed": "26 Nov 2026 11:33 IST: curl http://127.0.0.1:58771/ showed Round 1 · 0 lanes · each installs and verifies when ready, then 4 verified. render.py:686 uses len(active_groups); templates/change-list.html has 7x font-size:11px, 6x 11.5px, 6x .75rem.",
       "priority": "medium",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -6470,13 +6706,23 @@
           "from": "blocked",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-28T04:31:12Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
-      "needs": "Changes requested; Must-fix section missing"
+      "needs": "Changes requested; Must-fix section missing",
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-planhead.sh"
     },
     {
       "id": "CL-2",
@@ -6525,6 +6771,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -6532,7 +6784,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl2.sh",
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6546,7 +6798,7 @@
       "observed": "26 Nov 2026 11:45 IST: ui-src/style.css uses var(--text-xs) and var(--text-dense) for labels; scoreboard Ledger Visibility: no change since baseline.",
       "priority": "low",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "area": "context-ledger",
       "details": {
         "kind": "missing feature",
@@ -6565,12 +6817,22 @@
           "from": "untested",
           "to": "in_progress",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-28T04:31:21Z",
+          "from": "in_progress",
+          "to": "resolved",
+          "source": "tracker_update"
         }
       ],
       "last_seen": {
         "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
-      }
+      },
+      "verification_refs": [
+        "verify command passed: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh (exit 0)"
+      ],
+      "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl3.sh"
     },
     {
       "id": "BCL-193",
@@ -6619,10 +6881,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6677,10 +6945,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6713,7 +6987,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6742,7 +7016,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6793,10 +7067,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:31:43Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       },
       "needs": "- Make an owner unblock reset a lane capped after two plan-review CHANGES. The cap refuses review without blocking the lane, while unblock accepts only blocked lanes or lanes parked after two counted failures. Plan-review CHANGES are uncounted, and unblock only records owner_override for two counted failures.",
@@ -6830,7 +7110,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6859,7 +7139,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6888,7 +7168,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6917,7 +7197,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6931,7 +7211,7 @@
       "recommendation": "Scope verification updates to the requested checks and ensure generated records have valid observation provenance.",
       "priority": "high",
       "source": "Agent reported",
-      "status": "untested",
+      "status": "in_progress",
       "area": "batched-change-list",
       "details": {
         "kind": "bug",
@@ -6944,9 +7224,16 @@
         "round": 3,
         "source": "created_at"
       },
-      "state_changes": [],
+      "state_changes": [
+        {
+          "at": "2026-11-28T04:31:49Z",
+          "from": "untested",
+          "to": "in_progress",
+          "source": "tracker_update"
+        }
+      ],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     },
@@ -6975,7 +7262,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:30:16Z",
+        "at": "2026-11-28T04:31:43Z",
         "source": "verification_check"
       }
     }
