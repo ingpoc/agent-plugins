@@ -2167,6 +2167,24 @@ class ManageFindingsTests(unittest.TestCase):
             args.append("--force")
         return self.cli(*args)
 
+    def test_batch_repairs_only_identified_false_verification_block(self):
+        document = copy.deepcopy(self.document)
+        finding = document['findings'][0]
+        finding.update(status='verified_fixed', verification_refs=['historical proof'], verification='Historical proof')
+        identifier = finding['id']
+        document['tracking'] = {'cycle': 1, 'round': 1, 'plan': {'cycle': 1, 'round': 1, 'groups': [{
+            'id': 'A', 'finding_ids': [identifier], 'status': 'blocked', 'phase': 'verify',
+            'blocked_reason': 'Prerequisite verification changed', 'verify': {'status': 'verified'}
+        }]}, 'verification_run': {'id': 'run', 'build': 'fixture', 'revision': 'fixture', 'installed_at': '2026-11-28T04:00:00Z', 'install_evidence': 'fixture', 'status': 'complete', 'checks': {identifier: {
+            'state': 'inconclusive', 'evidence': 'No current check', 'finished_at': '2026-11-28T04:01:00Z', 'previous_checks': [{'state': 'fixed',
+                'evidence': 'Official verify recorded this issue as verified.'}]}}}}
+        result = self._replay_batch(document, {'action': 'repair-false-verify-blocks',
+                                               'ids': ['A'], 'reason': 'Restore historical lane state'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        updated = json.loads(self.data.read_text())
+        self.assertEqual(updated['tracking']['plan']['groups'][0]['status'], 'verified')
+        self.assertEqual(updated['tracking']['verification_run']['checks'][identifier]['state'], 'inconclusive')
+
     def test_set_plan_cannot_claim_or_change_a_lane_trail(self):
         document = copy.deepcopy(self.document)
         finding_id = document["findings"][0]["id"]

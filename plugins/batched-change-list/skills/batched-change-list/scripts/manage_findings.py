@@ -550,7 +550,7 @@ def _unblock_covers_failures(group, failures):
     return False
 
 
-def refuse_lane_moves(before, after):
+def refuse_lane_moves(before, after, repaired=()):
     """Every batch write passes here: a lane status may only take a move the lane table allows.
 
     Moves are compared within one cycle and round; carry_plan_runtime_state owns round changes."""
@@ -562,6 +562,8 @@ def refuse_lane_moves(before, after):
     for group in after.get("groups", []):
         prior = previous.get(group.get("id")) if isinstance(group, dict) else None
         if prior is not None and set(prior.get("finding_ids", [])) == set(group.get("finding_ids", [])):
+            if group.get('id') in repaired and prior.get('status') == 'blocked' and group.get('status') == 'verified':
+                continue
             if (prior.get("status") == "blocked" and prior.get("blocked_reason") in
                     ("Individual issue checks pending", "Remaining issue checks pending")
                     and not _counted_failures(_lane_history(prior, "failure_history"))
@@ -1716,16 +1718,20 @@ def verification_action(document, findings, operation):
             raise ValueError("a finished check is required")
         if outcome not in ("not_fixed", "blocked", "inconclusive") or not isinstance(reason, str) or not reason.strip():
             raise ValueError("correction requires an outcome and reason")
+        false_generated = (check.get('evidence') == 'Official verify recorded this issue as verified.'
+                           and not check.get('observed_at') and outcome == 'inconclusive')
         validate_verification_reason(reason)
-        reason, _ = validate_new_observation(reason, operation, run, check.get("observed_at"), "correction reason", check)
+        reason, observed_at = validate_new_observation(reason, operation, run, operation.get("observed_at") or check.get("observed_at"), "correction reason", check)
         corrections = check.setdefault("corrections", [])
         corrections.append({"previous": copy.deepcopy({k: v for k, v in check.items() if k != "corrections"}),
                             "previous_verification": item.get("verification", ""),
                             "reason": reason, "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds")})
         check["state"] = outcome
+        check["observed_at"] = observed_at
         check["evidence"] = reason
-        item["verification"] = reason
-        if item["status"] == "verified_fixed" or outcome == "not_fixed":
+        if not false_generated:
+            item["verification"] = reason
+        if not false_generated and (item["status"] == "verified_fixed" or outcome == "not_fixed"):
             item["status"] = "failing" if outcome == "not_fixed" else "investigation"
         if outcome == "not_fixed":
             _record_lane_failure(document, item["id"], run["id"], "verify", reason)
@@ -2406,6 +2412,50 @@ def invalidate_dependents(document, previous_document):
         tracking['workflow']['now'] = f'{timestamp} — Prerequisite verification changed'
 
 
+def repair_false_verify_blocks(document, operation):
+    """Restore historical lane state only for the identifiable BCL-202 corruption."""
+    tracking = document.get('tracking', {})
+    plan = tracking.get('plan', {})
+    groups = plan.get('groups', [])
+    ids = operation.get('ids')
+    reason = require_override_reason(operation.get('reason'), 'repair false verify blocks')
+    if (not isinstance(ids, list) or not ids or any(not isinstance(i, str) or not i.strip() for i in ids)
+            or len(ids) != len(set(ids))):
+        raise ValueError('repair requires unique lane IDs')
+    run = tracking.get('verification_run', {})
+    if run.get('status') == 'active':
+        raise ValueError('stop verification before repairing lanes')
+    checks = run.get('checks', {})
+    findings = {item.get('id'): item for item in document.get('findings', [])}
+    selected = [g for g in groups if g.get('id') in ids]
+    if len(selected) != len(ids):
+        raise ValueError('repair names an unknown lane')
+    for group in selected:
+        if (group.get('status') != 'blocked' or group.get('blocked_reason') != 'Prerequisite verification changed'
+                or group.get('phase') != 'verify' or group.get('verify', {}).get('status') != 'verified'
+                or not group.get('finding_ids') or group.get('depends_on')
+                or any(group['id'] in g.get('depends_on', []) for g in groups)):
+            raise ValueError(f"lane {group.get('id')} is not an independent historical verified lane")
+        for identifier in group.get('finding_ids', []):
+            item, check = findings.get(identifier, {}), checks.get(identifier, {})
+            previous = check.get('previous_checks', [])
+            corrections = check.get('corrections', [])
+            if not isinstance(previous, list) or not isinstance(corrections, list):
+                raise ValueError(f'{identifier} has invalid verification history')
+            previous = previous + [c.get('previous') for c in corrections if isinstance(c, dict)]
+            if (item.get('status') != 'verified_fixed' or not item.get('verification_refs')
+                    or check.get('state') != 'inconclusive'
+                    or any(p.get('state') == 'not_fixed' for p in previous if isinstance(p, dict))
+                    or not any(p.get('state') == 'fixed' and p.get('evidence') == 'Official verify recorded this issue as verified.'
+                               and not p.get('observed_at') for p in previous if isinstance(p, dict))):
+                raise ValueError(f'{identifier} does not have the identifiable false verification record')
+    stamp = datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+    for group in selected:
+        group['status'] = 'verified'
+        group.pop('blocked_reason', None)
+        group.setdefault('repair_history', []).append({'at': stamp, 'reason': reason, 'run_id': run.get('id')})
+
+
 def stamp_stage_model(group, stage, model, timestamp):
     """Record who works the lane in install or verify; no model means a scripted check."""
     if model is None:
@@ -2534,7 +2584,6 @@ def _settle_verification_checks(document, run, stamp, *, merged=False):
     """Give every leftover pending check a terminal outcome before completing the run."""
     if not isinstance(run, dict) or not isinstance(run.get("checks"), dict):
         return
-    findings = {item.get("id"): item for item in document.get("findings", []) if isinstance(item, dict)}
     close_leftovers = merged or _current_round_lanes_are_settled(document)
     for identifier, check in list(run["checks"].items()):
         if not isinstance(check, dict):
@@ -2543,11 +2592,7 @@ def _settle_verification_checks(document, run, stamp, *, merged=False):
         state = check.get("state")
         if state in TERMINAL_CHECK_STATES:
             continue
-        status = (findings.get(identifier) or {}).get("status")
-        if status == "verified_fixed":
-            check["state"] = "fixed"
-            check["evidence"] = "Official verify recorded this issue as verified."
-        elif close_leftovers:
+        if close_leftovers:
             check["state"] = "inconclusive"
             check["evidence"] = "This issue was not in the current verify wave."
         else:
@@ -2640,6 +2685,10 @@ def finish_verification(document, operation):
             refs.append(reference)
         item["verification_refs"] = refs
         item["verification"] = f"Verification command exited 0: {command}"
+        run = tracking.get("verification_run")
+        if isinstance(run, dict) and run.get("status") == "active":
+            check = run.setdefault("checks", {}).setdefault(identifier, {})
+            check.update(state="fixed", evidence=reference, observed_at=stamp, finished_at=stamp)
     for group in matched:
         total = len(group.get("finding_ids", []))
         group.update(status="verified", phase="verify")
@@ -3143,7 +3192,7 @@ def run(args, parser):
                 raise ValueError("pause and resume must be the only batch operation")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
             original_plan = copy.deepcopy(store['document'].get('tracking', {}).get('plan'))
-            run_actions = {"start-verification", "finish-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "set-fix-order", "start-job", "attach-job", "heartbeat-job", "report-step", "finish-job", "record-cleanup", "archive-history", "unblock-lane"}
+            run_actions = {"repair-false-verify-blocks", "start-verification", "finish-verification", "start-check", "finish-check", "complete-verification", "stop-verification", "correct-check", "reserve-shared-check", "finish-shared-check", "set-stage", "set-activity", "set-plan", "update-plan-group", "archive", "park", "unpark", "correct-round", "rerun-verify", "set-fix-order", "start-job", "attach-job", "heartbeat-job", "report-step", "finish-job", "record-cleanup", "archive-history", "unblock-lane"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -3178,7 +3227,7 @@ def run(args, parser):
                                and "exit_code" not in group["codex"]["job"]]
                 plan_or_finding_edits = {
                     "set-plan", "update-plan-group", "set-activity", "set-stage",                     "finish-verification",
-                    "archive", "park", "unpark", "rerun-verify", "unblock-lane",                     "add", "update", "delete", "record-evidence", "start-verification",
+                    "archive", "park", "unpark", "rerun-verify", "unblock-lane", "repair-false-verify-blocks", "add", "update", "delete", "record-evidence", "start-verification",
                     "start-check", "finish-check", "complete-verification", "stop-verification",
                     "correct-check", "reserve-shared-check", "finish-shared-check", "correct-round",
                     "set-fix-order", "archive-history", "record-cleanup",
@@ -3199,6 +3248,9 @@ def run(args, parser):
                     continue
                 if action == "finish-verification":
                     finish_verification(store["document"], operation)
+                    continue
+                if action == "repair-false-verify-blocks":
+                    repair_false_verify_blocks(store["document"], operation)
                     continue
                 if action == "unblock-lane":
                     unblock_lane(store["document"], operation)
@@ -3854,7 +3906,9 @@ def run(args, parser):
             sync_plan_verify(store["document"], changed_finding_ids)
             sync_stage_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
             stamp_changed_stages(before_sync_stage, store["document"], sync_stage_at)
-            refuse_lane_moves(original_plan, store["document"].get("tracking", {}).get("plan"))
+            repaired = {identifier for op in operations if isinstance(op, dict) and op.get('action') == 'repair-false-verify-blocks'
+                        for identifier in op.get('ids', [])}
+            refuse_lane_moves(original_plan, store["document"].get("tracking", {}).get("plan"), repaired)
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
             touch_workflow(store["document"])
