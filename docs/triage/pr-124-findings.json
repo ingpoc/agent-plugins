@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-28T04:06:28Z",
-      "now": "2026-11-28T04:06:28Z — Prerequisite verification changed"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-28T04:08:48Z",
+      "now": "2026-11-28T04:08:48Z — Fix started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-28T04:06:59Z",
+    "last_written_at": "2026-11-28T04:08:48Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -1326,7 +1326,7 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:05:11Z"
           },
-          "updated_at": "2026-11-28T04:06:28Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "blocked_reason": "Prerequisite verification changed"
         },
         {
@@ -1578,7 +1578,7 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:05:29Z"
           },
-          "updated_at": "2026-11-28T04:06:28Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "blocked_reason": "Prerequisite verification changed"
         },
         {
@@ -2035,7 +2035,7 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:01:38Z"
           },
-          "updated_at": "2026-11-28T04:06:28Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "blocked_reason": "Prerequisite verification changed"
         },
         {
@@ -2304,7 +2304,7 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T04:01:31Z"
           },
-          "updated_at": "2026-11-28T04:06:28Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "blocked_reason": "Prerequisite verification changed"
         },
         {
@@ -2327,7 +2327,7 @@
           "stage_entered_at": "2026-11-25T16:19:42Z",
           "failure_history": [],
           "plan_review_history": [],
-          "updated_at": "2026-11-26T08:45:56Z"
+          "updated_at": "2026-11-28T04:08:40Z"
         },
         {
           "id": "R1-VIEWER",
@@ -2587,7 +2587,7 @@
             "model": "grok-bot-executor",
             "at": "2026-11-26T06:44:44Z"
           },
-          "updated_at": "2026-11-28T04:06:28Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "blocked_reason": "Prerequisite verification changed"
         },
         {
@@ -2782,7 +2782,7 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-26T08:45:56Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -3183,7 +3183,7 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-26T08:45:56Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "trail": [
             {
               "step": "failed_first",
@@ -3386,7 +3386,7 @@
             "started_at": "2026-11-26T07:57:20Z",
             "finished_at": "2026-11-26T07:58:58Z"
           },
-          "updated_at": "2026-11-28T04:06:28Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "blocked_reason": "Prerequisite verification changed"
         },
         {
@@ -3637,7 +3637,7 @@
             "started_at": "2026-11-26T07:57:20Z",
             "finished_at": "2026-11-26T07:58:59Z"
           },
-          "updated_at": "2026-11-28T04:06:28Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "blocked_reason": "Prerequisite verification changed"
         },
         {
@@ -4058,7 +4058,7 @@
               "at": "2026-11-26T09:20:39Z"
             }
           ],
-          "updated_at": "2026-11-26T09:15:08Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -4403,7 +4403,7 @@
             "started_at": "2026-11-26T07:57:20Z",
             "finished_at": "2026-11-26T07:59:04Z"
           },
-          "updated_at": "2026-11-28T04:06:28Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "blocked_reason": "Prerequisite verification changed"
         },
         {
@@ -4886,7 +4886,7 @@
               "at": "2026-11-26T09:20:38Z"
             }
           ],
-          "updated_at": "2026-11-28T04:05:07Z",
+          "updated_at": "2026-11-28T04:08:40Z",
           "stage_entered_at": "2026-11-28T04:05:12Z",
           "trail": [
             {
@@ -4949,6 +4949,50 @@
             "started_at": "2026-11-28T04:03:22Z",
             "finished_at": "2026-11-28T04:05:12Z"
           }
+        },
+        {
+          "id": "R3-PROOF",
+          "finding_ids": [
+            "BCL-202"
+          ],
+          "status": "running",
+          "phase": "fix",
+          "depends_on": [],
+          "worktree": "bcl124-r3-proof",
+          "reason": "Stop current-install verification from inheriting unrelated historical results.",
+          "verify": {
+            "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r3-proof.sh",
+            "method": "Installed tracker lifecycle regression and isolated verification run",
+            "summary": "Only checked issues are marked fixed for this installation",
+            "status": "pending",
+            "fixed": 0,
+            "failed": 0,
+            "total": 1
+          },
+          "codex": {
+            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
+            "fix_status": "running",
+            "job": {
+              "id": "b98c93357ddb49d4bffd03a9c0ed6cb1",
+              "phase": "fix",
+              "started_at": "2026-11-28T04:08:48Z",
+              "command": "sh",
+              "heartbeat_at": "2026-11-28T04:08:48Z",
+              "plan_sha256": "1a7462547f12e2890b5533914ed2ebe001f21599a947283350868ab525f0f109",
+              "finding_ids": [
+                "BCL-202"
+              ],
+              "worktree": "bcl124-r3-proof",
+              "model": "session-worker",
+              "lane_sha256": "fe4dfe640dd60eb214e1aa73e57106dbc2568814ea7f1cef7e32fa9c6edc13cd",
+              "cycle": 16,
+              "round": 3
+            }
+          },
+          "failure_history": [],
+          "plan_review_history": [],
+          "updated_at": "2026-11-28T04:08:40Z",
+          "stage_entered_at": "2026-11-28T04:08:48Z"
         }
       ],
       "cycle": 16
