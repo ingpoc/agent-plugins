@@ -20,9 +20,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-28T04:08:48Z",
-      "now": "2026-11-28T04:08:48Z — Fix started"
+      "stage": "review",
+      "updated_at": "2026-11-28T04:17:01Z",
+      "now": "2026-11-28T04:17:01Z — Review started"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +625,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-28T04:08:48Z",
+    "last_written_at": "2026-11-28T04:17:01Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -4955,8 +4955,8 @@
           "finding_ids": [
             "BCL-202"
           ],
-          "status": "running",
-          "phase": "fix",
+          "status": "review",
+          "phase": "review",
           "depends_on": [],
           "worktree": "bcl124-r3-proof",
           "reason": "Stop current-install verification from inheriting unrelated historical results.",
@@ -4970,29 +4970,95 @@
             "total": 1
           },
           "codex": {
-            "fix_base_head": "3b7ecc6599b7fd4540ac86e5a75b945c6cf901c4",
-            "fix_status": "running",
+            "fix_base_head": "068f066d332e8192fc0c85a0da878dbeade4906c",
+            "fix_status": "passed",
             "job": {
-              "id": "b98c93357ddb49d4bffd03a9c0ed6cb1",
-              "phase": "fix",
-              "started_at": "2026-11-28T04:08:48Z",
+              "id": "60771492a5f34dedbed179d2d5572178",
+              "phase": "review",
+              "started_at": "2026-11-28T04:17:01Z",
               "command": "sh",
-              "heartbeat_at": "2026-11-28T04:08:48Z",
-              "plan_sha256": "1a7462547f12e2890b5533914ed2ebe001f21599a947283350868ab525f0f109",
+              "heartbeat_at": "2026-11-28T04:17:01Z",
+              "plan_sha256": "5ccc61ec3ed861dd6f5332741458d3aeaa5465d8223416947ad1d5ef625d4129",
               "finding_ids": [
                 "BCL-202"
               ],
               "worktree": "bcl124-r3-proof",
-              "model": "session-worker",
-              "lane_sha256": "fe4dfe640dd60eb214e1aa73e57106dbc2568814ea7f1cef7e32fa9c6edc13cd",
+              "model": "independent-session-review",
+              "lane_sha256": "178bf239d8cf85c6cd2d1f3137f37a8599020e2e76f23ece1348407ecf1756fb",
               "cycle": 16,
               "round": 3
-            }
+            },
+            "tool_fault_streak": 0,
+            "jobs": [
+              {
+                "id": "b98c93357ddb49d4bffd03a9c0ed6cb1",
+                "phase": "fix",
+                "started_at": "2026-11-28T04:08:48Z",
+                "command": "sh",
+                "heartbeat_at": "2026-11-28T04:16:52Z",
+                "plan_sha256": "1a7462547f12e2890b5533914ed2ebe001f21599a947283350868ab525f0f109",
+                "finding_ids": [
+                  "BCL-202"
+                ],
+                "worktree": "bcl124-r3-proof",
+                "model": "session-worker",
+                "lane_sha256": "fe4dfe640dd60eb214e1aa73e57106dbc2568814ea7f1cef7e32fa9c6edc13cd",
+                "cycle": 16,
+                "round": 3,
+                "pid": 22178,
+                "steps": [
+                  {
+                    "step": "failed_first",
+                    "at": "2026-11-28T04:09:51Z",
+                    "result": "test_prior_fixed_finding_is_not_verified_by_another_lane reports fixed for an unrelated historical finding."
+                  },
+                  {
+                    "step": "root_cause",
+                    "at": "2026-11-28T04:09:57Z",
+                    "result": "Settlement maps historical verified_fixed status to a new installation check without current-run observation; correction then invalidates historical lanes."
+                  }
+                ],
+                "latest_step": {
+                  "step": "root_cause",
+                  "at": "2026-11-28T04:09:57Z",
+                  "result": "Settlement maps historical verified_fixed status to a new installation check without current-run observation; correction then invalidates historical lanes."
+                },
+                "exit_code": 0,
+                "finished_at": "2026-11-28T04:16:52Z",
+                "commit": "068f066d332e8192fc0c85a0da878dbeade4906c",
+                "tokens_source": "official",
+                "tokens": {
+                  "total": 67363003,
+                  "output": 57441
+                },
+                "wall_time_s": 484,
+                "session": "rollout-2026-11-27T11-12-44-01a21b87-0943-7803-9ed0-7d4490daca3a.jsonl",
+                "finished_phase_status": "passed"
+              }
+            ],
+            "review_status": "running",
+            "reviewer_model": "independent-session-review"
           },
           "failure_history": [],
           "plan_review_history": [],
           "updated_at": "2026-11-28T04:08:40Z",
-          "stage_entered_at": "2026-11-28T04:08:48Z"
+          "stage_entered_at": "2026-11-28T04:16:52Z",
+          "trail": [
+            {
+              "step": "failed_first",
+              "at": "2026-11-28T04:09:51Z",
+              "result": "test_prior_fixed_finding_is_not_verified_by_another_lane reports fixed for an unrelated historical finding.",
+              "job_id": "b98c93357ddb49d4bffd03a9c0ed6cb1",
+              "phase": "fix"
+            },
+            {
+              "step": "root_cause",
+              "at": "2026-11-28T04:09:57Z",
+              "result": "Settlement maps historical verified_fixed status to a new installation check without current-run observation; correction then invalidates historical lanes.",
+              "job_id": "b98c93357ddb49d4bffd03a9c0ed6cb1",
+              "phase": "fix"
+            }
+          ]
         }
       ],
       "cycle": 16
