@@ -7,7 +7,563 @@
       "opened_at": null
     },
     "worktree": "samantha-next-r14",
-    "verification_history": [],
+    "verification_history": [
+      {
+        "id": "pr124-c2977776-install-20261128",
+        "build": "batched-change-list 0.1.79; context-ledger 0.1.43",
+        "revision": "c297777615c2d2ad331e8df30e295d98e2448bab",
+        "installed_at": "2026-11-28T04:04:49.183662+00:00",
+        "install_evidence": "BCL install-local reported matching tree digests; Context Ledger install and refresh commands reported 0.1.43 for cursor, codex and grok; local access check passed.",
+        "cycle": 16,
+        "status": "complete",
+        "checks": {
+          "DO-1": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "ecab2ad9cc464537baedbd770f09cf49",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.608240Z"
+          },
+          "PR122-parked-backlog": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-179": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "f68c1b6f79714e6eace99b678bfa40df",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.610019Z"
+          },
+          "BCL-181": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "61917e7955334629af8dd9b5dccd584f",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.611439Z"
+          },
+          "BCL-184": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "d8c765af6f79429689aff438476127c9",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.612834Z"
+          },
+          "BCL-186": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "aa9af3af06ed4cf88a87a6b8fc687c28",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.614221Z"
+          },
+          "BCL-187": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "db9759d739ea496985dbef04d80639d7",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.615598Z"
+          },
+          "BCL-190": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "72002aabcaba4ceb884cc0366bc1d071",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.616973Z"
+          },
+          "BCL-191": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-192": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "CL-2": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "899c20d50e00413aba8b310490f16dae",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.618350Z"
+          },
+          "CL-3": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-193": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "2d197b2904134f609e36065cb42cadc1",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.619732Z"
+          },
+          "BCL-194": {
+            "state": "inconclusive",
+            "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
+            "observed_at": "2026-11-28T04:06:19.364891+00:00",
+            "started_at": "2026-11-28T04:06:19Z",
+            "updated_at": "2026-11-28T04:06:19Z",
+            "previous_checks": [
+              {
+                "state": "fixed",
+                "evidence": "Official verify recorded this issue as verified.",
+                "finished_at": "2026-11-28T04:05:12Z"
+              }
+            ],
+            "check_id": "8cd864fc9f084e65b816c355d8eb6270",
+            "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
+            "finished_at": "2026-11-28T04:06:28.621111Z"
+          },
+          "BCL-195": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-196": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-197": {
+            "state": "fixed",
+            "evidence": "Official verify recorded this issue as verified.",
+            "finished_at": "2026-11-28T04:05:12Z"
+          },
+          "BCL-198": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-199": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-200": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-201": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:06:59Z",
+            "stopped": true,
+            "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
+            "observed_at": "2026-11-28T04:06:59Z",
+            "updated_at": "2026-11-28T04:06:59Z",
+            "finished_at": "2026-11-28T04:06:59Z"
+          },
+          "BCL-203": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:29:41Z",
+            "stopped": true,
+            "evidence": "Run stopped: The previously stopped run was reopened by adding BCL-203; close it before a fresh installed verification run.",
+            "observation": "Run stopped: The previously stopped run was reopened by adding BCL-203; close it before a fresh installed verification run.",
+            "observed_at": "2026-11-28T04:29:41Z",
+            "updated_at": "2026-11-28T04:29:41Z",
+            "finished_at": "2026-11-28T04:29:41Z"
+          }
+        },
+        "run_id": "pr124-c2977776-install-20261128",
+        "pr": 124,
+        "round": 3,
+        "started_at": "2026-11-28T04:04:49.183662+00:00",
+        "stopped": {
+          "reason": "The previously stopped run was reopened by adding BCL-203; close it before a fresh installed verification run.",
+          "at": "2026-11-28T04:29:41Z"
+        },
+        "ended_at": "2026-11-28T04:29:41Z"
+      },
+      {
+        "id": "pr124-c297-installed-recheck-20261128",
+        "build": "batched-change-list 0.1.79; context-ledger 0.1.43",
+        "revision": "c297777615c2d2ad331e8df30e295d98e2448bab",
+        "installed_at": "2026-11-28T04:30:09.228871+00:00",
+        "install_evidence": "Previously installed c2977776; installed BCL manifest and package digest were checked, ledger client refresh and local access passed. Tracker operations use reviewed BCL-202 source repair.",
+        "cycle": 16,
+        "status": "complete",
+        "checks": {
+          "DO-1": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "PR122-parked-backlog": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-179": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-181": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-184": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-186": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-187": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-190": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-191": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-192": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "CL-2": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "CL-3": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-193": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-194": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-195": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-196": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-197": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-198": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-199": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-200": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-201": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-202": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          },
+          "BCL-203": {
+            "state": "inconclusive",
+            "started_at": "2026-11-28T04:30:16Z",
+            "stopped": true,
+            "evidence": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observation": "Run stopped: Correct installation timestamp provenance before checks.",
+            "observed_at": "2026-11-28T04:30:16Z",
+            "updated_at": "2026-11-28T04:30:16Z",
+            "finished_at": "2026-11-28T04:30:16Z"
+          }
+        },
+        "run_id": "pr124-c297-installed-recheck-20261128",
+        "pr": 124,
+        "round": 3,
+        "started_at": "2026-11-28T04:30:09.228871+00:00",
+        "stopped": {
+          "reason": "Correct installation timestamp provenance before checks.",
+          "at": "2026-11-28T04:30:16Z"
+        },
+        "ended_at": "2026-11-28T04:30:16Z"
+      }
+    ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
     "installed_plugins": {
       "observed_at": "2026-11-08T13:43:48.840859+00:00",
@@ -20,9 +576,9 @@
       }
     },
     "workflow": {
-      "stage": "review",
-      "updated_at": "2026-11-28T04:20:37Z",
-      "now": "2026-11-28T04:20:37Z — Presuite started"
+      "stage": "verify",
+      "updated_at": "2026-11-28T04:30:36Z",
+      "now": "2026-11-28T04:30:36Z — Verify in progress"
     },
     "rollover": {
       "source_pr": 123,
@@ -625,7 +1181,7 @@
         "corrected_at": "2026-11-20T08:19:11Z"
       }
     ],
-    "last_written_at": "2026-11-28T04:26:48Z",
+    "last_written_at": "2026-11-28T04:30:36Z",
     "fix_order": {
       "ids": [
         "BCL-187",
@@ -2625,8 +3181,8 @@
           "finding_ids": [
             "BCL-191"
           ],
-          "status": "installing",
-          "phase": "install",
+          "status": "verifying",
+          "phase": "verify",
           "reason": "Reliability: ensure_viewer and _viewer_responds probe /__bcl_health with a 0.5 s timeout and no lock, so a loaded or concurrent start raises cannot verify viewer ownership although the viewer is healthy. Same file as R1-VIEWER (live_state.py) but disjoint functions (ensure_viewer, _viewer_responds vs _viewer_states, _state_is_live, _project_port); fix order R1-VIEWER then R2-RACE.",
           "verify": {
             "command": "/Users/gurusharan/.agents/artifacts/bcl-124/r4/verify-r4-race.sh",
@@ -2766,7 +3322,7 @@
             "review_status": "passed",
             "reviewer_model": "gpt-6-luna"
           },
-          "stage_entered_at": "2026-11-28T04:03:22Z",
+          "stage_entered_at": "2026-11-28T04:30:36Z",
           "failure_history": [
             {
               "attempt_id": "1fba226f7fc8422780f9ecbc20974093",
@@ -2812,7 +3368,7 @@
               "owner_override": true
             }
           ],
-          "updated_at": "2026-11-28T04:08:40Z",
+          "updated_at": "2026-11-28T04:30:36Z",
           "presuite": {
             "status": "passed",
             "exit_code": 0,
@@ -5294,302 +5850,88 @@
       "cycle": 16
     },
     "verification_run": {
-      "id": "pr124-c2977776-install-20261128",
+      "id": "pr124-c297-installed-recheck2-20261128",
       "build": "batched-change-list 0.1.79; context-ledger 0.1.43",
       "revision": "c297777615c2d2ad331e8df30e295d98e2448bab",
       "installed_at": "2026-11-28T04:04:49.183662+00:00",
-      "install_evidence": "BCL install-local reported matching tree digests; Context Ledger install and refresh commands reported 0.1.43 for cursor, codex and grok; local access check passed.",
+      "install_evidence": "Previously installed c2977776; installed BCL manifest and package digest were checked, ledger client refresh and local access passed. Tracker operations use reviewed BCL-202 source repair.",
       "cycle": 16,
       "status": "active",
       "checks": {
         "DO-1": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "ecab2ad9cc464537baedbd770f09cf49",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.608240Z"
+          "state": "pending"
         },
         "PR122-parked-backlog": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "BCL-179": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "f68c1b6f79714e6eace99b678bfa40df",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.610019Z"
+          "state": "pending"
         },
         "BCL-181": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "61917e7955334629af8dd9b5dccd584f",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.611439Z"
+          "state": "pending"
         },
         "BCL-184": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "d8c765af6f79429689aff438476127c9",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.612834Z"
+          "state": "pending"
         },
         "BCL-186": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "aa9af3af06ed4cf88a87a6b8fc687c28",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.614221Z"
+          "state": "pending"
         },
         "BCL-187": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "db9759d739ea496985dbef04d80639d7",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.615598Z"
+          "state": "pending"
         },
         "BCL-190": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "72002aabcaba4ceb884cc0366bc1d071",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.616973Z"
+          "state": "pending"
         },
         "BCL-191": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "BCL-192": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "CL-2": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "899c20d50e00413aba8b310490f16dae",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.618350Z"
+          "state": "pending"
         },
         "CL-3": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "BCL-193": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "2d197b2904134f609e36065cb42cadc1",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.619732Z"
+          "state": "pending"
         },
         "BCL-194": {
-          "state": "inconclusive",
-          "observation": "Reviewed the run record: no issue-specific test was performed on this installation.",
-          "observed_at": "2026-11-28T04:06:19.364891+00:00",
-          "started_at": "2026-11-28T04:06:19Z",
-          "updated_at": "2026-11-28T04:06:19Z",
-          "previous_checks": [
-            {
-              "state": "fixed",
-              "evidence": "Official verify recorded this issue as verified.",
-              "finished_at": "2026-11-28T04:05:12Z"
-            }
-          ],
-          "check_id": "8cd864fc9f084e65b816c355d8eb6270",
-          "evidence": "Checked: current installation run record; Expected: issue-specific proof for this build; Observed: no issue-specific check ran and an automatic fixed entry was created; Verdict because: this installation has not been verified for this issue.",
-          "finished_at": "2026-11-28T04:06:28.621111Z"
+          "state": "pending"
         },
         "BCL-195": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "BCL-196": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "BCL-197": {
-          "state": "fixed",
-          "evidence": "Official verify recorded this issue as verified.",
-          "finished_at": "2026-11-28T04:05:12Z"
+          "state": "pending"
         },
         "BCL-198": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "BCL-199": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "BCL-200": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
         },
         "BCL-201": {
-          "state": "inconclusive",
-          "started_at": "2026-11-28T04:06:59Z",
-          "stopped": true,
-          "evidence": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observation": "Run stopped: Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-          "observed_at": "2026-11-28T04:06:59Z",
-          "updated_at": "2026-11-28T04:06:59Z",
-          "finished_at": "2026-11-28T04:06:59Z"
+          "state": "pending"
+        },
+        "BCL-202": {
+          "state": "pending"
         },
         "BCL-203": {
           "state": "pending"
         }
       },
-      "run_id": "pr124-c2977776-install-20261128",
+      "run_id": "pr124-c297-installed-recheck2-20261128",
       "pr": 124,
       "round": 3,
-      "started_at": "2026-11-28T04:04:49.183662+00:00",
-      "stopped": {
-        "reason": "Verification of one lane incorrectly marked unrelated issues fixed in this installation; BCL-202 must be corrected before continuing.",
-        "at": "2026-11-28T04:06:59Z"
-      },
-      "ended_at": "2026-11-28T04:06:59Z"
+      "started_at": "2026-11-28T04:04:49.183662+00:00"
     }
   },
   "findings": [
@@ -5634,10 +5976,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.608240Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -5681,7 +6029,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -5725,10 +6073,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.610019Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -5777,10 +6131,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.611439Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -5828,10 +6188,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.612834Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -5879,10 +6245,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.614221Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -5930,10 +6302,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.615598Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -5984,10 +6362,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.616973Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6033,7 +6417,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "needs": "1. [live_state.py:570](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:570) caps every health request at 1.5 seconds. A healthy viewer that consistently answers in 1.7 seconds will time out on every attempt and still produce the reported ownership error. The three-second overall deadline does not give any individual request enough time to succeed.\n\n2. [live_state.py:386](/Users/gurusharan/code/worktrees/agent-plugins/bcl124-r4-race/plugins/batched-change-list/skills/batched-change-list/scripts/live_state.py:386) gives every caller a fixed 15-second lock deadline while each caller performs its own health and report requests inside the lock. A sufficiently large burst, or a smaller burst with slow healthy responses, can exhaust that deadline and fail a command. The concurrency guarantee needs to account for queued callers."
@@ -6089,7 +6473,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "needs": "Changes requested; Must-fix section missing"
@@ -6135,6 +6519,12 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "verification_refs": [
@@ -6142,7 +6532,7 @@
       ],
       "verification": "Verification command exited 0: /Users/gurusharan/.agents/artifacts/bcl-124/r5/verify-r5-cl2.sh",
       "last_seen": {
-        "at": "2026-11-28T04:06:28.618350Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -6178,7 +6568,7 @@
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -6223,10 +6613,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.619732Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6275,10 +6671,16 @@
           "from": "resolved",
           "to": "regressed",
           "source": "verification_check"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-28T04:06:28.621111Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       },
       "verification_refs": [
@@ -6311,7 +6713,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -6340,7 +6742,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -6385,11 +6787,17 @@
           "from": "in_progress",
           "to": "resolved",
           "source": "tracker_update"
+        },
+        {
+          "at": "2026-11-28T04:30:16Z",
+          "from": "resolved",
+          "to": "regressed",
+          "source": "verification_check"
         }
       ],
       "last_seen": {
-        "at": "2026-11-27T05:51:13Z",
-        "source": "review"
+        "at": "2026-11-28T04:30:16Z",
+        "source": "verification_check"
       },
       "needs": "- Make an owner unblock reset a lane capped after two plan-review CHANGES. The cap refuses review without blocking the lane, while unblock accepts only blocked lanes or lanes parked after two counted failures. Plan-review CHANGES are uncounted, and unblock only records owner_override for two counted failures.",
       "verification_refs": [
@@ -6422,7 +6830,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -6451,7 +6859,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -6480,7 +6888,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -6509,7 +6917,7 @@
       },
       "state_changes": [],
       "last_seen": {
-        "at": "2026-11-28T04:06:59Z",
+        "at": "2026-11-28T04:30:16Z",
         "source": "verification_check"
       }
     },
@@ -6536,15 +6944,19 @@
         "round": 3,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-28T04:30:16Z",
+        "source": "verification_check"
+      }
     },
     {
       "id": "BCL-203",
       "title": "Stopping verification can leave install lanes permanently busy",
       "summary": "After an interrupted verification run, lanes can remain marked as installing and block a follow-up repair release.",
       "impact": "An agent cannot install the fix needed to resume verification without an official way to close the stale install markers.",
-      "done_when": "A stopped or interrupted verification run permits an evidence-preserving recovery of completed or interrupted install markers without changing issue verdicts; active installs remain protected. Verify the recovery and release gate with a realistic tracker fixture.",
-      "observed": "PR #124 on 28 Nov 2026: after stop-verify for the BCL-202 evidence defect, R2-RACE, R2-PLANHEAD and R2-CL-VIEW remained installing. Release-check for the reviewed BCL-202 fix is blocked. BCL-190 only repairs lists already recorded as merged.",
+      "done_when": "A stopped or interrupted verification run permits an evidence-preserving recovery of completed or interrupted install markers without changing issue verdicts; active installs remain protected. Verify the recovery and release gate with a realistic tracker fixture. Adding an issue must not reopen a stopped run.",
+      "observed": "PR #124 on 28 Nov 2026: after stop-verify for the BCL-202 evidence defect, R2-RACE, R2-PLANHEAD and R2-CL-VIEW remained installing. Release-check for the reviewed BCL-202 fix is blocked. BCL-190 only repairs lists already recorded as merged. Adding BCL-203 then reopened the stopped run as active while retaining stopped and ended_at; source add reopens complete runs unconditionally.",
       "recommendation": "Provide a guarded recovery for stale install markers on an unmerged list after verification stops, preserving install and verification history.",
       "priority": "high",
       "source": "Agent reported",
@@ -6561,7 +6973,11 @@
         "round": 3,
         "source": "created_at"
       },
-      "state_changes": []
+      "state_changes": [],
+      "last_seen": {
+        "at": "2026-11-28T04:30:16Z",
+        "source": "verification_check"
+      }
     }
   ]
 }
