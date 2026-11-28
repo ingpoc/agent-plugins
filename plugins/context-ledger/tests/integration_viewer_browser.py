@@ -4,15 +4,26 @@ import json
 import os
 import sqlite3
 import threading
-import unittest
 from http.server import ThreadingHTTPServer
 
 from test_viewer import ROOT, ViewerBase, _u
 from context_ledger.viewer_local import make_handler
 
+INTEGRATION_REQUIRES = "LEDGER_TEST_BROWSER pointing to a Chromium executable and Python Playwright"
+
 
 class ViewerBrowserTests(ViewerBase):
-    @unittest.skipUnless(os.environ.get("LEDGER_TEST_BROWSER"), "set LEDGER_TEST_BROWSER for rendered viewer checks")
+    @classmethod
+    def setUpClass(cls):
+        browser = os.environ.get("LEDGER_TEST_BROWSER")
+        if not browser or not os.path.isfile(browser) or not os.access(browser, os.X_OK):
+            raise AssertionError(f"integration suite needs {INTEGRATION_REQUIRES}")
+        try:
+            import playwright.sync_api
+        except ImportError as error:
+            raise AssertionError(f"integration suite needs {INTEGRATION_REQUIRES}") from error
+        super().setUpClass()
+
     def test_project_lookup_and_text_controls_render(self):
         from playwright.sync_api import sync_playwright
 

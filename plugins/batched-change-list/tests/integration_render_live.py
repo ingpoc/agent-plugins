@@ -9,15 +9,23 @@ import tempfile
 import threading
 import unittest
 import uuid
+
+INTEGRATION_REQUIRES = "BCL_COMET_RUNTIME pointing to a working Comet Control runtime"
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
-@unittest.skipUnless(os.environ.get("BCL_COMET_RUNTIME"), "set BCL_COMET_RUNTIME for the visible browser check")
 class RenderedViewerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        runtime = os.environ.get("BCL_COMET_RUNTIME")
+        if not runtime or not (Path(runtime) / "skills/comet-control/scripts/durable_lease_controller.py").is_file():
+            raise AssertionError(f"integration suite needs {INTEGRATION_REQUIRES}")
+
     def test_navigation_font_and_mixed_lane_heading(self):
-        skill = Path(__file__).resolve().parent.parent
+        skill = Path(__file__).resolve().parent.parent / "skills/batched-change-list"
+        sys.path.insert(0, str(skill / "scripts"))
         spec = importlib.util.spec_from_file_location("bcl_render_live", skill / "scripts/render.py")
         renderer = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(renderer)
